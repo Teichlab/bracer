@@ -1,47 +1,78 @@
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 
 import six
 from Bio.Alphabet import generic_dna
 from Bio.Seq import Seq
+import pdb
 
 
 class Cell(object):
 
     """Class to describe T cells containing A and B loci"""
 
-    def __init__(self, cell_name, A_recombinants, B_recombinants, G_recombinants, D_recombinants, is_empty=False,
-                 species="Mmus"):
+    def __init__(self, cell_name, recombinants, is_empty=False, species="Mmus", invariant_seqs=None, 
+                    receptor=None, loci=None):
+        
         self.name = cell_name
-        self.A_recombinants = A_recombinants
-        self.B_recombinants = B_recombinants
-        self.G_recombinants = G_recombinants
-        self.D_recombinants = D_recombinants
         self.bgcolor = None
-        self.all_recombinants = {'A': A_recombinants, 'B': B_recombinants, 'G': G_recombinants, 'D': D_recombinants}
-        self.cdr3_comparisons = {'A': None, 'B': None, 'mean_both': None}
+        self.recombinants = self._process_recombinants(recombinants, receptor, loci)
         self.is_empty = self._check_is_empty()
-        self.is_inkt = self._check_if_inkt(species)
+        self.species = species
+        #self.cdr3_comparisons = {'A': None, 'B': None, 'mean_both': None}
 
+        if not invariant_seqs:
+            self.invariant_seqs = []
+        else:
+            self.invariant_seqs = invariant_seqs
+
+        #self.is_inkt = self._check_if_inkt()
+    
+    def _process_recombinants(self, recombinants, receptor, loci):
+        recombinant_dict = defaultdict(dict)
+        if recombinants is not None:
+            for r_name, r in six.iteritems(recombinants):
+                r_name = r_name.split("_")
+                receptor = r_name[0]
+                locus = r_name[1]
+                recombinant_dict[receptor][locus] = r
+            
+        #normalise this to put None in cases where no receptors found
+        for l in loci:
+            if l not in recombinant_dict[receptor]:
+                recombinant_dict[receptor][l] = None
+        return dict(recombinant_dict)
+                
     def _check_is_empty(self):
-        if (self.A_recombinants is None or len(self.A_recombinants) == 0) and (
-                self.B_recombinants is None or len(self.B_recombinants) == 0):
-            return (True)
+        if (self.recombinants is None or len(self.recombinants) == 0):
+            return True
+        else:
+            return False
+    
+    def missing_loci_of_interest(self, receptor_name, loci):
+        recombinants = self.recombinants[receptor_name]
+        loci_of_interest = set(loci)
+        loci_in_cell = set()
+        for l in loci:
+            if l in recombinants and (recombinants[l] is not None and len(recombinants[l])>0):
+                loci_in_cell.add(l)
+        if len(loci_of_interest.intersection(loci_in_cell)) == 0:
+            return True
+        else:
+            return False
+        
 
-    def _check_if_inkt(self, species):
-        A_recombs = self.getMainRecombinantIdentifiersForLocus("A")
-        inkt_ident = False
-        for recomb in A_recombs:
-            if species == "Mmus":
-                if "TRAV11" in recomb and "TRAJ18" in recomb:
-                    inkt_ident = recomb
-            if species == "Hsap":
-                if "TRAV10" in recomb and "TRAJ18" in recomb:
-                    inkt_ident = recomb
-        return (inkt_ident)
+    #def _check_if_inkt(self):
+    #    A_recombs = self.getMainRecombinantIdentifiersForLocus("A")
+    #    inkt_ident = False
+    #    for recomb in A_recombs:
+    #        for invar_seq in self.invariant_seqs:
+    #            if invar_seq['V'] in recomb and invar_seq['J'] in recomb:
+    #                inkt_ident = recomb
+    #    return (inkt_ident)
 
-    def reset_cdr3_comparisons(self):
-        self.cdr3_comparisons = {'A': None, 'B': None, 'mean_both': None}
+    #def reset_cdr3_comparisons(self):
+    #    self.cdr3_comparisons = {'A': None, 'B': None, 'mean_both': None}
 
     def getAllRecombinantIdentifiersForLocus(self, locus):
         recombinants = self.all_recombinants[locus]
@@ -59,39 +90,41 @@ class Cell(object):
         if recombinants is not None:
             for recombinant in recombinants:
                 identifier_list.add(recombinant.identifier)
-        return (identifier_list)
+        return identifier_list
 
-    def getAllRecombinantCDR3ForLocus(self, locus):
-        recombinants = self.all_recombinants[locus]
-        identifier_list = set()
-        if recombinants is not None:
-            for recombinant in recombinants:
-                cdr3 = str(recombinant.cdr3)
-                if "Couldn't" not in cdr3:
-                    identifier_list.add(cdr3)
-        return (identifier_list)
+    #def getAllRecombinantCDR3ForLocus(self, locus):
+    #    recombinants = self.all_recombinants[locus]
+    #    identifier_list = set()
+    #    if recombinants is not None:
+    #        for recombinant in recombinants:
+    #            cdr3 = str(recombinant.cdr3)
+    #            if "Couldn't" not in cdr3:
+    #                identifier_list.add(cdr3)
+    #    return (identifier_list)
 
-    def html_style_label_dna(self):
-        colours = {'A': {'productive': '#E41A1C', 'non-productive': "#ff8c8e"},
-                   'B': {'productive': '#377eb8', 'non-productive': "#95c1e5"},
-                   'G': {'productive': '#4daf4a', 'non-productive': "#aee5ac"},
-                   'D': {'productive': '#984ea3', 'non-productive': "#deace5"}}
-        locus_names = ['A', 'B', 'G', 'D']
+    def html_style_label_dna(self, receptor, loci, colours):
+        #colours = {'A': {'productive': '#E41A1C', 'non-productive': "#ff8c8e"},
+        #           'B': {'productive': '#377eb8', 'non-productive': "#95c1e5"},
+        #           'G': {'productive': '#4daf4a', 'non-productive': "#aee5ac"},
+        #           'D': {'productive': '#984ea3', 'non-productive': "#deace5"}}
+        #locus_names = ['A', 'B', 'G', 'D']
+        
+
         recombinants = dict()
         final_string = '<<FONT POINT-SIZE="16"><B>' + self.name + "</B></FONT>"
-        for locus, recombinant_list in six.iteritems(self.all_recombinants):
+        for locus, recombinant_list in six.iteritems(self.recombinants[receptor]):
             recombinant_set = set()
             if recombinant_list is not None:
                 for recombinant in recombinant_list:
                     if recombinant.productive:
-                        prod = "productive"
+                        i = 0
                     else:
-                        prod = "non-productive"
+                        i = 1
                     recombinant_set.add("<BR/>" + '<FONT COLOR = "{}">'.format(
-                        colours[locus][prod]) + recombinant.identifier + '</FONT>')
+                        colours[receptor][locus][i]) + recombinant.identifier + '</FONT>')
 
                 recombinants[locus] = recombinant_set
-        for locus in locus_names:
+        for locus in loci:
             if locus in recombinants.keys():
                 id_string = "".join(recombinants[locus])
                 final_string = final_string + id_string
@@ -99,29 +132,33 @@ class Cell(object):
         return (final_string)
         # return(self.name)
 
-    def html_style_label_for_circles(self):
-        colours = {'A': {'productive': '#E41A1C', 'non-productive': "#ff8c8e"},
-                   'B': {'productive': '#377eb8', 'non-productive': "#95c1e5"},
-                   'G': {'productive': '#4daf4a', 'non-productive': "#aee5ac"},
-                   'D': {'productive': '#984ea3', 'non-productive': "#deace5"}}
-        locus_names = ['A', 'B', 'G', 'D']
+    def html_style_label_for_circles(self, receptor, loci, colours):
+        
+        #colours = {'A': {'productive': '#E41A1C', 'non-productive': "#ff8c8e"},
+        #           'B': {'productive': '#377eb8', 'non-productive': "#95c1e5"},
+        #           'G': {'productive': '#4daf4a', 'non-productive': "#aee5ac"},
+        #           'D': {'productive': '#984ea3', 'non-productive': "#deace5"}}
+        #locus_names = ['A', 'B', 'G', 'D']
+        
+        
+        
         recombinants = dict()
         final_string = '<<table cellspacing="6px" border="0" cellborder="0">'
         # final_string = "<"
-        for locus, recombinant_list in six.iteritems(self.all_recombinants):
+        for locus, recombinant_list in six.iteritems(self.recombinants[receptor]):
             recombinant_set = set()
             if recombinant_list is not None:
                 for recombinant in recombinant_list:
                     if recombinant.productive:
-                        prod = "productive"
+                        i = 0
                     else:
-                        prod = "non-productive"
+                        i = 1
                     recombinant_set.add(
-                        '<tr><td height="10" width="40" bgcolor="{}"></td></tr>'.format(colours[locus][prod]))
+                        '<tr><td height="10" width="40" bgcolor="{}"></td></tr>'.format(colours[receptor][locus][i]))
 
                 recombinants[locus] = recombinant_set
         strings = []
-        for locus in locus_names:
+        for locus in loci:
             if locus in recombinants.keys():
                 strings.append("".join(recombinants[locus]))
 
@@ -168,45 +205,58 @@ class Cell(object):
 
     def get_fasta_string(self):
         seq_string = []
-        for locus, recombinants in six.iteritems(self.all_recombinants):
-            if recombinants is not None:
-                for rec in recombinants:
-                    name = ">TCR|{contig_name}|{identifier}".format(contig_name=rec.contig_name,
-                                                                    identifier=rec.identifier)
-                    seq = rec.dna_seq
-                    seq_string.append("\n".join([name, seq]))
+        
+        for receptor, locus_dict in six.iteritems(self.recombinants):
+            for locus, recombinants in six.iteritems(locus_dict):
+                if recombinants is not None:
+                    for rec in recombinants:
+                        name = ">TRACER|{receptor}|{locus}|{contig_name}|{identifier}".format(contig_name=rec.contig_name,
+                                                                            receptor=receptor, locus=locus,
+                                                                            identifier=rec.identifier)
+                        seq = rec.dna_seq
+                        seq_string.append("\n".join([name, seq]))
+        
+        #for locus, recombinants in six.iteritems(self.all_recombinants):
+        #    if recombinants is not None:
+        #        for rec in recombinants:
+        #            name = ">TCR|{contig_name}|{identifier}".format(contig_name=rec.contig_name,
+        #                                                            identifier=rec.identifier)
+        #            seq = rec.dna_seq
+        #            seq_string.append("\n".join([name, seq]))
         return ("\n".join(seq_string + ["\n"]))
 
-    def summarise_productivity(self, locus):
-        if self.all_recombinants[locus] is None:
-            return ("0/0")
+    def summarise_productivity(self, receptor, locus):
+        if (self.recombinants is None or locus not in self.recombinants[receptor] or 
+            self.recombinants[receptor][locus] is None):
+            return("0/0")
         else:
-            recs = self.all_recombinants[locus]
+            recs = self.recombinants[receptor][locus]
             prod_count = 0
             total_count = len(recs)
             for rec in recs:
                 if rec.productive:
                     prod_count += 1
             return ("{}/{}".format(prod_count, total_count))
+                
 
     def filter_recombinants(self):
-        for locus in ['A', 'B']:
-            recs = self.all_recombinants[locus]
-            if recs is not None:
-                if len(recs) > 2:
-                    TPM_ranks = Counter()
-                    for rec in recs:
-                        TPM_ranks.update({rec.contig_name: rec.TPM})
-                    two_most_common = [x[0] for x in TPM_ranks.most_common(2)]
-                    to_remove = []
-                    for rec in recs:
-                        if rec.contig_name not in two_most_common:
-                            to_remove.append(rec)
-                    for rec in to_remove:
-                        self.all_recombinants[locus].remove(rec)
+        for receptor, locus_dict in six.iteritems(self.recombinants):
+            for locus, recombinants in six.iteritems(locus_dict):
+                if recombinants is not None:
+                    if len(recombinants) > 2:
+                        TPM_ranks = Counter()
+                        for rec in recombinants:
+                            TPM_ranks.update({rec.contig_name: rec.TPM})
+                        two_most_common = [x[0] for x in TPM_ranks.most_common(2)]
+                        to_remove = []
+                        for rec in recombinants:
+                            if rec.contig_name not in two_most_common:
+                                to_remove.append(rec)
+                        for rec in to_remove:
+                            self.recombinants[receptor][locus].remove(rec)
 
-    def count_productive_recombinants(self, locus):
-        recs = self.all_recombinants[locus]
+    def count_productive_recombinants(self, receptor, locus):
+        recs = self.recombinants[receptor][locus]
         count = 0
         if recs is not None:
             for rec in recs:
@@ -214,20 +264,26 @@ class Cell(object):
                     count += 1
         return (count)
 
-    def count_total_recombinants(self, locus):
-        recs = self.all_recombinants[locus]
+    def count_total_recombinants(self, receptor, locus):
+        recs = self.recombinants[receptor][locus]
         count = 0
         if recs is not None:
             count = len(recs)
         return (count)
 
-    def get_trinity_lengths(self, locus):
-        recs = self.all_recombinants[locus]
+    def get_trinity_lengths(self, receptor, locus):
+        recs = self.recombinants[receptor][locus]
         lengths = []
         if recs is not None:
             for rec in recs:
                 lengths.append(len(rec.trinity_seq))
         return (lengths)
+        
+    def has_excess_recombinants(self, max_r=2):
+        for receptor, locus_dict in six.iteritems(self.recombinants):
+            for locus, recs in six.iteritems(locus_dict):
+                if len(recs) > max_r:
+                    return(True)
 
 
 class Recombinant(object):
@@ -236,7 +292,7 @@ class Recombinant(object):
 
     def __init__(self, contig_name, locus, identifier, all_poss_identifiers, productive, stop_codon, in_frame, TPM,
                  dna_seq, hit_table, summary, junction_details, best_VJ_names, alignment_summary, trinity_seq,
-                 imgt_reconstructed_seq):
+                 imgt_reconstructed_seq, has_D):
         self.contig_name = contig_name
         self.locus = locus
         self.identifier = identifier
@@ -254,6 +310,7 @@ class Recombinant(object):
         self.stop_codon = stop_codon
         self.trinity_seq = trinity_seq
         self.imgt_reconstructed_seq = imgt_reconstructed_seq
+        self.has_D_segment = has_D
 
     def __str__(self):
         return ("{} {} {} {}".format(self.identifier, self.productive, self.TPM))
@@ -277,12 +334,12 @@ class Recombinant(object):
 
     def get_summary(self):
         summary_string = "##{contig_name}##\n".format(contig_name=self.contig_name)
-        if self.locus == 'A':
+        if not self.has_D_segment:
             V_segment = self.summary[0]
             J_segment = self.summary[1]
             segments_string = "V segment:\t{V_segment}\nJ segment:\t{J_segment}\n".format(V_segment=V_segment,
                                                                                           J_segment=J_segment)
-        elif self.locus == 'B':
+        else:
             V_segment = self.summary[0]
             D_segment = self.summary[1]
             J_segment = self.summary[2]

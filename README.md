@@ -1,3 +1,6 @@
+**THIS BRANCH DOES NOT WORK: This branch is still a work-in-progress for implementing changes to make TraCeR more
+extensible. It will fail in a lot of interesting but unhelpful ways if you try to use it for actual analyses**
+
 # TraCeR
 TraCeR - reconstruction of T cell receptor sequences from single-cell RNA-seq data.
 
@@ -33,9 +36,10 @@ Note that TraCeR is compatible with both Python 2 and 3.
 1. [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml) - required for alignment of reads to synthetic TCR genomes.
 2. [Trinity](https://github.com/trinityrnaseq/trinityrnaseq/wiki) - required for assembly of reads into TCR contigs. TraCeR now works with both version 1 and version 2 of Trinity. It should automatically detect the version that is installed or you can [specify it in the config file](https://github.com/Teichlab/tracer#trinity-options).
     - Please note that Trinity requires a working installation of [Bowtie v1](http://bowtie-bio.sourceforge.net).
-3. [IgBLAST](http://www.ncbi.nlm.nih.gov/igblast/faq.html#standalone) - required for analysis of assembled contigs. (ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release//1.4.0). **IMPORTANT: currently, TraCeR only supports IgBLAST v1.4.0 and does not work with later versions due to changes in output format.** Support for later versions of IgBLAST will be included in the next update.
-4. [Kallisto](http://pachterlab.github.io/kallisto/) - required for quantification of TCR expression.
-5. [Graphviz](http://www.graphviz.org) - Dot and Neato drawing programs required for visualisation of clonotype graphs. This is optional - see the [`--no_networks` option](#options-1) to [`summarise`](#summarise-summary-and-clonotype-networks).
+3. [IgBLAST](http://www.ncbi.nlm.nih.gov/igblast/faq.html#standalone) - required for analysis of assembled contigs. (ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/).
+4. [makeblastdb](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/ ) - **optional** but required if you want to use TraCeR's `build` mode to make your own references.
+5. [Kallisto](http://pachterlab.github.io/kallisto/) - required for quantification of TCR expression.
+6. [Graphviz](http://www.graphviz.org) - Dot and Neato drawing programs required for visualisation of clonotype graphs. This is optional - see the [`--no_networks` option](#options-1) to [`summarise`](#summarise-summary-and-clonotype-networks).
 
 #####Installing IgBlast#####
 Downloading the executable files from `ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/<version_number>` is not sufficient for a working IgBlast installation. You must also download the `internal_data` directory (ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/internal_data) and put it into the same directory as the igblast executable. This is also described in the igblast README file.
@@ -73,17 +77,23 @@ Which will make TraCeR accessible in your python environment, and incorporate lo
 
 Once the prerequisites above are installed and working you're ready to tell TraCeR where to find them.
 
-TraCeR uses a configuration file to point it to the locations of files that it needs and a couple of other options. By default, this is `tracer.conf` in the same directory as the TraCeR executable. The `-c` option to the various tracer modules allows you to specify any other file to act as the configuration file.
+TraCeR uses a configuration file to point it to the locations of files that it needs and a couple of other options.
+An example configuration file is included in the repository - `tracer.conf`.
+By default, this is `~/.tracerrc`. If tracer fails to find this file, it will use the `tracer.conf` in the repository.
+ The `-c` option to the various tracer modules allows you to specify any other file to act as the configuration file.
 
-**Important:** If you  specify relative paths in the config file these will be used as relative to the main installation directory. For example, `resources/igblast_dbs/mouse` will resolve to `/<wherever you installed tracer>/tracer/resources/igblast_dbs/mouse`.
+**Important:** If you  specify relative paths in the config file these will be used as relative to the main installation directory. For example, `resources/Mmus/igblast_dbs` will resolve to `/<wherever you installed tracer>/tracer/resources/Mmus/igblast_dbs`.
 
 ###External tool locations###
-Edit `tracer.conf` (or a copy) so that the paths within the `[tool_locations]` section point to the executables for all of the required tools. 
+Tracer will look in your system's `PATH` for external tools. You can override this behaviour by editing your `~/.tracerrc`.
+Edit `~/.tracerrc` (or a copy) so that the paths within the `[tool_locations]` section point to the executables for all of the required tools.
 
 	[tool_locations]
 	#paths to tools used by TraCeR for alignment, quantitation, etc
 	bowtie2_path = /path/to/bowtie2
+    bowtie2-build_path = /path/to/bowtie2-build
 	igblast_path = /path/to/igblastn
+    makeblastdb_path = /path/to/makeblastdb
 	kallisto_path = /path/to/kallisto
 	trinity_path = /path/to/trinity
 	dot_path = /path/to/dot
@@ -97,7 +107,7 @@ Currently, organism-specific files (TCR gene sequences, synthetic genome indices
 
 ####Bowtie synthetic genomes path####
 	[bowtie2_options]
-	synthetic_genome_index_path = resources/synthetic_genomes/mouse
+	synthetic_genome_index_path = resources/Mmus/synthetic_genomes
 
 This path specifies the directory that contains Bowtie2 indices constructed from all possible combinations of V and J segments for each locus. 
 
@@ -125,11 +135,11 @@ Trinity can parallelise contig assembly by submitting jobs across a compute clus
 ####IgBLAST options####
 #####Databases path#####
 	[IgBlast_options]
-	igblast_index_location = resources/igblast_dbs/mouse
+	igblast_index_location = resources/Mmus/igblast_dbs
 #####VDJ sequences#####
 This path specifies the directory that contains IgBLAST database files for V, D and J genes. These files are named `imgt_tcr_db_<SEGMENT>.fa`.
 
-    imgt_seq_location = resources/imgt_sequences/mouse
+    imgt_seq_location = resources/Mmus/imgt_sequences
 		
 Path to fasta files with sequences for each V, D or J gene. Files are names `TR<LOCUS><SEGMENT>.fa`.
 #####Receptor type#####
@@ -183,13 +193,14 @@ Tracer has two modes *assemble* and *summarise*.
 
 #####Options#####
 `-p/--ncores <int>` : number of processor cores available. This is passed to Bowtie2 and Trinity. Default=1.  
-`-c/--config_file <conf_file>` : config file to use. Default = `tracer.conf`  
+`-c/--config_file <conf_file>` : config file to use. Default = `~/.tracerrc`
 `-s/--species` : Species from which the T cells were derived. Options are `Mmus` or `Hsap` for mouse or human data. This is only important for determination of iNKT cells in the `summarise` step because it defines the V segments that are indicative of iNKT cells. Default = `Mmus`.  
 `-r/--resume_with_existing_files` : if this is set, TraCeR will look for existing output files and not re-run steps that already appear to have been completed. This saves time if TraCeR died partway through a step and you want to resume where it left off.   
 `-m/--seq_method` : method by which to generate sequences for assessment of recombinant productivity. By default (`-m imgt`), TraCeR replaces all but the junctional sequence of each detected recombinant with the reference sequence from IMGT prior to assessing productivity of the sequence. This makes the assumption that sequence changes outside the junctional region are due to PCR/sequencing errors rather than being genuine polymorphisms. This is likely to be true for well-characterised mouse sequences but may be less so for human and other outbred populations. To determine productivity from only the assembled contig sequence for each recombinant use `-m assembly`.   
 `--single_end` : use this option if your data are single-end reads. If this option is set you must specify fragment length and fragment sd as below.  
 `--fragment_length` : Estimated average fragment length in the sequencing library. Used for Kallisto quantification. Required for single-end data. Can also be set for paired-end data if you don't want Kallisto to estimate it directly.  
-`--fragment_sd` : Estimated standard deviation of average fragment length in the sequencing library. Used for Kallisto quantification. Required for single-end data. Can also be set for paired-end data if you don't want Kallisto to estimate it directly.  
+`--fragment_sd` : Estimated standard deviation of average fragment length in the sequencing library. Used for Kallisto quantification. Required for single-end data. Can also be set for paired-end data if you don't want Kallisto to estimate it directly.
+`--invariant_sequences`: Custom invariant sequence file. Use the default example in 'resources/Mmus/invariant_seqs.csv'
 
 ####Output####
 
@@ -226,7 +237,7 @@ For each cell, an `/<output_directory>/<cell_name>` directory will be created. T
 `<input_dir>` : directory containing subdirectories of each cell you want to summarise. 
 
 #####Options#####
-`-c/--config_file <conf_file>` : config file to use. Default = `tracer.conf`  
+`-c/--config_file <conf_file>` : config file to use. Default = `~/.tracerrc`
 `-u/--use_unfiltered` : Set this flag to use unfiltered recombinants for summary and networks rather than the recombinants filtered by expression level.  
 `-i/--keep_inkt` : TraCeR attempts to identify iNKT cells by their characteristic TCRA gene segments (TRAV11–TRAJ18). By default, these are removed before creation of clonotype networks. Setting this option retains the iNKT cells in all stages.    
 `-g/--graph_format` : Output format for the clonotype networks. This is passed directly to Graphviz and so must be one of the options detailed at http://www.graphviz.org/doc/info/output.html.  

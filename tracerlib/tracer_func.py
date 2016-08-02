@@ -14,10 +14,14 @@
 
 from __future__ import print_function
 
+import glob
 import os
 import re
+import shutil
 import subprocess
 from collections import defaultdict, Counter
+import csv
+from time import sleep
 
 import Levenshtein
 import networkx as nx
@@ -27,7 +31,11 @@ from Bio.Alphabet import IUPAC
 from Bio.Seq import Seq
 
 from tracerlib.core import Cell, Recombinant
+import tracerlib.io
 
+import copy
+
+import pdb
 
 def process_chunk(chunk):
     store_VDJ_rearrangement_summary = False
@@ -91,15 +99,18 @@ def process_chunk(chunk):
     return (query_name, return_dict)
 
 
-def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, output_dir, species, seq_method):
-    # pdb.set_trace()
+def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, output_dir, species, seq_method,
+                             invariant_seqs, loci_for_segments, receptor, loci, max_junc_string_length):
     alignment_dict = defaultdict(dict)
-    recombinants = {'TCRA': [], 'TCRB': []}
+    recombinants = {}
+    for locus in locus_names:
+        recombinants[locus] = []
+    
+    #recombinants = {'TCRA': [], 'TCRB': []}
     for locus in locus_names:
         data_for_locus = sample_dict[locus]
         if data_for_locus is not None:
             for query_name, query_data in six.iteritems(data_for_locus):
-                # pdb.set_trace()
                 processed_hit_table = process_hit_table(query_name, query_data, locus)
 
                 if processed_hit_table is not None:
@@ -110,11 +121,19 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
 
                     junc_string = "".join(junction_list)
                     junc_string = remove_NA(junc_string)
-
-                    if returned_locus in "BD":
+                    
+                    locus_letter = returned_locus.split("_")[1]
+                    
+                    if locus_letter in loci_for_segments['D']:
+                        has_D = True
+                    else:
+                        has_D = False
+                    
+                    if has_D:
                         best_J = remove_allele_stars(rearrangement_summary[2].split(",")[0])
-                    elif returned_locus in "AG":
+                    else:
                         best_J = remove_allele_stars(rearrangement_summary[1].split(",")[0])
+
 
                     identifier = best_V + "_" + junc_string + "_" + best_J
 
@@ -123,9 +142,9 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
 
                     all_V_names = [remove_allele_stars(x) for x in rearrangement_summary[0].split(',')]
 
-                    if locus == "TCRB":
+                    if has_D:
                         all_J_names = [remove_allele_stars(x) for x in rearrangement_summary[2].split(',')]
-                    elif locus == "TCRA":
+                    else:
                         all_J_names = [remove_allele_stars(x) for x in rearrangement_summary[1].split(',')]
 
                     all_poss_identifiers = set()
@@ -138,9 +157,10 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                     # Only use the VDJ portion found by IgBLAST
                     trinity_file = "{output_dir}/Trinity_output/{cell_name}_{locus}.Trinity.fasta".format(
                         locus=locus, output_dir=output_dir, cell_name=cell_name)
-                    for record in SeqIO.parse(open(trinity_file, 'rU'), 'fasta'):
-                        if query_name in record.id:
-                            trinity_seq = record
+                    with open(trinity_file, 'rU') as tf:
+                        for record in SeqIO.parse(tf, 'fasta'):
+                            if query_name in record.id:
+                                trinity_seq = record
 
                     if 'reversed' in good_hits[0][1]:
                         trinity_seq = trinity_seq.reverse_complement().seq
@@ -151,32 +171,33 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
 
                     (imgt_reconstructed_seq, is_productive, bestVJNames) = get_fasta_line_for_contig_imgt(
                         rearrangement_summary, junction_list, good_hits, returned_locus, IMGT_seqs, cell_name,
-                        query_name, species)
+                        query_name, species, loci_for_segments)
                     del (is_productive)
                     del (bestVJNames)
 
                     if seq_method == 'imgt':
                         (fasta_line_for_contig, is_productive, bestVJNames) = get_fasta_line_for_contig_imgt(
                             rearrangement_summary, junction_list, good_hits, returned_locus, IMGT_seqs, cell_name,
-                            query_name, species)
+                            query_name, species, loci_for_segments)
 
                     elif seq_method == 'assembly':
                         fasta_line_for_contig = trinity_seq
                         (is_productive, bestVJNames) = get_fasta_line_for_contig_assembly(trinity_seq, good_hits,
                                                                                           returned_locus, IMGT_seqs,
-                                                                                          cell_name, query_name)
+                                                                                          cell_name, query_name,
+                                                                                          loci_for_segments)
 
-                    if len(junc_string) < 50:
+                    if len(junc_string) < max_junc_string_length:
                         rec = Recombinant(contig_name=query_name, locus=returned_locus, identifier=identifier,
                                           all_poss_identifiers=all_poss_identifiers, productive=is_productive[0],
                                           stop_codon=is_productive[1], in_frame=is_productive[2], TPM=0.0,
                                           dna_seq=fasta_line_for_contig, hit_table=good_hits,
                                           summary=rearrangement_summary, junction_details=junction_list,
                                           best_VJ_names=bestVJNames, alignment_summary=alignment_summary,
-                                          trinity_seq=trinity_seq, imgt_reconstructed_seq=imgt_reconstructed_seq)
+                                          trinity_seq=trinity_seq, imgt_reconstructed_seq=imgt_reconstructed_seq, 
+                                          has_D=has_D)
                         recombinants[locus].append(rec)
 
-    # pdb.set_trace()
     if recombinants:
         for locus, rs in six.iteritems(recombinants):
             # Adding code to collapse sequences with very low Levenshtein distances caused by confusion between
@@ -184,9 +205,11 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
             recombinants[locus] = collapse_close_sequences(rs, locus)
 
         # cell_name, A_recombinants, B_recombinants, G_recombinants, D_recombinants, is_empty=False, species="Mmus")
-        cell = Cell(cell_name, recombinants['TCRA'], recombinants['TCRB'], None, None, species=species)
+        cell = Cell(cell_name, recombinants, species=species, invariant_seqs=invariant_seqs, 
+                    receptor=receptor, loci=loci)
+        
     else:
-        cell = Cell(cell_name, None, None, None, None, species=species)
+        cell = Cell(cell_name, None, species=species, invariant_seqs=invariant_seqs, receptor=receptor, loci=loci)
 
     # pdb.set_trace()
     return (cell)
@@ -231,7 +254,9 @@ def process_hit_table(query_name, query_data, locus):
     good_hits = []
 
     segment_locus_pattern = re.compile(r"TRAV.+DV.+")
-
+    
+    locus_name = locus.split("_")[1]
+    
     for entry in hit_table:
         entry = entry.split("\t")
         segment = entry[2]
@@ -242,7 +267,7 @@ def process_hit_table(query_name, query_data, locus):
         segment_type = segment[3]
         e_value = float(entry[12])
 
-        if locus[3] in segment_locus:
+        if locus_name in segment_locus:
             if e_value < e_value_cutoff:
                 if segment_type == "V":
                     found_V.add(locus)
@@ -256,68 +281,50 @@ def process_hit_table(query_name, query_data, locus):
                     if percent_identity == 100:
                         found_D.add(locus)
                         good_hits.append(entry)
+                        
+    if locus in found_V and locus in found_J:
+        return (locus, good_hits, rearrangement_summary)
+    else:
+        return (None)
 
-    if locus == "TCRA":
-        if "TCRA" in found_V and "TCRA" in found_J:
-            return ("A", good_hits, rearrangement_summary)
-        else:
-            return (None)
 
-    # elif locus == "D":
-    #    if "D" in found_V and "D" in found_J:
-    #        return("D", good_hits, rearrangement_summary)
-    #    else:
-    #        return(None)
-
-    elif locus == "TCRB":
-        if "TCRB" in found_V and "TCRB" in found_J:
-            return ("B", good_hits, rearrangement_summary)
-        else:
-            return (None)
-
-            # elif locus == "G":
-            #    if "G" in found_V and "G" in found_J:
-            #        return("G", good_hits, rearrangement_summary)
-            #    else:
-            #        return(None)
 
 def get_fasta_line_for_contig_imgt(rearrangement_summary, junction_details, hit_table, locus, IMGT_seqs,
-                                   sample_name, query_name, species):
-    constant_seqs = dict()
-    if species == 'Mmus':
-        constant_seqs["A"] = "ACATCCAGAACCCAGAACCTGCTGTGTACCAGTTAAAAGATCCTCGGTCTCAGGACAGCACCCTCTGCCTGTTCACCGACTTTGACTCCCAAATCAATGTGCCGAAAACCATGGAATCTGGAACGTTCATCACTGACAAAACTGTGCTGGACATGAAAGCTATGGATTCCAAGAGCAATGGGGCCATTGCCTGGAGCAACCAGACAAGCTTCACCTGCCAAGATATCTTCAAAGAGACCAACGCCACCTACCCCAGTTCAGACGTTCCCTGTGATGCCACGTTGACTGAGAAAAGCTTTGAAACAGATATGAACCTAAACTTTCAAAACCTGTCAGTTATGGGACTCCGAATCCTCCTGCTGAAAGTAGCCGGATTTAACCTGCTCATGACGCTGAGGCTGTGGTCCAGTTGA"
-        # use first 258 bases of TRBC because they're the same between C1 and C2
-        constant_seqs["B"] = "AGGATCTGAGAAATGTGACTCCACCCAAGGTCTCCTTGTTTGAGCCATCAAAAGCAGAGATTGCAAACAAACAAAAGGCTACCCTCGTGTGCTTGGCCAGGGGCTTCTTCCCTGACCACGTGGAGCTGAGCTGGTGGGTGAATGGCAAGGAGGTCCACAGTGGGGTCAGCACGGACCCTCAGGCCTACAAGGAGAGCAATTATAGCTACTGCCTGAGCAGCCGCCTGAGGGTCTCTGCTACCTTCTGGCACAATCCTC"
-        constant_seqs["D"] = "AAAGCCAGCCTCCGGCCAAACCATCTGTTTTCATCATGAAAAATGGAACAAATGTTGCTTGTCTGGTGAAAGATTTCTACCCTAAAGAGGTGACTATAAGTCTCAGATCATCCAAGAAGATTGTGGAATTCGACCCTGCTATAGTCATCTCCCCCAGCGGGAAGTACAGTGCTGTCAAGCTTGGTCAGTATGGAGATTCGAATTCAGTGACATGTTCAGTTCAGCACAACAGTGAAACTGTGCACTCGACTGACTTTGAACCATATGCAAATTCTTTCAATAATGAAAAACTACCAGAACCTGAAAATGACACACAAATTTCAGAGCCTTGCTATGGCCCAAGAGTCACAGTTCACACTGAGAAGGTAAACATGATGTCCCTCACGGTGCTGGGCCTACGACTGCTGTTTGCCAAGACCATTGCCATCAATTTTCTCTTGACTGTTAAGTTATTCTTTTAAGGGTGGGCTGACATGAGGAGACTACGGTTCCTGAAAGAAATCAAAAGCTTAGAAAGATGCTATATCCCAGGCTTCCAACTTCTCAGTGCTTCAGACTGACCCTTCACCACCACATTTAAACAGCTGCTAACAAAACCAGCTTTTCTGTGACAGCAACAAGCCTAGCTAATCCTCCAGTCTAGAAGAAAAGCAAAAGCCCTCGGGACCCCCGGCTTTACCTGCTGCTTTATAAAGGCATGGGAAGTTATGAAAACAGATCCATTTTATTTTGCCCCCATAATTGGTATACTTTGAAAATGGTGTTTCATCCTTCTTCATTTACCCAGAACTAGGAAGTGGGGACCAGCTTCATTATCCAGGAGGAAATAATCTTGAGAGAGAGAACCCGTATCTTTTTAGCTAAACATGGAAAGCTGTACTCAACTCATCCCTAGCCAGAGCCCCCTCCTCCTCTCCTGAGGCGAGCATGGCCCAGCCCCCCCCCCTTTGTATTTACTCCAATAGTCACACAGGAGAGTTTTCCTAGCAGCACTACGGTGTGAACAATTTTAGCACTTTCTGTTTCTCCTAATACTTTACAAACAAACTCACACTTGGCTTCCTTAATGCTCTCCAAGCAGACAATAAAGCTTCTAAGATCGCATC"
-        # for TRGC use first 150 bases. Found by aligning the 4 C region transcripts and taking consensus. Ignored start of TCRG-C4-201 because it's only in that one.
-        constant_seqs["G"] = "GACAAAAGGCTTGATGCAGACATTTCCCCCAAGCCCACTATTTTCCTTCCTTCTGTTGCTGAAACAAATCTCCATAAGACTGGGACATACCTTTGTCTCCTTGAAAAGTTCTTTCCCGATGTCATAAGGGTGTATTGGAAAGAAAAGG"
-    elif species == "Hsap":
-        constant_seqs["A"] = "ATATCCAGAACCCTGACCCTGCCGTGTACCAGCTGAGAGACTCTAAATCCAGTGACAAGTCTGTCTGCCTATTCACCGATTTTGATTCTCAAACAAATGTGTCACAAAGTAAGGATTCTGATGTGTATATCACAGACAAAACTGTGCTAGACATGAGGTCTATGGACTTCAAGAGCAACAGTGCTGTGGCCTGGAGCAACAAATCTGACTTTGCATGTGCAAACGCCTTCAACAACAGCATTATTCCAGAAGACACCTTCTTCCCCAGCCCAGAAAGTTCCTGTGATGTCAAGCTGGTCGAGAAAAGCTTTGAAACAGATACGAACCTAAACTTTCAAAACCTGTCAGTGATTGGGTTCCGAATCCTCCTCCTGAAAGTGGCCGGGTTTAATCTGCTCATGACGCTGCGGCTGTGGTCCAGCTGA"
-        # use first 360 nt of TRBC1 because they're very nearly the same between TRBC1 and TRBCC2
-        constant_seqs["B"] = "AGGACCTGAACAAGGTGTTCCCACCCGAGGTCGCTGTGTTTGAGCCATCAGAAGCAGAGATCTCCCACACCCAAAAGGCCACACTGGTGTGCCTGGCCACAGGCTTCTTCCCTGACCACGTGGAGCTGAGCTGGTGGGTGAATGGGAAGGAGGTGCACAGTGGGGTCAGCACGGACCCGCAGCCCCTCAAGGAGCAGCCCGCCCTCAATGACTCCAGATACTGCCTGAGCAGCCGCCTGAGGGTCTCGGCCACCTTCTGGCAGAACCCCCGCAACCACTTCCGCTGTCAAGTCCAGTTCTACGGGCTCTCGGAGAATGACGAGTGGACCCAGGATAGGGCCAAACCCGTCACCCAGATC"
+                                   sample_name, query_name, species, loci_for_segments):
+
+    # use first 258 bases of TRBC because they're the same between C1 and C2
+    # for TRGC use first 150 bases. Found by aligning the 4 C region transcripts and taking consensus. Ignored start of TCRG-C4-201 because it's only in that one.
+    # use first 360 nt of TRBC1 because they're very nearly the same between TRBC1 and TRBCC2
 
     found_best_V = False
     found_best_D = False
     found_best_J = False
+    
 
-    V_pattern = re.compile(r"TR[ABGD]V\d")
-    D_pattern = re.compile(r"TR[BD]D\d")
-    J_pattern = re.compile(r"TR[ABGD]J\d")
+    
+    V_pattern = re.compile(r".+{potential_loci}V.+".format(potential_loci='[' + "".join(loci_for_segments['V']) + ']'))
+    D_pattern = re.compile(r".+{potential_loci}D.+".format(potential_loci='[' + "".join(loci_for_segments['D']) + ']'))
+    J_pattern = re.compile(r".+{potential_loci}J.+".format(potential_loci='[' + "".join(loci_for_segments['J']) + ']'))
+    
 
     for hit in hit_table:
         segment = hit[2]
-        if V_pattern.search(segment) and not found_best_V:
-            V_locus_key = "TR{}V".format(segment[2])
+        V_match = V_pattern.search(segment)
+        J_match = J_pattern.search(segment)
+        if V_match and not found_best_V:
+            #V_locus_key = "TR{}V".format(segment[2])
+            V_locus_key = "_".join([locus, 'V'])
             best_V_name = segment
             # Remove forward slashes from shared A/D gene names to be the same as in the IMGT files.
-            segment = segment.replace("/", "_")
+            #segment = segment.replace("/", "_")
             best_V_seq = IMGT_seqs[V_locus_key][segment]
 
             # hit[11] is the end of the V sequence
             best_V_seq = best_V_seq[0:int(hit[11])]
             found_best_V = True
-        elif J_pattern.search(segment) and not found_best_J:
-            J_locus_key = "TR{}J".format(segment[2])
+        elif J_match and not found_best_J:
+            #J_locus_key = "TR{}J".format(segment[2])
+            J_locus_key = "_".join([locus, 'J'])
             best_J_name = segment
             best_J_seq = IMGT_seqs[J_locus_key][segment]
             # hit 10 is the start of the J sequence
@@ -327,8 +334,10 @@ def get_fasta_line_for_contig_imgt(rearrangement_summary, junction_details, hit_
     junction = []
 
     parens_pattern = re.compile(r"\([CAGT]+\)")
-
-    if locus == "B" or locus == "D":
+    
+    locus_letter = locus.split("_")[1]
+    
+    if locus_letter in loci_for_segments['D']:
         # junc_seqs = junction_details[1:3]
         VD_junc = junction_details[1]
         D_region = junction_details[2]
@@ -344,7 +353,7 @@ def get_fasta_line_for_contig_imgt(rearrangement_summary, junction_details, hit_
         junc_seqs = [VD_junc, D_region, DJ_junc]
 
 
-    elif locus == "A" or locus == "G":
+    else:
         VJ_junc = junction_details[1]
         # junctions in parentheses are represented in the coordinates of the matched segments.
         # Need to trim them then include the NTs in the junction
@@ -361,13 +370,15 @@ def get_fasta_line_for_contig_imgt(rearrangement_summary, junction_details, hit_
             junction.append(seq)
 
     junction = "".join(junction)
+    
 
-    constant_seq = constant_seqs[locus]
+    constant_seq = IMGT_seqs["_".join([locus, 'C'])].values()[0]
 
     # Editing IMGT V and J sequences to include any alterations from the junction details
     V_end_seq = junction_details[0]
     J_start_seq = junction_details[-1]
     best_V_seq = best_V_seq[:-(len(V_end_seq))]
+    
     best_V_seq = best_V_seq + V_end_seq
     best_J_seq = best_J_seq[len(J_start_seq):]
     best_J_seq = J_start_seq + best_J_seq
@@ -411,19 +422,20 @@ def get_segment_name(name, pattern):
     return (number)
 
 
-def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs, sample_name, query_name):
+def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs, sample_name, 
+                                        query_name, loci_for_segments):
     found_best_V = False
     found_best_D = False
     found_best_J = False
 
-    V_pattern = re.compile(r"TR[ABGD]V\d")
-    D_pattern = re.compile(r"TR[BD]D\d")
-    J_pattern = re.compile(r"TR[ABGD]J\d")
+    V_pattern = re.compile(r".+{potential_loci}V.+".format(potential_loci='[' + "".join(loci_for_segments['V']) + ']'))
+    D_pattern = re.compile(r".+{potential_loci}D.+".format(potential_loci='[' + "".join(loci_for_segments['D']) + ']'))
+    J_pattern = re.compile(r".+{potential_loci}J.+".format(potential_loci='[' + "".join(loci_for_segments['J']) + ']'))
 
     for hit in hit_table:
         segment = hit[2]
         if V_pattern.search(segment) and not found_best_V:
-            V_locus_key = "TR{}V".format(segment[2])
+            V_locus_key = V_locus_key = "_".join([locus, 'V'])
             best_V_name = segment
             # Remove forward slashes from shared A/D gene names to be the same as in the IMGT files.
             segment = segment.replace("/", "_")
@@ -433,13 +445,13 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
             # best_V_seq = best_V_seq[0:int(hit[11])]
             found_best_V = True
         elif J_pattern.search(segment) and not found_best_J:
-            J_locus_key = "TR{}J".format(segment[2])
+            J_locus_key = "_".join([locus, 'J'])
             best_J_name = segment
             ref_J_seq = IMGT_seqs[J_locus_key][segment]
             # hit 10 is the start of the J sequence
             # best_J_seq = best_J_seq[int(hit[10])-1 :]
             found_best_J = True
-
+    
     # work out if sequence that exists is in frame
 
     found_V = False
@@ -589,55 +601,59 @@ def collapse_close_sequences(recombinants, locus):
 
 
 def load_kallisto_counts(tsv_file):
-    counts = {'A': {}, 'B': {}, 'G': {}, 'D': {}}
+    counts = defaultdict(lambda: defaultdict(dict))
     with open(tsv_file) as tsvh:
         for line in tsvh:
-            if "TCR" in line:
+            if "TRACER" in line:
                 line = line.rstrip()
                 line = line.split("\t")
-                locus = line[0].split("|")[-1].split("_")[-1][2]
-                name = line[0].split("|")[1]
+                tags = line[0].split("|")
+                receptor = tags[1]
+                locus = tags[2]
+                contig_name = tags[3]
                 tpm = float(line[4])
-                counts[locus][name] = tpm
-    return counts
+                
+                counts[receptor][locus][contig_name] = tpm
+    return dict(counts)
 
 
-def make_cell_network_from_dna(cells, colorscheme, colours, keep_unlinked, shape, dot, neato):
+def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato, receptor, loci, 
+                               network_colours):
     G = nx.MultiGraph()
     # initialise all cells as nodes
 
     if shape == 'circle':
         for cell in cells:
-            G.add_node(cell, shape=shape, label=cell.html_style_label_for_circles(), sep=0.4, fontname="helvetica neue")
+            G.add_node(cell, shape=shape, label=cell.html_style_label_for_circles(receptor, loci, network_colours), 
+                        sep=0.4, fontname="helvetica neue")
     else:
         for cell in cells:
-            G.add_node(cell, shape=shape, label=cell.html_style_label_dna(), fontname="helvetica neue")
+            G.add_node(cell, shape=shape, label=cell.html_style_label_dna(receptor, loci, network_colours), 
+                        fontname="helvetica neue")
     # make edges:
     for i in range(len(cells)):
         current_cell = cells[i]
         comparison_cells = cells[i + 1:]
 
-        for locus in ['A', 'B', 'D', 'G']:
-            col = colours[locus]
+        for locus in loci:
+            col = network_colours[receptor][locus][0]
 
             # current_identifiers = current_cell.getMainRecombinantIdentifiersForLocus(locus)
             for comparison_cell in comparison_cells:
                 shared_identifiers = 0
-                if current_cell.all_recombinants[locus] is not None:
-                    for current_recombinant in current_cell.all_recombinants[locus]:
+                if current_cell.recombinants[receptor][locus] is not None:
+                    for current_recombinant in current_cell.recombinants[receptor][locus]:
                         current_id_set = current_recombinant.all_poss_identifiers
-                        if comparison_cell.all_recombinants[locus] is not None:
-                            for comparison_recombinant in comparison_cell.all_recombinants[locus]:
+                        if comparison_cell.recombinants[receptor][locus] is not None:
+                            for comparison_recombinant in comparison_cell.recombinants[receptor][locus]:
                                 comparison_id_set = comparison_recombinant.all_poss_identifiers
                                 if len(current_id_set.intersection(comparison_id_set)) > 0:
                                     shared_identifiers += 1
 
-                # comparison_identifiers = comparison_cell.getAllRecombinantIdentifiersForLocus(locus)
-                # common_identifiers = current_identifiers.intersection(comparison_identifiers)
                 if shared_identifiers > 0:
                     width = shared_identifiers * 2
                     G.add_edge(current_cell, comparison_cell, locus, penwidth=width, color=col,
-                               weight=shared_identifiers, colorscheme=colorscheme)
+                               weight=shared_identifiers)
 
     deg = G.degree()
 
@@ -679,12 +695,10 @@ def make_cell_network_from_dna(cells, colorscheme, colours, keep_unlinked, shape
     return (G, drawing_tool, component_groups)
 
 
-def draw_network_from_cells(cells, output_dir, output_format, dot, neato, draw_graphs):
+def draw_network_from_cells(cells, output_dir, output_format, dot, neato, draw_graphs, receptor, loci, network_colours):
     cells = list(cells.values())
-    colorscheme = 'set15'
-    colours = {'A': '1', 'B': '2', 'G': '3', 'D': '5', 'mean_both': '#a8a8a8bf'}
-    network, draw_tool, component_groups = make_cell_network_from_dna(cells, colorscheme, colours, False, "box", dot,
-                                                                      neato)
+    network, draw_tool, component_groups = make_cell_network_from_dna(cells, False, "box", dot,
+                                                                      neato, receptor, loci, network_colours)
     network_file = "{}/clonotype_network_with_identifiers.dot".format(output_dir)
     try:
         nx.write_dot(network, network_file)
@@ -696,7 +710,8 @@ def draw_network_from_cells(cells, output_dir, output_format, dot, neato, draw_g
             output_dir=output_dir, output_format=output_format), "-T", output_format, network_file]
         subprocess.check_call(command)
 
-    network, draw_tool, cgx = make_cell_network_from_dna(cells, colorscheme, colours, False, "circle", dot, neato)
+    network, draw_tool, cgx = make_cell_network_from_dna(cells, False, "circle", dot, 
+                                                         neato, receptor, loci, network_colours)
     network_file = "{}/clonotype_network_without_identifiers.dot".format(output_dir)
     try:
         nx.write_dot(network, network_file)
@@ -710,7 +725,7 @@ def draw_network_from_cells(cells, output_dir, output_format, dot, neato, draw_g
     return (component_groups)
 
 
-def get_component_groups_sizes(cells):
+def get_component_groups_sizes(cells, receptor, loci):
     cells = list(cells.values())
     G = nx.MultiGraph()
     # initialise all cells as nodes
@@ -721,16 +736,16 @@ def get_component_groups_sizes(cells):
         current_cell = cells[i]
         comparison_cells = cells[i + 1:]
 
-        for locus in ['A', 'B', 'D', 'G']:
+        for locus in loci:
 
             # current_identifiers = current_cell.getMainRecombinantIdentifiersForLocus(locus)
             for comparison_cell in comparison_cells:
                 shared_identifiers = 0
-                if current_cell.all_recombinants[locus] is not None:
-                    for current_recombinant in current_cell.all_recombinants[locus]:
+                if current_cell.recombinants[receptor][locus] is not None:
+                    for current_recombinant in current_cell.recombinants[receptor][locus]:
                         current_id_set = current_recombinant.all_poss_identifiers
-                        if comparison_cell.all_recombinants[locus] is not None:
-                            for comparison_recombinant in comparison_cell.all_recombinants[locus]:
+                        if comparison_cell.recombinants[receptor][locus] is not None:
+                            for comparison_recombinant in comparison_cell.recombinants[receptor][locus]:
                                 comparison_id_set = comparison_recombinant.all_poss_identifiers
                                 if len(current_id_set.intersection(comparison_id_set)) > 0:
                                     shared_identifiers += 1
@@ -786,3 +801,312 @@ def check_config_file(filename):
         print("Couldn't find config file: {}".format(filename))
         print()
         exit(1)
+
+
+def bowtie2_alignment(bowtie2, ncores, receptor, loci, output_dir, cell_name, synthetic_genome_path, fastq1,
+                      fastq2, should_resume, single_end):
+    print("##Finding recombinant-derived reads##")
+    
+    initial_locus_names = ["_".join([receptor,x]) for x in loci]
+    locus_names = copy.copy(initial_locus_names)
+    
+    if should_resume:
+        for locus in initial_locus_names:
+            aligned_read_path = "{}/aligned_reads/{}_{}_".format(output_dir, cell_name, locus)
+            fastq1_out = "{}1.fastq".format(aligned_read_path)
+            fastq2_out = "{}2.fastq".format(aligned_read_path)
+            if os.path.isfile(fastq1_out) and os.path.isfile(fastq2_out):
+                print("Resuming with existing {locus} reads".format(locus=locus))
+                locus_names.remove(locus)
+    
+    
+    
+    if len(locus_names) == 0:
+        return
+    
+    print("Attempting new assembly for {locus_names}\n".format(locus_names=locus_names))
+    
+    for locus in locus_names:
+        print("##{}##".format(locus))
+        sam_file = "{}/aligned_reads/{}_{}.sam".format(output_dir, cell_name, locus)
+        if not single_end:
+            fastq_out_1 = open("{}/aligned_reads/{}_{}_1.fastq".format(output_dir, cell_name, locus), 'w')
+            fastq_lines_1 = []
+            fastq_out_2 = open("{}/aligned_reads/{}_{}_2.fastq".format(output_dir, cell_name, locus), 'w')
+            fastq_lines_2 = []
+
+            command = [bowtie2, '--no-unal', '-p', ncores, '-k', '1', '--np', '0', '--rdg', '1,1', '--rfg', '1,1',
+                       '-x', "/".join([synthetic_genome_path, locus]), '-1', fastq1, '-2', fastq2, '-S', sam_file]
+
+            subprocess.check_call(command)
+
+            # now to split the sam file for Trinity.
+
+            with open(sam_file) as sam_in:
+                for line in sam_in:
+                    if not line.startswith("@"):
+
+                        line = line.rstrip()
+                        line = line.split("\t")
+                        name = line[0]
+                        seq = line[9]
+                        qual = line[10]
+                        flag = int(line[1])
+                        mate_flag = "{0:b}".format(flag)[-7]
+                        mate_mapped_flag = "{0:b}".format(flag)[-4]
+                        revcomp_flag = "{0:b}".format(flag)[-5]
+
+                        if revcomp_flag == "1":
+                            seq = str(Seq(seq).reverse_complement())
+                            qual = qual[::-1]
+                        if mate_mapped_flag == "0":
+                            if mate_flag == "1":
+                                name_ending = "/1"
+                                fastq_lines_1.append(
+                                    "@{name}{name_ending}\n{seq}\n+\n{qual}\n".format(name=name, seq=seq,
+                                                                                      name_ending=name_ending,
+                                                                                      qual=qual))
+                            else:
+                                name_ending = "/2"
+                                fastq_lines_2.append(
+                                    "@{name}{name_ending}\n{seq}\n+\n{qual}\n".format(name=name, seq=seq,
+                                                                                      name_ending=name_ending,
+                                                                                      qual=qual))
+
+            for line in fastq_lines_1:
+                fastq_out_1.write(line)
+            for line in fastq_lines_2:
+                fastq_out_2.write(line)
+
+            fastq_out_1.close()
+            fastq_out_2.close()
+        else:
+            fastq_out = open("{}/aligned_reads/{}_{}.fastq".format(output_dir, cell_name, locus), 'w')
+            command = [bowtie2, '--no-unal', '-p', ncores, '-k', '1', '--np', '0', '--rdg', '1,1', '--rfg', '1,1',
+                       '-x', "/".join([synthetic_genome_path, locus]), '-U', fastq1, '-S', sam_file]
+
+            subprocess.check_call(command)
+
+            with open(sam_file) as sam_in:
+                for line in sam_in:
+                    if not line.startswith("@"):
+
+                        line = line.rstrip()
+                        line = line.split("\t")
+                        name = line[0]
+                        seq = line[9]
+                        qual = line[10]
+                        flag = int(line[1])
+                        if not flag == 0:
+                            revcomp_flag = "{0:b}".format(flag)[-5]
+                        else:
+                            revcomp_flag = "0"
+
+                        if revcomp_flag == "1":
+                            seq = str(Seq(seq).reverse_complement())
+                            qual = qual[::-1]
+                        fastq_out.write("@{name}\n{seq}\n+\n{qual}\n".format(name=name, seq=seq, qual=qual))
+                fastq_out.close()
+
+
+def assemble_with_trinity(trinity, receptor, loci, output_dir, cell_name, ncores, trinity_grid_conf, JM,
+                          version, should_resume, single_end, species):
+    print("##Assembling Trinity Contigs##")
+
+    if should_resume:
+        trinity_report_successful = "{}/Trinity_output/successful_trinity_assemblies.txt".format(output_dir)
+        trinity_report_unsuccessful = "{}/Trinity_output/unsuccessful_trinity_assemblies.txt".format(output_dir)
+        if (os.path.isfile(trinity_report_successful) and os.path.isfile(trinity_report_unsuccessful)) and (
+                        os.path.getsize(trinity_report_successful) > 0 or os.path.getsize(
+                    trinity_report_unsuccessful) > 0):
+            print("Resuming with existing Trinity output")
+            successful_files = glob.glob("{}/Trinity_output/*.fasta".format(output_dir))
+            return(successful_files)
+
+    command = [trinity]
+    if trinity_grid_conf:
+        command = command + ['--grid_conf', trinity_grid_conf]
+
+    memory_string = '--max_memory' if (version == '2') else '--JM'
+    command = command + ['--seqType', 'fq', memory_string, JM, '--CPU', ncores, '--full_cleanup']
+    
+    locus_names = ["_".join([receptor,x]) for x in loci]
+    
+    for locus in locus_names:
+        print("##{}##".format(locus))
+        trinity_output = "{}/Trinity_output/{}_{}".format(output_dir, cell_name, locus)
+        aligned_read_path = "{}/aligned_reads/{}_{}".format(output_dir, cell_name, locus)
+        if not single_end:
+            file1 = "{}_1.fastq".format(aligned_read_path)
+            file2 = "{}_2.fastq".format(aligned_read_path)
+            command = command + ["--left", file1, "--right", file2, "--output",
+                                 '{}/Trinity_output/Trinity_{}_{}'.format(output_dir, cell_name, locus)]
+        else:
+            file = "{}.fastq".format(aligned_read_path)
+            command = command + ["--single", file, "--output",
+                                 '{}/Trinity_output/Trinity_{}_{}'.format(output_dir, cell_name, locus)]
+        try:
+            subprocess.check_call(command)
+            shutil.move('{}/Trinity_output/Trinity_{}_{}.Trinity.fasta'.format(output_dir, cell_name, locus),
+                        '{}/Trinity_output/{}_{}.Trinity.fasta'.format(output_dir, cell_name, locus))
+        except (subprocess.CalledProcessError, IOError):
+            print("Trinity failed for locus")
+
+    # clean up unsuccessful assemblies
+    sleep(10)  # this gives the cluster filesystem time to catch up and stops weird things happening
+    successful_files = glob.glob("{}/Trinity_output/*.fasta".format(output_dir))
+    unsuccessful_directories = next(os.walk("{}/Trinity_output".format(output_dir)))[1]
+    for directory in unsuccessful_directories:
+        shutil.rmtree("{}/Trinity_output/{}".format(output_dir, directory))
+    successful_file_summary = "{}/Trinity_output/successful_trinity_assemblies.txt".format(output_dir)
+    unsuccessful_file_summary = "{}/Trinity_output/unsuccessful_trinity_assemblies.txt".format(output_dir)
+
+    successful_files = tracerlib.io.clean_file_list(successful_files)
+    unsuccessful_directories = tracerlib.io.clean_file_list(unsuccessful_directories)
+
+    success_out = open(successful_file_summary, "w")
+    fail_out = open(unsuccessful_file_summary, "w")
+
+    successful = defaultdict(list)
+    unsuccessful = defaultdict(list)
+
+    successful_ordered_files = set()
+    unsuccessful_ordered_files = set()
+
+    for filename in successful_files:
+        # success_out.write("{}\n".format(filename))
+        parsed_name = tracerlib.io.get_filename_and_locus(filename)
+        successful[parsed_name[0]].append(parsed_name[1])
+        successful_ordered_files.add(parsed_name[0])
+    successful_ordered_files = sorted(list(successful_ordered_files))
+
+    for filename in unsuccessful_directories:
+        # fail_out.write("{}\n".format(filename))
+        parsed_name = tracerlib.io.get_filename_and_locus(filename)
+        unsuccessful[parsed_name[0]].append(parsed_name[1])
+        unsuccessful_ordered_files.add(parsed_name[0])
+    unsuccessful_ordered_files = sorted(list(unsuccessful_ordered_files))
+
+    successful = tracerlib.io.sort_locus_names(successful)
+    unsuccessful = tracerlib.io.sort_locus_names(unsuccessful)
+
+    for file in successful_ordered_files:
+        success_out.write("{}\t{}\n".format(file, successful[file]))
+
+    for file in unsuccessful_ordered_files:
+        fail_out.write("{}\t{}\n".format(file, unsuccessful[file]))
+
+    success_out.close()
+    fail_out.close()
+
+    # remove pointless .readcount files
+    readcount_files = glob.glob("{}/aligned_reads/*.readcount".format(output_dir))
+    for f in readcount_files:
+        os.remove(f)
+
+    # if len(unsuccessful_directories) == 2:
+
+    return successful_files
+
+
+def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, ig_seqtype, species,
+                should_resume):
+    print("##Running IgBLAST##")
+
+    species_mapper = {
+        'Mmus': 'mouse',
+        'Hsap': 'human'
+    }
+
+    igblast_species = species_mapper[species]
+    initial_locus_names = ["_".join([receptor,x]) for x in loci]
+    locus_names = copy.copy(initial_locus_names)
+    if should_resume:
+        for locus in initial_locus_names:
+            igblast_out = "{output_dir}/IgBLAST_output/{cell_name}_{receptor}_{locus}.IgBLASTOut".format(
+                                                        output_dir=output_dir,cell_name=cell_name, 
+                                                        receptor=receptor, locus=locus)
+            if (os.path.isfile(igblast_out) and os.path.getsize(igblast_out) > 0):
+                locus_names.remove(locus)
+                print("Resuming with existing IgBLAST output for {locus}".format(locus=locus))
+        
+        if len(locus_names) == 0:    
+            return
+    
+    print("Performing IgBlast on {locus_names}".format(locus_names = locus_names))
+
+    databases = {}
+    for segment in ['V', 'D', 'J']:
+        databases[segment] = "{}/{}_{}.fa".format(index_location, receptor, segment)
+
+    # Lines below suppress Igblast warning about not having an auxliary file.
+    # Taken from http://stackoverflow.com/questions/11269575/how-to-hide-output-of-subprocess-in-python-2-7
+    DEVNULL = open(os.devnull, 'wb')
+
+    for locus in locus_names:
+        print("##{}##".format(locus))
+        trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(output_dir, cell_name, locus)
+        if os.path.isfile(trinity_fasta):
+            command = [igblast, '-germline_db_V', databases['V'], '-germline_db_D', databases['D'],
+                       '-germline_db_J', databases['J'], '-domain_system', 'imgt', '-organism', igblast_species,
+                       '-ig_seqtype', ig_seqtype, '-show_translation', '-num_alignments_V', '5',
+                       '-num_alignments_D', '5', '-num_alignments_J', '5', '-outfmt', '7', '-query', trinity_fasta]
+            igblast_out = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
+                                                                                              cell_name=cell_name,
+                                                                                              locus=locus)
+            with open(igblast_out, 'w') as out:
+                # print(" ").join(pipes.quote(s) for s in command)
+                subprocess.check_call(command, stdout=out, stderr=DEVNULL)
+
+    DEVNULL.close()
+
+
+def quantify_with_kallisto(kallisto, cell, output_dir, cell_name, kallisto_base_transcriptome, fastq1, fastq2,
+                           ncores, should_resume, single_end, fragment_length, fragment_sd):
+    print("##Running Kallisto##")
+    if should_resume:
+        if os.path.isfile("{}/expression_quantification/abundance.tsv".format(output_dir)):
+            print("Resuming with existing Kallisto output")
+            return
+
+    print("##Making Kallisto indices##")
+    kallisto_dirs = ['kallisto_index']
+    for d in kallisto_dirs:
+        tracerlib.io.makeOutputDir("{}/expression_quantification/{}".format(output_dir, d))
+    fasta_filename = "{output_dir}/unfiltered_TCR_seqs/{cell_name}_TCRseqs.fa".format(output_dir=output_dir,
+                                                                                      cell_name=cell_name)
+    fasta_file = open(fasta_filename, 'w')
+    fasta_file.write(cell.get_fasta_string())
+    fasta_file.close()
+
+    output_transcriptome = "{}/expression_quantification/kallisto_index/{}_transcriptome.fa".format(output_dir,
+                                                                                                    cell_name)
+    with open(output_transcriptome, 'w') as outfile:
+        for fname in [kallisto_base_transcriptome, fasta_filename]:
+            with open(fname) as infile:
+                for line in infile:
+                    outfile.write(line)
+
+    idx_file = "{}/expression_quantification/kallisto_index/{}_transcriptome.idx".format(output_dir, cell_name)
+
+    index_command = [kallisto, 'index', '-i', idx_file, output_transcriptome]
+    subprocess.check_call(index_command)
+    print("##Quantifying with Kallisto##")
+
+    if not single_end:
+        if not fragment_length:
+            kallisto_command = [kallisto, 'quant', '-i', idx_file, '-t', ncores, '-o',
+                                "{}/expression_quantification".format(output_dir), fastq1, fastq2]
+        else:
+            kallisto_command = [kallisto, 'quant', '-i', idx_file, '-t', ncores, '-l', fragment_length, '-o',
+                                "{}/expression_quantification".format(output_dir), fastq1, fastq2]
+    else:
+        kallisto_command = [kallisto, 'quant', '-i', idx_file, '-t', ncores, '--single', '-l', fragment_length,
+                            '-s', fragment_sd, '-o', "{}/expression_quantification".format(output_dir), fastq1]
+    subprocess.check_call(kallisto_command)
+
+    # delete index file because it's huge and unecessary. Delete transcriptome file
+    # os.remove(idx_file)
+    # os.remove(output_transcriptome)
+    shutil.rmtree("{}/expression_quantification/kallisto_index/".format(output_dir))
+
