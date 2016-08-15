@@ -14,8 +14,11 @@ import sys
 from Bio import SeqIO
 
 from tracerlib.tracer_func import process_chunk, find_possible_alignments
+from tracerlib.core import Invar_cell
 import glob
 import pdb
+
+import json
 
 def makeOutputDir(output_dir_path):
     if not os.path.exists(output_dir_path):
@@ -61,8 +64,8 @@ def load_IMGT_seqs(file):
     return (seqs)
 
 
-def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species, seq_method, max_junc_len,
-                    invariant_seqs=None):
+def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species,
+                  seq_method, max_junc_len=50, invariant_seqs=None):
     
     IMGT_seqs = dict()
     #expecting_D = dict()
@@ -71,7 +74,6 @@ def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species, s
     
     #for locus in loci:
     #    expecting_D[locus] = False
-    
     for locus in loci:
         seq_files = glob.glob(os.path.join(raw_seq_dir, "{receptor}_{locus}_*.fa".format(receptor=receptor, 
                                                                                     locus=locus)))
@@ -102,8 +104,6 @@ def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species, s
                 all_locus_data[locus][query_name] = chunk_details
         else:
             all_locus_data[locus] = None
-
-
     cell = find_possible_alignments(all_locus_data, locus_names, cell_name, IMGT_seqs, output_dir, species, seq_method,
                                      invariant_seqs, loci_for_segments, receptor, loci, max_junc_len)
     return (cell)
@@ -118,12 +118,14 @@ def split_igblast_file(filename):
     with open(filename) as fh:
         for line in fh:
             line = line.rstrip()
-            if line.startswith(token) and current_chunk:
+                
+            if line.startswith(token) and current_chunk and not line.startswith("Total queries"):
                 # if line starts with token and the current chunk is not empty
                 chunks.append(current_chunk[:])  # add not empty chunk to chunks
                 current_chunk = []  # make current chunk blank
             # just append a line to the current chunk on each iteration
-            current_chunk.append(line)
+            if not line.startswith("Total queries"):
+                current_chunk.append(line)
 
         chunks.append(current_chunk)  # append the last chunk outside the loop
     return (chunks)
@@ -163,16 +165,14 @@ def check_binary(name, user_path=None):
                   .format(name=name))
 
 
-def parse_invariant_seqs(filename):
+def parse_invariant_cells(filename):
 
-    invariant_sequences = []
+    invariant_cells = []
     with open(filename) as fh:
-        reader = csv.DictReader(fh)
-        for row in reader:
-            if len(row):
-                invariant_sequences.append(row)
-
-    return invariant_sequences
+        json_dict = json.load(fh)
+        for c in json_dict:
+            invariant_cells.append(Invar_cell(c))
+    return invariant_cells
 
 def read_colour_file(filename, return_used_list=False, receptor_name=None):
     colour_map = dict()

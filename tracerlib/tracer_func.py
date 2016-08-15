@@ -30,7 +30,7 @@ from Bio import SeqIO
 from Bio.Alphabet import IUPAC
 from Bio.Seq import Seq
 
-from tracerlib.core import Cell, Recombinant
+from tracerlib.core import Cell, Recombinant, Invar_cell
 import tracerlib.io
 
 import copy
@@ -47,6 +47,7 @@ def process_chunk(chunk):
     looking_for_end = False
     return_dict = defaultdict(list)
     for line_x in chunk:
+        
 
         if store_VDJ_rearrangement_summary:
             VDJ_rearrangement_summary = line_x.split("\t")
@@ -73,7 +74,7 @@ def process_chunk(chunk):
                     return_dict['hit_table'].append(line_x)
                     looking_for_end = True
             else:
-                if line_x.startswith("#"):
+                if line_x.startswith("#") or line_x.startswith("\n"):
                     store_hit_table = False
                 else:
                     return_dict['hit_table'].append(line_x)
@@ -95,7 +96,6 @@ def process_chunk(chunk):
 
         elif line_x.startswith('# Hit table'):
             store_hit_table = True
-
     return (query_name, return_dict)
 
 
@@ -186,7 +186,6 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                                                                                           returned_locus, IMGT_seqs,
                                                                                           cell_name, query_name,
                                                                                           loci_for_segments)
-
                     if len(junc_string) < max_junc_string_length:
                         rec = Recombinant(contig_name=query_name, locus=returned_locus, identifier=identifier,
                                           all_poss_identifiers=all_poss_identifiers, productive=is_productive[0],
@@ -205,8 +204,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
             recombinants[locus] = collapse_close_sequences(rs, locus)
 
         # cell_name, A_recombinants, B_recombinants, G_recombinants, D_recombinants, is_empty=False, species="Mmus")
-        cell = Cell(cell_name, recombinants, species=species, invariant_seqs=invariant_seqs, 
-                    receptor=receptor, loci=loci)
+        cell = Cell(cell_name, recombinants, species=species, receptor=receptor, loci=loci)
         
     else:
         cell = Cell(cell_name, None, species=species, invariant_seqs=invariant_seqs, receptor=receptor, loci=loci)
@@ -258,30 +256,32 @@ def process_hit_table(query_name, query_data, locus):
     locus_name = locus.split("_")[1]
     
     for entry in hit_table:
-        entry = entry.split("\t")
-        segment = entry[2]
-        if segment_locus_pattern.search(segment):
-            segment_locus = "AD"
-        else:
-            segment_locus = segment[2]
-        segment_type = segment[3]
-        e_value = float(entry[12])
-
-        if locus_name in segment_locus:
-            if e_value < e_value_cutoff:
-                if segment_type == "V":
-                    found_V.add(locus)
-                    good_hits.append(entry)
-                elif segment_type == "J":
-                    found_J.add(locus)
-                    good_hits.append(entry)
+        if not entry == "":
+          
+            entry = entry.split("\t")
+            segment = entry[2]
+            if segment_locus_pattern.search(segment):
+                segment_locus = "AD"
             else:
-                if segment_type == "D":
-                    percent_identity = float(entry[3])
-                    if percent_identity == 100:
-                        found_D.add(locus)
+                segment_locus = segment[2]
+            segment_type = segment[3]
+            e_value = float(entry[12])
+            
+            if locus_name in segment_locus:
+                if e_value < e_value_cutoff:
+                    if segment_type == "V":
+                        found_V.add(locus)
                         good_hits.append(entry)
-                        
+                    elif segment_type == "J":
+                        found_J.add(locus)
+                        good_hits.append(entry)
+                else:
+                    if segment_type == "D":
+                        percent_identity = float(entry[3])
+                        if percent_identity == 100:
+                            found_D.add(locus)
+                            good_hits.append(entry)
+                            
     if locus in found_V and locus in found_J:
         return (locus, good_hits, rearrangement_summary)
     else:
@@ -371,8 +371,7 @@ def get_fasta_line_for_contig_imgt(rearrangement_summary, junction_details, hit_
 
     junction = "".join(junction)
     
-
-    constant_seq = IMGT_seqs["_".join([locus, 'C'])].values()[0]
+    constant_seq = list(IMGT_seqs["_".join([locus, 'C'])].values())[0]
 
     # Editing IMGT V and J sequences to include any alterations from the junction details
     V_end_seq = junction_details[0]
@@ -923,12 +922,12 @@ def assemble_with_trinity(trinity, receptor, loci, output_dir, cell_name, ncores
             successful_files = glob.glob("{}/Trinity_output/*.fasta".format(output_dir))
             return(successful_files)
 
-    command = [trinity]
+    base_command = [trinity]
     if trinity_grid_conf:
-        command = command + ['--grid_conf', trinity_grid_conf]
+        base_command = base_command + ['--grid_conf', trinity_grid_conf]
 
     memory_string = '--max_memory' if (version == '2') else '--JM'
-    command = command + ['--seqType', 'fq', memory_string, JM, '--CPU', ncores, '--full_cleanup']
+    base_command = base_command + ['--seqType', 'fq', memory_string, JM, '--CPU', ncores, '--full_cleanup']
     
     locus_names = ["_".join([receptor,x]) for x in loci]
     
@@ -939,11 +938,11 @@ def assemble_with_trinity(trinity, receptor, loci, output_dir, cell_name, ncores
         if not single_end:
             file1 = "{}_1.fastq".format(aligned_read_path)
             file2 = "{}_2.fastq".format(aligned_read_path)
-            command = command + ["--left", file1, "--right", file2, "--output",
+            command = base_command + ["--left", file1, "--right", file2, "--output",
                                  '{}/Trinity_output/Trinity_{}_{}'.format(output_dir, cell_name, locus)]
         else:
             file = "{}.fastq".format(aligned_read_path)
-            command = command + ["--single", file, "--output",
+            command = base_command + ["--single", file, "--output",
                                  '{}/Trinity_output/Trinity_{}_{}'.format(output_dir, cell_name, locus)]
         try:
             subprocess.check_call(command)
