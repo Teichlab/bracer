@@ -909,8 +909,8 @@ class Builder(TracerTask):
                                 or use "random"', type = self.check_colour)
             parser.add_argument('V_seqs', metavar="<V_SEQS>", help='fasta file containing V gene sequences')
             parser.add_argument('J_seqs', metavar="<J_SEQS>", help='fasta file containing J gene sequences')
-            parser.add_argument('C_seq', metavar="<C_SEQ>", 
-                                help='fasta file containing single constant region sequence')
+            parser.add_argument('C_seqs', metavar="<C_SEQ>", 
+                                help='fasta file containing C gene sequence(s)')
             parser.add_argument('D_seqs', metavar="<D_SEQS>", nargs='?', default=False,
                                 help='fasta file containing D gene sequences (optional)')
             
@@ -927,7 +927,7 @@ class Builder(TracerTask):
             self.raw_seq_files = {}
             self.raw_seq_files['V'] = args.V_seqs
             self.raw_seq_files['J'] = args.J_seqs
-            self.raw_seq_files['C'] = args.C_seq
+            self.raw_seq_files['C'] = args.C_seqs
             self.prod_colour = args.colour
             if args.D_seqs:
                 self.raw_seq_files['D'] = args.D_seqs
@@ -943,7 +943,7 @@ class Builder(TracerTask):
             self.raw_seq_files = {}
             self.raw_seq_files['V'] = kwargs.get('V_seqs')
             self.raw_seq_files['J'] = kwargs.get('J_seqs')
-            self.raw_seq_files['C'] = kwargs.get('C_seq')
+            self.raw_seq_files['C'] = kwargs.get('C_seqs')
             self.prod_colour = kwargs.get('colour')
             if kwargs.get('D_seqs'):
                 self.raw_seq_files['D'] = kwargs.get('D_seqs')
@@ -1104,12 +1104,12 @@ class Builder(TracerTask):
             in_file = VDJC_files[s]
             seqs[s] = self.load_segment_seqs(in_file)
 
-        # Logical check for C region
+        """# Logical check for C region
         if len(seqs['C']) > 1:
             print("\nMore than one constant region sequence included in {C_file}." \
                   .format(self.raw_seq_files['C']))
             print("Please only provide one constant sequence.\n")
-            sys.exit(1)
+            sys.exit(1)"""
 
         const_seq = list(seqs['C'].values())[0].upper()
         N_junction_string = "N" * self.N_padding
@@ -1118,15 +1118,24 @@ class Builder(TracerTask):
         seqs_to_write = []
 
         # Compile sequences to write
-        for V_name, V_seq in six.iteritems(seqs['V']):
-            for J_name, J_seq in six.iteritems(seqs['J']):
-                chr_name = ">chr={V_name}_{J_name}".format(J_name=J_name,
+        if len(seqs['C']) == 1:
+            for V_name, V_seq in six.iteritems(seqs['V']):
+                for J_name, J_seq in six.iteritems(seqs['J']):
+                    chr_name = ">chr={V_name}_{J_name}".format(J_name=J_name,
                                                            V_name=V_name)
-                seq = N_leader_string + V_seq.lower() + N_junction_string + \
+                    seq = N_leader_string + V_seq.lower() + N_junction_string + \
                       J_seq.lower() + const_seq
-                seqs_to_write.append("{chr_name}\n{seq}\n"
+                    seqs_to_write.append("{chr_name}\n{seq}\n"
                                      .format(seq=seq, chr_name=chr_name))
         
+        elif len(seqs['C']) > 1:
+            for V_name, V_seq in six.iteritems(seqs['V']):
+                for J_name, J_seq in six.iteritems(seqs['J']):
+                    for C_name, C_seq in six.iteritems(seqs['C']):
+                        chr_name = ">chr={V_name}_{J_name}_{C_name}".format(J_name=J_name, V_name=V_name, C_name=C_name)
+                        seq = N_leader_string + V_seq.lower() + N_junction_string + J_seq.lower() + const_seq
+                        seqs_to_write.append("{chr_name}\n{seq}\n".format(seq=seq, chr_name=chr_name))
+                    
         with open(out_fasta, 'w') as f:
             for seq in seqs_to_write:
                 f.write(seq)
