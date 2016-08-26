@@ -909,11 +909,13 @@ class Builder(TracerTask):
                                 or use "random"', type = self.check_colour)
             parser.add_argument('V_seqs', metavar="<V_SEQS>", help='fasta file containing V gene sequences')
             parser.add_argument('J_seqs', metavar="<J_SEQS>", help='fasta file containing J gene sequences')
-            parser.add_argument('C_seqs', metavar="<C_SEQ>", 
-                                help='fasta file containing C gene sequence(s)')
+            parser.add_argument('C_seqs', metavar="<C_SEQS>", 
+                                help='fasta file containing C gene sequence(s) for creation of recombinomes')
+
             parser.add_argument('D_seqs', metavar="<D_SEQS>", nargs='?', default=False,
                                 help='fasta file containing D gene sequences (optional)')
-            
+            parser.add_argument('C_db', metavar="<C_DB>", nargs='?', default=False,
+                                help='specify alternative fasta file (if other than the one used to make recombinomes) containing C gene sequences for creation of BLAST database (optional)')
             
             args = parser.parse_args(sys.argv[2:])
             
@@ -931,6 +933,8 @@ class Builder(TracerTask):
             self.prod_colour = args.colour
             if args.D_seqs:
                 self.raw_seq_files['D'] = args.D_seqs
+	    if args.C_db:
+                self.raw_seq_files['c'] = args.C_db
             config_file = args.config_file
             
         else:
@@ -947,7 +951,9 @@ class Builder(TracerTask):
             self.prod_colour = kwargs.get('colour')
             if kwargs.get('D_seqs'):
                 self.raw_seq_files['D'] = kwargs.get('D_seqs')
-            
+	    if kwargs.get('C_db'):
+                self.raw_seq_files['c'] = kwargs.get('C_db')
+
             config_file = kwargs.get('config_file')
 
         self.config = self.read_config(config_file)
@@ -1069,6 +1075,8 @@ class Builder(TracerTask):
         
         if 'D' in self.raw_seq_files:
             gene_segs += 'D'
+	if 'c' in self.raw_seq_files:
+            gene_segs += 'c'
 
         for s in gene_segs:
             fn = "{receptor}_{locus}_{s}.fa".format(receptor=self.receptor_name,
@@ -1164,7 +1172,8 @@ class Builder(TracerTask):
         
         makeblastdb = self.get_binary('makeblastdb')
         missing_dbs = []
-        for s in 'VDJ':
+      
+	for s in 'VDJCc':
             fn = "{receptor}_{segment}.fa".format(receptor=self.receptor_name,
                                                   segment=s)
             fasta_file = os.path.join(igblast_dir, fn)
