@@ -1173,7 +1173,17 @@ class Builder(TracerTask):
         makeblastdb = self.get_binary('makeblastdb')
         missing_dbs = []
       
-	for s in 'VDJCc':
+	gene_segs = 'VDJ'
+
+        # Use alternative C sequence file if provided
+	if 'c' in self.raw_seq_files:
+            gene_segs += 'c'
+	
+	# If not alternative C sequence file is provided, use the same as for making recombinomes
+	else:
+            gene_segs += 'C'
+
+	for s in gene_segs:
             fn = "{receptor}_{segment}.fa".format(receptor=self.receptor_name,
                                                   segment=s)
             fasta_file = os.path.join(igblast_dir, fn)
