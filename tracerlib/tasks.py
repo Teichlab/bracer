@@ -914,7 +914,7 @@ class Builder(TracerTask):
 
             parser.add_argument('D_seqs', metavar="<D_SEQS>", nargs='?', default=False,
                                 help='fasta file containing D gene sequences (optional)')
-            parser.add_argument('C_db', metavar="<C_DB>", nargs='?', default=False,
+            parser.add_argument('--C_db', metavar="<ALT_C_SEQS>", nargs='?',
                                 help='specify alternative fasta file (if other than the one used to make recombinomes) containing C gene sequences for creation of BLAST database (optional)')
             
             args = parser.parse_args(sys.argv[2:])
