@@ -1060,6 +1060,64 @@ def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, 
     DEVNULL.close()
 
 
+
+def run_Blast(blast, receptor, loci, output_dir, cell_name, index_location, species,
+                should_resume):
+    print("##Running BLAST##") 
+
+    species_mapper = {
+        'Mmus': 'mouse',
+        'Hsap': 'human'
+    }
+
+    blast_species = species_mapper[species]
+    initial_locus_names = ["_".join([receptor,x]) for x in loci]
+    locus_names = copy.copy(initial_locus_names)
+    if should_resume:
+        for locus in initial_locus_names:
+            blast_out = "{output_dir}/BLAST_output/{cell_name}_{receptor}_{locus}.BLASTOut".format(
+                                                        output_dir=output_dir,cell_name=cell_name,
+                                                        receptor=receptor, locus=locus)
+            if (os.path.isfile(blast_out) and os.path.getsize(blast_out) > 0):
+                locus_names.remove(locus)
+                print("Resuming with existing BLAST output for {locus}".format(locus=locus))
+
+        if len(locus_names) == 0:
+            return
+
+    print("Performing Blast on {locus_names}".format(locus_names = locus_names))
+
+    databases = {}
+    
+    
+    for segment in ['c', 'C']:
+        databases[segment] = "{}/{}_{}.fa".format(index_location, receptor, segment)
+    if len(databases[c]) == 0:
+        database = databases[C]
+    else:
+        database = databases[c]
+
+    # Lines below suppress Igblast warning about not having an auxliary file.
+    # Taken from http://stackoverflow.com/questions/11269575/how-to-hide-output-of-subprocess-in-python-2-7
+    DEVNULL = open(os.devnull, 'wb')
+
+    for locus in locus_names:
+        print("##{}##".format(locus))
+        trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(output_dir, cell_name, locus)
+        if os.path.isfile(trinity_fasta):
+            command = [blastn, '-db', database,
+                        '-organism', igblast_species, '-num_alignments', '1', '-outfmt', '7', '-query', trinity_fasta, '-task', 'blastn']
+            blast_out = "{output_dir}/BLAST_output/{cell_name}_{locus}.BLASTOut".format(output_dir=output_dir,
+                                                                                              cell_name=cell_name,
+                                                                                              locus=locus)
+            with open(blast_out, 'w') as out:
+                # print(" ").join(pipes.quote(s) for s in command)
+                subprocess.check_call(command, stdout=out, stderr=DEVNULL)
+
+    DEVNULL.close()
+
+
+
 def quantify_with_kallisto(kallisto, cell, output_dir, cell_name, kallisto_base_transcriptome, fastq1, fastq2,
                            ncores, should_resume, single_end, fragment_length, fragment_sd):
     print("##Running Kallisto##")

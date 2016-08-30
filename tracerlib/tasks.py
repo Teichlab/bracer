@@ -933,7 +933,7 @@ class Builder(TracerTask):
             self.prod_colour = args.colour
             if args.D_seqs:
                 self.raw_seq_files['D'] = args.D_seqs
-	    if args.C_db:
+            if args.C_db:
                 self.raw_seq_files['c'] = args.C_db
             config_file = args.config_file
             
@@ -951,7 +951,7 @@ class Builder(TracerTask):
             self.prod_colour = kwargs.get('colour')
             if kwargs.get('D_seqs'):
                 self.raw_seq_files['D'] = kwargs.get('D_seqs')
-	    if kwargs.get('C_db'):
+            if kwargs.get('C_db'):
                 self.raw_seq_files['c'] = kwargs.get('C_db')
 
             config_file = kwargs.get('config_file')
@@ -1075,7 +1075,7 @@ class Builder(TracerTask):
         
         if 'D' in self.raw_seq_files:
             gene_segs += 'D'
-	if 'c' in self.raw_seq_files:
+        if 'c' in self.raw_seq_files:
             gene_segs += 'c'
 
         for s in gene_segs:
@@ -1173,17 +1173,17 @@ class Builder(TracerTask):
         makeblastdb = self.get_binary('makeblastdb')
         missing_dbs = []
       
-	gene_segs = 'VDJ'
+        gene_segs = 'VDJ'
 
         # Use alternative C sequence file if provided
-	if 'c' in self.raw_seq_files:
+        if 'c' in self.raw_seq_files:
             gene_segs += 'c'
 	
 	# If not alternative C sequence file is provided, use the same as for making recombinomes
-	else:
+        else:
             gene_segs += 'C'
 
-	for s in gene_segs:
+        for s in gene_segs:
             fn = "{receptor}_{segment}.fa".format(receptor=self.receptor_name,
                                                   segment=s)
             fasta_file = os.path.join(igblast_dir, fn)
