@@ -1119,7 +1119,7 @@ def run_Blast(blast, receptor, loci, output_dir, cell_name, index_location, spec
 
 
 def quantify_with_kallisto(kallisto, cell, output_dir, cell_name, kallisto_base_transcriptome, fastq1, fastq2,
-                           ncores, should_resume, single_end, fragment_length, fragment_sd):
+                           ncores, should_resume, single_end, fragment_length, fragment_sd, receptor_name):
     print("##Running Kallisto##")
     if should_resume:
         if os.path.isfile("{}/expression_quantification/abundance.tsv".format(output_dir)):
@@ -1130,8 +1130,8 @@ def quantify_with_kallisto(kallisto, cell, output_dir, cell_name, kallisto_base_
     kallisto_dirs = ['kallisto_index']
     for d in kallisto_dirs:
         tracerlib.io.makeOutputDir("{}/expression_quantification/{}".format(output_dir, d))
-    fasta_filename = "{output_dir}/unfiltered_TCR_seqs/{cell_name}_TCRseqs.fa".format(output_dir=output_dir,
-                                                                                      cell_name=cell_name)
+    fasta_filename = "{output_dir}/unfiltered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=output_dir,
+                                                                                      cell_name=cell_name, receptor = receptor_name)
     fasta_file = open(fasta_filename, 'w')
     fasta_file.write(cell.get_fasta_string())
     fasta_file.close()

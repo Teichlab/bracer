@@ -411,7 +411,7 @@ class Assembler(TracerTask):
         # Quantification with kallisto
         tracer_func.quantify_with_kallisto(
             kallisto, cell, self.output_dir, self.cell_name, kallisto_base_transcriptome, self.fastq1, self.fastq2,
-            self.ncores, self.resume_with_existing_files, self.single_end, self.fragment_length, self.fragment_sd)
+            self.ncores, self.resume_with_existing_files, self.single_end, self.fragment_length, self.fragment_sd, self.receptor_name)
         print()
 
         counts = tracer_func.load_kallisto_counts("{}/expression_quantification/abundance.tsv".format(self.output_dir))
