@@ -186,7 +186,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                                                                                           returned_locus, IMGT_seqs,
                                                                                           cell_name, query_name,
                                                                                           loci_for_segments)
-                    if len(junc_string) < int(max_junc_string_length):
+                    if len(junc_string) < max_junc_string_length:
                         rec = Recombinant(contig_name=query_name, locus=returned_locus, identifier=identifier,
                                           all_poss_identifiers=all_poss_identifiers, productive=is_productive[0],
                                           stop_codon=is_productive[1], in_frame=is_productive[2], TPM=0.0,
@@ -1011,7 +1011,7 @@ def assemble_with_trinity(trinity, receptor, loci, output_dir, cell_name, ncores
 def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, ig_seqtype, species,
                 should_resume):
     print("##Running IgBLAST##")
-
+    print ("Ig_seqtype:", ig_seqtype)
     species_mapper = {
         'Mmus': 'mouse',
         'Hsap': 'human'
@@ -1046,10 +1046,10 @@ def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, 
         print("##{}##".format(locus))
         trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(output_dir, cell_name, locus)
         if os.path.isfile(trinity_fasta):
-            command = [igblast, '-germline_db_V', databases['V'], '-germline_db_D', databases['D'],
-                       '-germline_db_J', databases['J'], '-domain_system', 'imgt', '-organism', igblast_species,
-                       '-ig_seqtype', ig_seqtype, '-show_translation', '-num_alignments_V', '5',
-                       '-num_alignments_D', '5', '-num_alignments_J', '5', '-outfmt', '7', '-query', trinity_fasta]
+            command = [igblast, '-germline_db_V', databases['V'], '-germline_db_J', databases['J'], '-germline_db_D', 
+                        databases['D'], '-domain_system', 'imgt', '-organism', igblast_species,
+                       '-ig_seqtype', ig_seqtype, '-show_translation', '-num_alignments_V', '3',
+                       '-num_alignments_D', '3', '-num_alignments_J', '3', '-outfmt', '7', '-query', trinity_fasta]
             igblast_out = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
                                                                                               cell_name=cell_name,
                                                                                               locus=locus)

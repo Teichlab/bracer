@@ -70,3 +70,6 @@ filtered_TCR_summary
 
 # Folder for temp stuff
 unversioned/
+
+#Resources
+resources/
