@@ -286,7 +286,7 @@ class Assembler(TracerTask):
         self.align()
         self.de_novo_assemble()
         cell = self.ig_blast()
-        """self.quantify(cell)
+        self.quantify(cell)
         
         fasta_filename = "{output_dir}/unfiltered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
                                                                                         cell_name=self.cell_name,
@@ -323,7 +323,7 @@ class Assembler(TracerTask):
         with open("{output_dir}/filtered_{receptor}_seqs/{cell_name}.pkl".format(output_dir=self.output_dir,
                                                                           cell_name=cell.name,
                                                                           receptor=self.receptor_name), 'wb') as pf:
-            pickle.dump(cell, pf, protocol=0)"""
+            pickle.dump(cell, pf, protocol=0)
 
     def get_index_location(self, name):
         location = os.path.join(base_dir, 'resources', self.species, name)
