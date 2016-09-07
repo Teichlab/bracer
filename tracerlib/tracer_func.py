@@ -1092,10 +1092,11 @@ def run_Blast(blast, receptor, loci, output_dir, cell_name, index_location, spec
     
     for segment in ['c', 'C']:
         databases[segment] = "{}/{}_{}.fa".format(index_location, receptor, segment)
-    if len(databases[c]) == 0:
-        database = databases[C]
+    
+    if (os.path.isfile("{}/{}_c.fa".format(index_location, receptor)) and os.path.getsize("{}/{}_c.fa".format(index_location, receptor)) > 0):
+        database = databases['c']
     else:
-        database = databases[c]
+        database = databases['C']
 
     # Lines below suppress Igblast warning about not having an auxliary file.
     # Taken from http://stackoverflow.com/questions/11269575/how-to-hide-output-of-subprocess-in-python-2-7
@@ -1105,8 +1106,8 @@ def run_Blast(blast, receptor, loci, output_dir, cell_name, index_location, spec
         print("##{}##".format(locus))
         trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(output_dir, cell_name, locus)
         if os.path.isfile(trinity_fasta):
-            command = [blastn, '-db', database,
-                        '-organism', igblast_species, '-num_alignments', '1', '-outfmt', '7', '-query', trinity_fasta, '-task', 'blastn']
+            command = [blast, '-db', database,
+                        '-organism', blast_species, '-num_alignments', '1', '-outfmt', '7', '-query', trinity_fasta]
             blast_out = "{output_dir}/BLAST_output/{cell_name}_{locus}.BLASTOut".format(output_dir=output_dir,
                                                                                               cell_name=cell_name,
                                                                                               locus=locus)

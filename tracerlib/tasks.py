@@ -276,7 +276,7 @@ class Assembler(TracerTask):
 
         io.makeOutputDir(self.output_dir)
 
-        data_dirs = ['aligned_reads', 'Trinity_output', 'IgBLAST_output', 
+        data_dirs = ['aligned_reads', 'Trinity_output', 'IgBLAST_output', 'BLAST_output',
                      'unfiltered_{receptor}_seqs'.format(receptor=self.receptor_name),'expression_quantification', 
                      'filtered_{receptor}_seqs'.format(receptor=self.receptor_name)]
         for d in data_dirs:
@@ -286,7 +286,8 @@ class Assembler(TracerTask):
         self.align()
         self.de_novo_assemble()
         cell = self.ig_blast()
-        self.quantify(cell)
+        isotype = self.blast()
+        # self.quantify(cell)
         
         fasta_filename = "{output_dir}/unfiltered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
                                                                                         cell_name=self.cell_name,
@@ -397,6 +398,32 @@ class Assembler(TracerTask):
                 self.die_with_empty_cell(self.cell_name, self.output_dir, self.species)
 
         return cell
+
+    def blast(self):
+        blastn = self.get_binary('blastn')
+
+
+        # Reference data locations
+        blast_index_location = self.get_index_location('igblast_dbs')
+        imgt_seq_location = self.get_index_location('raw_seqs')
+
+        # Blast of assembled contigs
+        tracer_func.run_Blast(blastn, self.receptor_name, self.loci, self.output_dir, self.cell_name, blast_index_location,
+                                self.species, self.resume_with_existing_files)
+        print()
+
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            #cell = io.parse_IgBLAST(self.receptor_name, self.loci, self.output_dir, self.cell_name, imgt_seq_location,
+            #                        self.species, self.seq_method, self.invariant_sequences)
+            isotype = io.parse_BLAST(self.receptor_name, self.loci, self.output_dir, self.cell_name, imgt_seq_location,
+                                    self.species, self.seq_method, self.max_junc_len)
+            if isotype.is_empty:
+                self.die_with_empty_cell(self.cell_name, self.output_dir, self.species)
+
+        return isotype
+
 
     def quantify(self, cell):
         kallisto = self.get_binary('kallisto')
