@@ -12,6 +12,7 @@ from collections import defaultdict
 import six
 import sys
 from Bio import SeqIO
+from Bio.Blast import NCBIXML
 
 from tracerlib.tracer_func import process_chunk, find_possible_alignments
 from tracerlib.core import Invar_cell
@@ -107,6 +108,69 @@ def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species,
     cell = find_possible_alignments(all_locus_data, locus_names, cell_name, IMGT_seqs, output_dir, species, seq_method,
                                      invariant_seqs, loci_for_segments, receptor, loci, max_junc_len)
     return (cell)
+
+
+def parse_BLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species):
+
+    for locus in loci:
+       
+        result_file =  "{output_dir}/BLAST_output/{cell_name}_{receptor}_{locus}.xml".format(output_dir=output_dir,
+                                                                                   cell_name=cell_name, locus=locus, receptor=receptor)
+        result_handle = open(result_file)
+        blast_records = NCBIXML.parse(result_handle)
+
+        for blast_record in blast_records:
+            print('Isotype detected')
+        result_handle.close() 
+
+    # Create a function called report_isotype(some keywords) and call function
+    # isotype = report_isotype(kwargs)
+
+
+
+
+    """IMGT_seqs = dict()
+    #expecting_D = dict()
+
+    loci_for_segments = defaultdict(list)
+
+    #for locus in loci:
+    #    expecting_D[locus] = False
+    for locus in loci:
+        seq_files = glob.glob(os.path.join(raw_seq_dir, "{receptor}_{locus}_*.fa".format(receptor=receptor,
+                                                                                    locus=locus)))
+        for f in seq_files:
+            #if not f.endswith("_C.fa"):
+                segment_name = os.path.splitext(os.path.split(f)[1])[0]
+                IMGT_seqs[segment_name] = load_IMGT_seqs(f)
+                #if segment_name.split("_")[2] == 'D':
+                #    expecting_D[locus] = True
+                loci_for_segments[segment_name.split("_")[2]].append(locus)
+
+    #segment_names = ['TRAJ', 'TRAV', 'TRBD', 'TRBJ', 'TRBV']
+    #IMGT_seqs = dict()
+    #for segment in segment_names:
+    #    IMGT_seqs[segment] = load_IMGT_seqs("{}/{}.fa".format(imgt_seq_location, segment))
+
+    locus_names = ["_".join([receptor,x]) for x in loci]
+    all_locus_data = defaultdict(dict)
+    for locus in locus_names:
+        file = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
+                                                                                   cell_name=cell_name, locus=locus)
+        if os.path.isfile(file):
+            igblast_result_chunks = split_igblast_file(file)
+
+            for chunk in igblast_result_chunks:
+                (query_name, chunk_details) = process_chunk(chunk)
+
+                all_locus_data[locus][query_name] = chunk_details
+        else:
+            all_locus_data[locus] = None
+    cell = find_possible_alignments(all_locus_data, locus_names, cell_name, IMGT_seqs, output_dir, species, seq_method,
+                                     invariant_seqs, loci_for_segments, receptor, loci, max_junc_len)
+   """ 
+    
+    # return (isotype)
 
 
 def split_igblast_file(filename):

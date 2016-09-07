@@ -1075,7 +1075,7 @@ def run_Blast(blast, receptor, loci, output_dir, cell_name, index_location, spec
     locus_names = copy.copy(initial_locus_names)
     if should_resume:
         for locus in initial_locus_names:
-            blast_out = "{output_dir}/BLAST_output/{cell_name}_{receptor}_{locus}.BLASTOut".format(
+            blast_out = "{output_dir}/BLAST_output/{cell_name}_{receptor}_{locus}.xml".format(
                                                         output_dir=output_dir,cell_name=cell_name,
                                                         receptor=receptor, locus=locus)
             if (os.path.isfile(blast_out) and os.path.getsize(blast_out) > 0):
@@ -1106,9 +1106,9 @@ def run_Blast(blast, receptor, loci, output_dir, cell_name, index_location, spec
         print("##{}##".format(locus))
         trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(output_dir, cell_name, locus)
         if os.path.isfile(trinity_fasta):
-            command = [blast, '-db', database,
+            command = [blast, '-db', database, '-evalue', '0.001',
                         '-num_alignments', '1', '-outfmt', '5', '-query', trinity_fasta]
-            blast_out = "{output_dir}/BLAST_output/{cell_name}_{locus}.BLASTOut".format(output_dir=output_dir,
+            blast_out = "{output_dir}/BLAST_output/{cell_name}_{locus}.xml".format(output_dir=output_dir,
                                                                                               cell_name=cell_name,
                                                                                               locus=locus)
             with open(blast_out, 'w') as out:

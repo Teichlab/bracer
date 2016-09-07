@@ -418,9 +418,7 @@ class Assembler(TracerTask):
             #cell = io.parse_IgBLAST(self.receptor_name, self.loci, self.output_dir, self.cell_name, imgt_seq_location,
             #                        self.species, self.seq_method, self.invariant_sequences)
             isotype = io.parse_BLAST(self.receptor_name, self.loci, self.output_dir, self.cell_name, imgt_seq_location,
-                                    self.species, self.seq_method, self.max_junc_len)
-            if isotype.is_empty:
-                self.die_with_empty_cell(self.cell_name, self.output_dir, self.species)
+                                    self.species)
 
         return isotype
 
