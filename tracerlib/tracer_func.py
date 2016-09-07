@@ -1107,7 +1107,7 @@ def run_Blast(blast, receptor, loci, output_dir, cell_name, index_location, spec
         trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(output_dir, cell_name, locus)
         if os.path.isfile(trinity_fasta):
             command = [blast, '-db', database,
-                        '-organism', blast_species, '-num_alignments', '1', '-outfmt', '7', '-query', trinity_fasta]
+                        '-num_alignments', '1', '-outfmt', '5', '-query', trinity_fasta]
             blast_out = "{output_dir}/BLAST_output/{cell_name}_{locus}.BLASTOut".format(output_dir=output_dir,
                                                                                               cell_name=cell_name,
                                                                                               locus=locus)
