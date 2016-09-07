@@ -203,6 +203,28 @@ class Cell(object):
         else:
             return_list.append("No TCRD recombinants")
 
+        return_list.append('\n#BCRH#')
+        if not self.H_recombinants is None:
+            for recombinant in self.H_recombinants:
+                return_list.append(str(recombinant))
+        else:
+            return_list.append("No BCRH recombinants")
+
+        return_list.append('\n#BCRK#')
+        if not self.K_recombinants is None:
+            for recombinant in self.K_recombinants:
+                return_list.append(str(recombinant))
+        else:
+            return_list.append("No BCRK recombinants")
+
+        return_list.append('\n#BCRL#')
+        if not self.L_recombinants is None:
+            for recombinant in self.L_recombinants:
+                return_list.append(str(recombinant))
+        else:
+            return_list.append("No BCRL recombinants")
+
+
         return ("\n".join(return_list))
 
     def get_fasta_string(self):
