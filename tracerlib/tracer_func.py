@@ -101,80 +101,98 @@ def process_chunk(chunk):
 
 
 def process_blast_chunk(chunk):
-    store_iteration_message = False
-    store_junction_details = False
-    store_alignment_summary = False
-    store_hit_table = False
-    alignment_summary = []
-    hit_table = []
-    looking_for_end = False
     return_dict = defaultdict(list)
     for line_x in chunk:
 
         line = line.strip()
 
-        if store_VDJ_rearrangement_summary:
-            VDJ_rearrangement_summary = line_x.split("\t")
-            for i in VDJ_rearrangement_summary:
-                return_dict['VDJ_rearrangement_summary'].append(i)
-            store_VDJ_rearrangement_summary = False
-
-        elif store_junction_details:
-            junction_details = line_x.split("\t")
-            for i in junction_details:
-                return_dict["junction_details"].append(i)
-            store_junction_details = False
-
-        elif store_alignment_summary:
-            if not line_x.startswith("#"):
-                if line_x.startswith("Total"):
-                    store_alignment_summary = False
-                else:
-                    return_dict['alignment_summary'].append(line_x)
-
-        elif store_hit_table:
-            if not looking_for_end:
-                if not line_x.startswith("#"):
-                    return_dict['hit_table'].append(line_x)
-                    looking_for_end = True
-            else:
-                if line_x.startswith("#") or line_x.startswith("\n"):
-                    store_hit_table = False
-                else:
-                    return_dict['hit_table'].append(line_x)
-
-        
-        elif line_x.startswith("<Iteration_query-def>"):
-            query_line = line_x.split()[0]
-            query_name = query_line.split(">")[1]
-            print(query_name)]
+        if line_x.startswith("<Iteration_query-def>"):
+            line = line_x.split()[0]
+            query_name = line.split(">")[1]
+            
             
         elif line_x.startswith("<Hit_accession>"):
-            hit_line = line_x.split()[0]
-            hit_name = hit_line.split(">")[1]
+            line = line_x.split()[0]
+            hit_name = line.split(">")[1]
             hit_name = hit_name.split("<")[0]
-            print(hit_name)
+            return_dict['hit_name'].append(hit_name)
+
         elif line_x.startswith("<Iteration_message>"):
-            message = line_x.split(">")[1]
-            message = message.split("<")[0]
+            line = line_x.split(">")[1]
+            iteration_message = line.split("<")[0]
+            return_dict['iteration_message'].append(iteration_message)
+       
+        elif line_x.startswith("<Hsp_bit-score>"):
+            line = line_x.split()[0]
+            bit_score = line.split(">")[1]
+            bit_score = bit_score.split("<")[0]
+            return_dict['bit_score'].append(float(bit_score))
+      
+
+
+
+
+        elif line_x.startswith("<Hsp_evalue>"):
+            line = line_x.split()[0]
+            evalue = line.split(">")[1]
+            evalue = evalue.split("<")[0]
+            return_dict['evalue'].append(float(evalue))
+
+
+        elif line_x.startswith("<Hsp_query-from>"):
+            line = line_x.split()[0]
+            q_start = line.split(">")[1]
+            q_start = q_start.split("<")[0]
+            return_dict['q_start'].append(int(q_start))
+
+        elif line_x.startswith("<Hsp_query-to>"):
+            line = line_x.split()[0]
+            q_end = line.split(">")[1]
+            q_end = q_end.split("<")[0]
+            return_dict['q_end'].append(int(q_end))
+
+        elif line_x.startswith("<Hsp_hit-from>"):
+            line = line_x.split()[0]
+            s_start = line.split(">")[1]
+            s_start = s_start.split("<")[0]
+            return_dict['s_start'].append(int(s_start))
+        
+        elif line_x.startswith("<Hsp_hit-to>"):
+            line = line_x.split()[0]
+            s_end = line.split(">")[1]
+            s_end = s_end.split("<")[0]
+            return_dict['s_end'].append(int(s_end))
+
+ 
         elif line_x.startswith("<Iteration_query-len>"):
+            line = line_x.split()[0]
+            query_length = line.split(">")[1]
+            query_length = query_length.split("<")[0]
+            return_dict['query_length'].append(int(query_length))
+            
+        elif line_x.startswith("<Hsp_align-len>"):
+            line = line_x.split()[0]
+            align_length = line.split(">")[1]
+            align_length = align_length.split("<")[0]
+            return_dict['align_length'].append(int(align_length))
 
+        elif line_x.startswith("<Hsp_gaps>"):
+            line = line_x.split()[0]
+            gaps = line.split(">")[1]
+            gaps = gaps.split("<")[0]
+            return_dict['gaps'].append(int(gaps))
 
-            query_length = line_x.split(" ")[3]
-            return_dict['query_length'] = int(query_length.split("=")[1])
-            # return_dict['query_name'] = query_name
+        elif line_x.startswith("<Hsp_identity>"):
+            line = line_x.split()[0]
+            identity = line.split(">")[1]
+            identity = identity.split("<")[0]
+            pros_identity = (float(identity)/(float(align_length))*100)
+            return_dict['pros_identity'].append(pros_identity)
 
-        elif line_x.startswith('<Iteration_message>'):
-            store_iteration_message = True
-
-        elif line_x.startswith('# V-(D)-J junction details'):
-            store_junction_details = True
-
-        elif line_x.startswith('# Alignment summary'):
-            store_alignment_summary = True
-
-        elif line_x.startswith('# Hit table'):
-            store_hit_table = True
+    mismatches = int(align_length) - int(identity)
+    return_dict['mismatches'].append(mismatches)
+ 
+        
     return (query_name, return_dict)
 
 

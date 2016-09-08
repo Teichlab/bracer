@@ -122,8 +122,14 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species):
             blast_result_chunks = split_blast_file(file)
 
             for chunk in blast_result_chunks:
-                
-                print("###CHUNK###")
+               (query_name, chunk_details) = process_chunk(chunk)
+
+                all_locus_data[locus][query_name] = chunk_details
+        else:
+            all_locus_data[locus] = None
+        print all_locus_data[locus]
+             
+             """   print("###CHUNK###")
                 for line in chunk:
                     line = line.strip()
                     if line.startswith("<Iteration_query-def>"):
@@ -143,7 +149,7 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species):
 
 
                         print(message)
-
+"""
         #b_parser = NCBIXML.BlastParser()
         #blast_records = b_parser.parse(result_handle)
         
