@@ -12,7 +12,7 @@ from collections import defaultdict
 import six
 import sys
 from Bio import SeqIO
-from Bio.Blast import NCBIXML
+#from Bio.Blast import NCBIXML, Record
 
 from tracerlib.tracer_func import process_chunk, find_possible_alignments
 from tracerlib.core import Invar_cell
@@ -113,15 +113,71 @@ def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species,
 def parse_BLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species):
 
     for locus in loci:
-       
-        result_file =  "{output_dir}/BLAST_output/{cell_name}_{receptor}_{locus}.xml".format(output_dir=output_dir,
+        print("#{}_{}#".format(receptor, locus))
+        
+        file =  "{output_dir}/BLAST_output/{cell_name}_{receptor}_{locus}.xml".format(output_dir=output_dir,
                                                                                    cell_name=cell_name, locus=locus, receptor=receptor)
-        result_handle = open(result_file)
-        blast_records = NCBIXML.parse(result_handle)
+        #with open(result_file) as result_handle:
+        if os.path.isfile(file):
+            blast_result_chunks = split_blast_file(file)
 
-        for blast_record in blast_records:
-            print('Isotype detected')
-        result_handle.close() 
+            for chunk in blast_result_chunks:
+                
+                print("###CHUNK###")
+                for line in chunk:
+                    line = line.strip()
+                    if line.startswith("<Iteration_query-def>"):
+                        query_line = line.split()[0]
+                        query_name = query_line.split(">")[1]
+                        print(query_name)
+                        continue
+                    elif line.startswith("<Hit_accession>"):
+                        hit_line = line.split()[0]
+                        hit_name = hit_line.split(">")[1]
+                        hit_name = hit_name.split("<")[0]
+                        print(hit_name)
+                        continue
+                    elif line.startswith("<Iteration_message>"):
+                        message = line.split(">")[1]
+                        message = message.split("<")[0]
+
+
+                        print(message)
+
+        #b_parser = NCBIXML.BlastParser()
+        #blast_records = b_parser.parse(result_handle)
+        
+
+        #blast_records = list(blast_records)
+        #for blast_record in blast_records:
+            #parser = NCBIXML.BlastParser(blast_record)
+            #blast_record._start_Iteration()
+            
+            #query = blast_record._end_Iteration_query_ID()            
+            
+
+            #print(query)
+
+
+
+         
+           
+            E_VALUE_THRESH = 0.04
+           
+            """for alignment in blast_record.alignments:
+                for hsp in alignment.hsps:
+                    if hsp.expect < E_VALUE_THRESH:
+                        print('****Alignment****')
+                        print('sequence:', alignment.title)
+                        print('length:', alignment.length)"""
+
+
+
+
+
+
+
+        #result_handle.close() 
 
     # Create a function called report_isotype(some keywords) and call function
     # isotype = report_isotype(kwargs)
@@ -184,6 +240,28 @@ def split_igblast_file(filename):
             line = line.rstrip()
                 
             if line.startswith(token) and current_chunk and not line.startswith("Total queries"):
+                # if line starts with token and the current chunk is not empty
+                chunks.append(current_chunk[:])  # add not empty chunk to chunks
+                current_chunk = []  # make current chunk blank
+            # just append a line to the current chunk on each iteration
+            if not line.startswith("Total queries"):
+                current_chunk.append(line)
+
+        chunks.append(current_chunk)  # append the last chunk outside the loop
+    return (chunks)
+
+
+def split_blast_file(filename):
+    # code adapted from http://stackoverflow.com/questions/19575702/pythonhow-to-split-file-into-chunks-by-the-occurrence-of-the-header-word
+    token = '<Iteration>'
+    chunks = []
+    current_chunk = []
+
+    with open(filename) as fh:
+        for line in fh:
+            line = line.rstrip()
+
+            if line.startswith(token) and current_chunk:
                 # if line starts with token and the current chunk is not empty
                 chunks.append(current_chunk[:])  # add not empty chunk to chunks
                 current_chunk = []  # make current chunk blank

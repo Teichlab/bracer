@@ -99,6 +99,90 @@ def process_chunk(chunk):
     return (query_name, return_dict)
 
 
+
+def process_blast_chunk(chunk):
+    store_iteration_message = False
+    store_junction_details = False
+    store_alignment_summary = False
+    store_hit_table = False
+    alignment_summary = []
+    hit_table = []
+    looking_for_end = False
+    return_dict = defaultdict(list)
+    for line_x in chunk:
+
+        line = line.strip()
+
+        if store_VDJ_rearrangement_summary:
+            VDJ_rearrangement_summary = line_x.split("\t")
+            for i in VDJ_rearrangement_summary:
+                return_dict['VDJ_rearrangement_summary'].append(i)
+            store_VDJ_rearrangement_summary = False
+
+        elif store_junction_details:
+            junction_details = line_x.split("\t")
+            for i in junction_details:
+                return_dict["junction_details"].append(i)
+            store_junction_details = False
+
+        elif store_alignment_summary:
+            if not line_x.startswith("#"):
+                if line_x.startswith("Total"):
+                    store_alignment_summary = False
+                else:
+                    return_dict['alignment_summary'].append(line_x)
+
+        elif store_hit_table:
+            if not looking_for_end:
+                if not line_x.startswith("#"):
+                    return_dict['hit_table'].append(line_x)
+                    looking_for_end = True
+            else:
+                if line_x.startswith("#") or line_x.startswith("\n"):
+                    store_hit_table = False
+                else:
+                    return_dict['hit_table'].append(line_x)
+
+        
+        elif line_x.startswith("<Iteration_query-def>"):
+            query_line = line_x.split()[0]
+            query_name = query_line.split(">")[1]
+            print(query_name)]
+            
+        elif line_x.startswith("<Hit_accession>"):
+            hit_line = line_x.split()[0]
+            hit_name = hit_line.split(">")[1]
+            hit_name = hit_name.split("<")[0]
+            print(hit_name)
+        elif line_x.startswith("<Iteration_message>"):
+            message = line_x.split(">")[1]
+            message = message.split("<")[0]
+        elif line_x.startswith("<Iteration_query-len>"):
+
+
+            query_length = line_x.split(" ")[3]
+            return_dict['query_length'] = int(query_length.split("=")[1])
+            # return_dict['query_name'] = query_name
+
+        elif line_x.startswith('<Iteration_message>'):
+            store_iteration_message = True
+
+        elif line_x.startswith('# V-(D)-J junction details'):
+            store_junction_details = True
+
+        elif line_x.startswith('# Alignment summary'):
+            store_alignment_summary = True
+
+        elif line_x.startswith('# Hit table'):
+            store_hit_table = True
+    return (query_name, return_dict)
+
+
+
+
+
+
+
 def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, output_dir, species, seq_method,
                              invariant_seqs, loci_for_segments, receptor, loci, max_junc_string_length):
     alignment_dict = defaultdict(dict)
