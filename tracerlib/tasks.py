@@ -287,7 +287,7 @@ class Assembler(TracerTask):
         self.de_novo_assemble()
         cell = self.ig_blast()
         isotype = self.blast()
-        # self.quantify(cell)
+        self.quantify(cell)
         
         fasta_filename = "{output_dir}/unfiltered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
                                                                                         cell_name=self.cell_name,

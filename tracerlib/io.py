@@ -14,7 +14,7 @@ import sys
 from Bio import SeqIO
 #from Bio.Blast import NCBIXML, Record
 
-from tracerlib.tracer_func import process_chunk, find_possible_alignments
+from tracerlib.tracer_func import process_chunk, find_possible_alignments, process_blast_chunk
 from tracerlib.core import Invar_cell
 import glob
 import pdb
@@ -112,6 +112,8 @@ def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species,
 
 def parse_BLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species):
 
+    all_locus_data = defaultdict(dict)
+
     for locus in loci:
         print("#{}_{}#".format(receptor, locus))
         
@@ -122,14 +124,13 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species):
             blast_result_chunks = split_blast_file(file)
 
             for chunk in blast_result_chunks:
-               (query_name, chunk_details) = process_chunk(chunk)
-
-                all_locus_data[locus][query_name] = chunk_details
+                (blast_query_name, chunk_details) = process_blast_chunk(chunk)
+                all_locus_data[locus][blast_query_name] = chunk_details
         else:
             all_locus_data[locus] = None
-        print all_locus_data[locus]
+        print(all_locus_data[locus])
              
-             """   print("###CHUNK###")
+        """   print("###CHUNK###")
                 for line in chunk:
                     line = line.strip()
                     if line.startswith("<Iteration_query-def>"):
@@ -148,36 +149,7 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species):
                         message = message.split("<")[0]
 
 
-                        print(message)
-"""
-        #b_parser = NCBIXML.BlastParser()
-        #blast_records = b_parser.parse(result_handle)
-        
-
-        #blast_records = list(blast_records)
-        #for blast_record in blast_records:
-            #parser = NCBIXML.BlastParser(blast_record)
-            #blast_record._start_Iteration()
-            
-            #query = blast_record._end_Iteration_query_ID()            
-            
-
-            #print(query)
-
-
-
-         
-           
-            E_VALUE_THRESH = 0.04
-           
-            """for alignment in blast_record.alignments:
-                for hsp in alignment.hsps:
-                    if hsp.expect < E_VALUE_THRESH:
-                        print('****Alignment****')
-                        print('sequence:', alignment.title)
-                        print('length:', alignment.length)"""
-
-
+                        print(message)"""     
 
 
 

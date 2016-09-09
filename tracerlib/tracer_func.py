@@ -102,98 +102,91 @@ def process_chunk(chunk):
 
 def process_blast_chunk(chunk):
     return_dict = defaultdict(list)
+    blast_query_name = None
     for line_x in chunk:
 
-        line = line.strip()
+        line_x= line_x.strip()
 
         if line_x.startswith("<Iteration_query-def>"):
             line = line_x.split()[0]
-            query_name = line.split(">")[1]
+            blast_query_name = line.split(">")[1]
             
             
         elif line_x.startswith("<Hit_accession>"):
             line = line_x.split()[0]
             hit_name = line.split(">")[1]
             hit_name = hit_name.split("<")[0]
-            return_dict['hit_name'].append(hit_name)
+            return_dict['hit_name']=hit_name
 
         elif line_x.startswith("<Iteration_message>"):
             line = line_x.split(">")[1]
             iteration_message = line.split("<")[0]
-            return_dict['iteration_message'].append(iteration_message)
+            return_dict['iteration_message']=iteration_message
        
         elif line_x.startswith("<Hsp_bit-score>"):
             line = line_x.split()[0]
             bit_score = line.split(">")[1]
             bit_score = bit_score.split("<")[0]
-            return_dict['bit_score'].append(float(bit_score))
-      
-
-
+            return_dict['bit_score']=float(bit_score)
 
 
         elif line_x.startswith("<Hsp_evalue>"):
             line = line_x.split()[0]
             evalue = line.split(">")[1]
             evalue = evalue.split("<")[0]
-            return_dict['evalue'].append(float(evalue))
+            return_dict['evalue']=float(evalue)
 
 
         elif line_x.startswith("<Hsp_query-from>"):
             line = line_x.split()[0]
             q_start = line.split(">")[1]
             q_start = q_start.split("<")[0]
-            return_dict['q_start'].append(int(q_start))
+            return_dict['q_start']=int(q_start)
 
         elif line_x.startswith("<Hsp_query-to>"):
             line = line_x.split()[0]
             q_end = line.split(">")[1]
             q_end = q_end.split("<")[0]
-            return_dict['q_end'].append(int(q_end))
+            return_dict['q_end']=int(q_end)
 
         elif line_x.startswith("<Hsp_hit-from>"):
             line = line_x.split()[0]
             s_start = line.split(">")[1]
             s_start = s_start.split("<")[0]
-            return_dict['s_start'].append(int(s_start))
+            return_dict['s_start']=int(s_start)
         
         elif line_x.startswith("<Hsp_hit-to>"):
             line = line_x.split()[0]
             s_end = line.split(">")[1]
             s_end = s_end.split("<")[0]
-            return_dict['s_end'].append(int(s_end))
+            return_dict['s_end']=int(s_end)
 
  
         elif line_x.startswith("<Iteration_query-len>"):
             line = line_x.split()[0]
             query_length = line.split(">")[1]
             query_length = query_length.split("<")[0]
-            return_dict['query_length'].append(int(query_length))
+            return_dict['query_length']=int(query_length)
             
         elif line_x.startswith("<Hsp_align-len>"):
             line = line_x.split()[0]
             align_length = line.split(">")[1]
             align_length = align_length.split("<")[0]
-            return_dict['align_length'].append(int(align_length))
+            return_dict['align_length']=int(align_length)
 
         elif line_x.startswith("<Hsp_gaps>"):
             line = line_x.split()[0]
             gaps = line.split(">")[1]
             gaps = gaps.split("<")[0]
-            return_dict['gaps'].append(int(gaps))
+            return_dict['gaps']=int(gaps)
 
         elif line_x.startswith("<Hsp_identity>"):
             line = line_x.split()[0]
             identity = line.split(">")[1]
             identity = identity.split("<")[0]
-            pros_identity = (float(identity)/(float(align_length))*100)
-            return_dict['pros_identity'].append(pros_identity)
-
-    mismatches = int(align_length) - int(identity)
-    return_dict['mismatches'].append(mismatches)
- 
+            return_dict['identity']=int(identity)
         
-    return (query_name, return_dict)
+    return (blast_query_name, return_dict)
 
 
 
@@ -240,6 +233,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                     identifier = best_V + "_" + junc_string + "_" + best_J
 
                     ##line attempting to add alignment summary to data for use with PCR comparisons
+
                     alignment_summary = query_data['alignment_summary']
 
                     all_V_names = [remove_allele_stars(x) for x in rearrangement_summary[0].split(',')]
@@ -1269,4 +1263,3 @@ def quantify_with_kallisto(kallisto, cell, output_dir, cell_name, kallisto_base_
     # os.remove(idx_file)
     # os.remove(output_transcriptome)
     shutil.rmtree("{}/expression_quantification/kallisto_index/".format(output_dir))
-
