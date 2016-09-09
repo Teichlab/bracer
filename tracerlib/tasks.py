@@ -286,7 +286,8 @@ class Assembler(TracerTask):
         self.align()
         self.de_novo_assemble()
         cell = self.ig_blast()
-        isotype = self.blast()
+        creg = self.blast()
+        print(creg)
         self.quantify(cell)
         
         fasta_filename = "{output_dir}/unfiltered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
@@ -301,7 +302,7 @@ class Assembler(TracerTask):
                                                                         output_dir=self.output_dir,
                                                                         receptor=self.receptor_name),
                                                                         self.receptor_name, self.loci)
-
+        
         # Save cell in a pickle
         with open("{output_dir}/unfiltered_{receptor}_seqs/{cell_name}.pkl".format(output_dir=self.output_dir,
                                                                             cell_name=cell.name, 

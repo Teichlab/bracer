@@ -130,6 +130,7 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species):
             all_locus_data[locus] = None
     
     isotype = report_isotype(all_locus_data, locus_names, cell_name, output_dir, species, receptor, loci)
+    
     return (isotype)
              
 
