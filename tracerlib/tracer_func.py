@@ -189,10 +189,22 @@ def process_blast_chunk(chunk):
     return (blast_query_name, return_dict)
 
 
+def report_isotype(sample_dict, locus_names, cell_name, output_dir, species, receptor, loci):
+    isotype_dict = defaultdict(dict)
+    recombinants = {}
+    for locus in locus_names:
+        recombinants[locus] = []
 
-
-
-
+    for locus in locus_names:
+        print("### Reporting isotypes for {locus}".format(locus=locus)
+        data_for_locus = sample_dict[locus]
+        if data_for_locus is not None:
+            for query_name, query_data in six.iteritems(data_for_locus):
+                C_segment = query_data['hit_name']
+                print(query_name)
+                print(C_segment)
+                
+    #return (isotype_dict)    
 
 def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, output_dir, species, seq_method,
                              invariant_seqs, loci_for_segments, receptor, loci, max_junc_string_length):

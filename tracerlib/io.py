@@ -14,7 +14,7 @@ import sys
 from Bio import SeqIO
 #from Bio.Blast import NCBIXML, Record
 
-from tracerlib.tracer_func import process_chunk, find_possible_alignments, process_blast_chunk
+from tracerlib.tracer_func import process_chunk, find_possible_alignments, process_blast_chunk, report_isotype
 from tracerlib.core import Invar_cell
 import glob
 import pdb
@@ -110,8 +110,8 @@ def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species,
     return (cell)
 
 
-def parse_BLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species):
-
+def parse_BLAST(receptor, loci, output_dir, cell_name, species):
+    locus_names = ["_".join([receptor,x]) for x in loci]
     all_locus_data = defaultdict(dict)
 
     for locus in loci:
@@ -128,34 +128,11 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species):
                 all_locus_data[locus][blast_query_name] = chunk_details
         else:
             all_locus_data[locus] = None
-        print(all_locus_data[locus])
+    
+    isotype = report_isotype(all_locus_data, locus_names, cell_name, output_dir, species, receptor, loci)
+    return (isotype)
              
-        """   print("###CHUNK###")
-                for line in chunk:
-                    line = line.strip()
-                    if line.startswith("<Iteration_query-def>"):
-                        query_line = line.split()[0]
-                        query_name = query_line.split(">")[1]
-                        print(query_name)
-                        continue
-                    elif line.startswith("<Hit_accession>"):
-                        hit_line = line.split()[0]
-                        hit_name = hit_line.split(">")[1]
-                        hit_name = hit_name.split("<")[0]
-                        print(hit_name)
-                        continue
-                    elif line.startswith("<Iteration_message>"):
-                        message = line.split(">")[1]
-                        message = message.split("<")[0]
 
-
-                        print(message)"""     
-
-
-
-
-
-        #result_handle.close() 
 
     # Create a function called report_isotype(some keywords) and call function
     # isotype = report_isotype(kwargs)
