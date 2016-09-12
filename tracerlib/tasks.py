@@ -418,7 +418,6 @@ class Assembler(TracerTask):
             #cell = io.parse_IgBLAST(self.receptor_name, self.loci, self.output_dir, self.cell_name, imgt_seq_location,
             #                        self.species, self.seq_method, self.invariant_sequences)
             isotype = io.parse_BLAST(self.receptor_name, self.loci, self.output_dir, self.cell_name, self.species)
-        print(isotype)
         return isotype
 
 

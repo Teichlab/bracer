@@ -192,14 +192,26 @@ def process_blast_chunk(chunk):
 def report_isotype(sample_dict, locus_names, cell_name, output_dir, species, receptor, loci):
     isotype_dict = defaultdict(dict)
     C_segments = {}
+    output_file = "{outdir}/BLAST_output/blastsummary.txt".format(outdir=output_dir)
+    with open(output_file, 'w') as outfile:
+        for locus in loci:
+            outfile.write("### Reporting isotypes for {locus}\n".format(locus=locus))
+            data_for_locus = sample_dict[locus]
+            queries = data_for_locus.items()
+            queries = str(queries)
+            outfile.write(queries)
+            if data_for_locus is not None:
+                outfile.write("data for locus is not None\n")
+                for blast_query_name, chunk_data in six.iteritems(data_for_locus):
+                    outfile.write("This is not working")
+                    #C_segment = data_for_locus['hit_name']
+                    #C_segment = query_data['hit_name']
+                    outfile.write("Query name", str(blast_query_name), "\n")
+                    outfile.write("Query_data", list(chunk_data), "\n")
+                    outfile.write("Iterating queryname, querydata")
+            
 
-    for locus in locus_names:
-        print("### Reporting isotypes for {locus}".format(locus=locus))
-        data_for_locus = sample_dict[locus]
-        if data_for_locus is not None:
-            for query_name, query_data in six.iteritems(data_for_locus):
-                C_segment = query_data['hit_name']
-                print(C_segment)
+    #return(outfile)
 
     # return (C_segments)    
 

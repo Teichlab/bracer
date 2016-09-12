@@ -124,14 +124,35 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species):
             blast_result_chunks = split_blast_file(file)
 
             for chunk in blast_result_chunks:
+                #chunk works
                 (blast_query_name, chunk_details) = process_blast_chunk(chunk)
+                print("Query name:", blast_query_name)
+                print(chunk_details)
                 all_locus_data[locus][blast_query_name] = chunk_details
         else:
             all_locus_data[locus] = None
     
-    isotype = report_isotype(all_locus_data, locus_names, cell_name, output_dir, species, receptor, loci)
-    
-    return (isotype)
+    #isotype = report_isotype(all_locus_data, locus_names, cell_name, output_dir, species, receptor, loci)
+ 
+
+    output_file = "{outdir}/BLAST_output/blastsummary.txt".format(outdir=output_dir)
+    with open(output_file, 'w') as outfile:
+        for locus in loci:
+            outfile.write("### Reporting isotypes for {locus}\n".format(locus=locus))
+            data_for_locus = all_locus_data[locus]
+            
+            if data_for_locus is not None:
+                outfile.write("data for locus is not None\n")
+                for blast_query_name, locus_data in six.iteritems(data_for_locus):
+                    
+                    for key, value in six.iteritems(locus_data):
+ 
+                        C_segment = locus_data['hit_name']
+                        out_string = "Query name: {blast_query_name}\nC gene: {C_segment}\n".format(blast_query_name=blast_query_name, C_segment=C_segment)
+                        outfile.write(out_string)
+                    
+   
+    #return (isotype)
              
 
 
