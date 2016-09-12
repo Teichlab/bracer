@@ -286,8 +286,7 @@ class Assembler(TracerTask):
         self.align()
         self.de_novo_assemble()
         cell = self.ig_blast()
-        creg = self.blast()
-        print(creg)
+        self.blast()
         self.quantify(cell)
         
         fasta_filename = "{output_dir}/unfiltered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
@@ -1166,7 +1165,7 @@ class Builder(TracerTask):
                 for J_name, J_seq in six.iteritems(seqs['J']):
                     for C_name, C_seq in six.iteritems(seqs['C']):
                         chr_name = ">chr={V_name}_{J_name}_{C_name}_C_region".format(J_name=J_name, V_name=V_name, C_name=C_name)
-                        seq = N_leader_string + V_seq.lower() + N_junction_string + J_seq.lower() + const_seq
+                        seq = N_leader_string + V_seq.lower() + N_junction_string + J_seq.lower() + C_seq.upper()
                         seqs_to_write.append("{chr_name}\n{seq}\n".format(seq=seq, chr_name=chr_name))
                     
         with open(out_fasta, 'w') as f:
