@@ -14,7 +14,7 @@ import sys
 from Bio import SeqIO
 #from Bio.Blast import NCBIXML, Record
 
-from tracerlib.tracer_func import process_chunk, find_possible_alignments, process_blast_chunk, report_isotype
+from tracerlib.tracer_func import process_chunk, find_possible_alignments, process_blast_chunk
 from tracerlib.core import Invar_cell
 import glob
 import pdb
@@ -114,42 +114,38 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species):
     locus_names = ["_".join([receptor,x]) for x in loci]
     all_locus_data = defaultdict(dict)
 
-    for locus in loci:
-        print("#{}_{}#".format(receptor, locus))
-        
-        file =  "{output_dir}/BLAST_output/{cell_name}_{receptor}_{locus}.xml".format(output_dir=output_dir,
-                                                                                   cell_name=cell_name, locus=locus, receptor=receptor)
-        #with open(result_file) as result_handle:
-        if os.path.isfile(file):
-            blast_result_chunks = split_blast_file(file)
-
-            for chunk in blast_result_chunks:
-                #chunk works
-                (blast_query_name, chunk_details) = process_blast_chunk(chunk)
-                print("Query name:", blast_query_name)
-                print(chunk_details)
-                all_locus_data[locus][blast_query_name] = chunk_details
-        else:
-            all_locus_data[locus] = None
-    
-    #isotype = report_isotype(all_locus_data, locus_names, cell_name, output_dir, species, receptor, loci)
- 
-
     output_file = "{outdir}/BLAST_output/blastsummary.txt".format(outdir=output_dir)
     with open(output_file, 'w') as outfile:
+
         for locus in loci:
-            outfile.write("### Reporting isotypes for {locus}\n".format(locus=locus))
-            data_for_locus = all_locus_data[locus]
-            
-            if data_for_locus is not None:
-                outfile.write("data for locus is not None\n")
-                for blast_query_name, locus_data in six.iteritems(data_for_locus):
-                    
-                    for key, value in six.iteritems(locus_data):
+            print("#{}_{}#".format(receptor, locus))
+        
+            file =  "{output_dir}/BLAST_output/{cell_name}_{receptor}_{locus}.xml".format(output_dir=output_dir,
+                                                                                   cell_name=cell_name, locus=locus, receptor=receptor)
+            #with open(result_file) as result_handle:
+            if os.path.isfile(file):
+                blast_result_chunks = split_blast_file(file)
+
+                for chunk in blast_result_chunks:
+                    #chunk works
+                    (blast_query_name, chunk_details) = process_blast_chunk(chunk)
+                    all_locus_data[locus][blast_query_name] = chunk_details
+
+    
+                    #isotype = report_isotype(all_locus_data, locus_names, cell_name, output_dir, species, receptor, loci)
  
-                        C_segment = locus_data['hit_name']
-                        out_string = "Query name: {blast_query_name}\nC gene: {C_segment}\n".format(blast_query_name=blast_query_name, C_segment=C_segment)
-                        outfile.write(out_string)
+
+                    outfile.write("### Reporting isotypes for {locus}\n".format(locus=locus))
+                    data_for_locus = all_locus_data[locus]
+            
+            
+                    for blast_query_name, locus_data in six.iteritems(data_for_locus):
+                        for key, value in six.iteritems(locus_data):
+                            C_segment = locus_data['hit_name']
+                            evalue = locus_data['evalue']
+
+                            out_string = "Query name: {blast_query_name}\nC gene: {C_segment}\nE-value: {evalue}\n".format(blast_query_name=blast_query_name, C_segment=C_segment, evalue=evalue)
+                            outfile.write(out_string)
                     
    
     #return (isotype)
