@@ -118,7 +118,7 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species):
         output_file = "{outdir}/BLAST_output/blastsummary_{locus}.txt".format(outdir=output_dir, locus=locus)
         with open(output_file, 'w') as outfile:
 
-            outfile.write("##{}##\n".format(cell_name))
+            outfile.write("------------------\n##{}##\n------------------\n\n".format(cell_name))
 
             outfile.write("#{}_{}#\n\n".format(receptor, locus))
 
@@ -193,13 +193,16 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species):
                             line = line_x.split()[0]
                             identity = line.split(">")[1]
                             identity = identity.split("<")[0]
-                            identity_pro = float(identity)/int(align_len)*100
-                            identity_pro = format(identity_pro, '.2f')
-
+                           
                         elif line_x.startswith("</Iteration>"):
-                            header_string = "Segment\tquery_id\tsubject_id\t% identity\talignment length\tmismatches\tgap opens\tgaps\tq start\tq end\ts start\ts end\te                                   value\tbit score\n"
-                            out_string = "Query name: {blast_query_name}\nC gene: {C_segment}\nE-value: {evalue}\n".format(blast_query_name=blast_query_name,
-                            C_segment=C_segment, evalue=evalue)
+                            identity_pro = float(identity)/int(align_length)*100
+                            identity_pro = format(identity_pro, '.2f')
+                            intro_string = "##{blast_query_name}##\nC segment:\t{C_segment}\n\n".format(blast_query_name=blast_query_name, C_segment=C_segment)
+                            header_string = "Segment\tquery_id\tsubject_id\t% identity\talignment length\tmismatches\tgap opens\tgaps\tq start\tq end\ts start\ts end\tevalue\tbit score\n"
+                            out_string = "C\t{blast_query_name}\t{C_segment}\t{identity_pro}\t{align_length}\t{evalue}\n".format(blast_query_name=blast_query_name,
+                            C_segment=C_segment, identity_pro=identity_pro, align_length=align_length, evalue=evalue)
+                            
+                            outfile.write(intro_string)
                             outfile.write(header_string)
                             outfile.write(out_string)           
 

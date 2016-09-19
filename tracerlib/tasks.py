@@ -283,11 +283,11 @@ class Assembler(TracerTask):
             io.makeOutputDir("{}/{}".format(self.output_dir, d))
 
         # Perform TraCeR's core functions
-        self.align()
-        self.de_novo_assemble()
+        #self.align()
+        #self.de_novo_assemble()
         cell = self.ig_blast()
         self.blast()
-        self.quantify(cell)
+        #self.quantify(cell)
         
         fasta_filename = "{output_dir}/unfiltered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
                                                                                         cell_name=self.cell_name,
