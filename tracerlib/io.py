@@ -112,13 +112,16 @@ def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species,
 
 def parse_BLAST(receptor, loci, output_dir, cell_name, species):
     locus_names = ["_".join([receptor,x]) for x in loci]
-    all_locus_data = defaultdict(dict)
+    
 
-    output_file = "{outdir}/BLAST_output/blastsummary.txt".format(outdir=output_dir)
-    with open(output_file, 'w') as outfile:
+    for locus in loci:
+        output_file = "{outdir}/BLAST_output/blastsummary_{locus}.txt".format(outdir=output_dir, locus=locus)
+        with open(output_file, 'w') as outfile:
 
-        for locus in loci:
-            print("#{}_{}#".format(receptor, locus))
+            outfile.write("##{}##\n".format(cell_name))
+
+            outfile.write("#{}_{}#\n\n".format(receptor, locus))
+
         
             file =  "{output_dir}/BLAST_output/{cell_name}_{receptor}_{locus}.xml".format(output_dir=output_dir,
                                                                                    cell_name=cell_name, locus=locus, receptor=receptor)
@@ -127,80 +130,78 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species):
                 blast_result_chunks = split_blast_file(file)
 
                 for chunk in blast_result_chunks:
-                    #chunk works
-                    (blast_query_name, chunk_details) = process_blast_chunk(chunk)
-                    all_locus_data[locus][blast_query_name] = chunk_details
+                   
+                    for line_x in chunk:
 
-    
-                    #isotype = report_isotype(all_locus_data, locus_names, cell_name, output_dir, species, receptor, loci)
- 
+                        line_x= line_x.strip()
 
-                    outfile.write("### Reporting isotypes for {locus}\n".format(locus=locus))
-                    data_for_locus = all_locus_data[locus]
+                        if line_x.startswith("<Iteration_query-def>"):
+                            line = line_x.split()[0]
+                            blast_query_name = line.split(">")[1]
+
+                        elif line_x.startswith("<Hsp_evalue>"):
+                            line = line_x.split()[0]
+                            evalue = line.split(">")[1]
+                            evalue = evalue.split("<")[0] 
+
+                        elif line_x.startswith("<Hit_accession>"):
+                            line = line_x.split()[0]
+                            hit_name = line.split(">")[1]
+                            C_segment = hit_name.split("<")[0]
             
+                        elif line_x.startswith("<Hsp_bit-score>"):
+                            line = line_x.split()[0]
+                            bit_score = line.split(">")[1]
+                            bit_score = bit_score.split("<")[0]
+                              
+                        elif line_x.startswith("<Hsp_query-from>"):
+                            line = line_x.split()[0]
+                            q_start = line.split(">")[1]
+                            q_start = q_start.split("<")[0]
             
-                    for blast_query_name, locus_data in six.iteritems(data_for_locus):
-                        for key, value in six.iteritems(locus_data):
-                            C_segment = locus_data['hit_name']
-                            evalue = locus_data['evalue']
+                        elif line_x.startswith("<Hsp_query-to>"):
+                            line = line_x.split()[0]
+                            q_end = line.split(">")[1]
+                            q_end = q_end.split("<")[0]
+            
+                        elif line_x.startswith("<Hsp_hit-from>"):
+                            line = line_x.split()[0]
+                            s_start = line.split(">")[1]
+                            s_start = s_start.split("<")[0]
+            
+                        elif line_x.startswith("<Hsp_hit-to>"):
+                            line = line_x.split()[0]
+                            s_end = line.split(">")[1]
+                            s_end = s_end.split("<")[0]
+           
+                        elif line_x.startswith("<Iteration_query-len>"):
+                            line = line_x.split()[0]
+                            query_length = line.split(">")[1]
+                            query_length = query_length.split("<")[0]
+            
+                        elif line_x.startswith("<Hsp_align-len>"):
+                            line = line_x.split()[0]
+                            align_length = line.split(">")[1]
+                            align_length = align_length.split("<")[0]
+            
+                        elif line_x.startswith("<Hsp_gaps>"):
+                            line = line_x.split()[0]
+                            gaps = line.split(">")[1]
+                            gaps = gaps.split("<")[0]
 
-                            out_string = "Query name: {blast_query_name}\nC gene: {C_segment}\nE-value: {evalue}\n".format(blast_query_name=blast_query_name, C_segment=C_segment, evalue=evalue)
-                            outfile.write(out_string)
-                    
-   
-    #return (isotype)
-             
+                        elif line_x.startswith("<Hsp_identity>"):
+                            line = line_x.split()[0]
+                            identity = line.split(">")[1]
+                            identity = identity.split("<")[0]
+                            identity_pro = float(identity)/int(align_len)*100
+                            identity_pro = format(identity_pro, '.2f')
 
-
-    # Create a function called report_isotype(some keywords) and call function
-    # isotype = report_isotype(kwargs)
-
-
-
-
-    """IMGT_seqs = dict()
-    #expecting_D = dict()
-
-    loci_for_segments = defaultdict(list)
-
-    #for locus in loci:
-    #    expecting_D[locus] = False
-    for locus in loci:
-        seq_files = glob.glob(os.path.join(raw_seq_dir, "{receptor}_{locus}_*.fa".format(receptor=receptor,
-                                                                                    locus=locus)))
-        for f in seq_files:
-            #if not f.endswith("_C.fa"):
-                segment_name = os.path.splitext(os.path.split(f)[1])[0]
-                IMGT_seqs[segment_name] = load_IMGT_seqs(f)
-                #if segment_name.split("_")[2] == 'D':
-                #    expecting_D[locus] = True
-                loci_for_segments[segment_name.split("_")[2]].append(locus)
-
-    #segment_names = ['TRAJ', 'TRAV', 'TRBD', 'TRBJ', 'TRBV']
-    #IMGT_seqs = dict()
-    #for segment in segment_names:
-    #    IMGT_seqs[segment] = load_IMGT_seqs("{}/{}.fa".format(imgt_seq_location, segment))
-
-    locus_names = ["_".join([receptor,x]) for x in loci]
-    all_locus_data = defaultdict(dict)
-    for locus in locus_names:
-        file = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
-                                                                                   cell_name=cell_name, locus=locus)
-        if os.path.isfile(file):
-            igblast_result_chunks = split_igblast_file(file)
-
-            for chunk in igblast_result_chunks:
-                (query_name, chunk_details) = process_chunk(chunk)
-
-                all_locus_data[locus][query_name] = chunk_details
-        else:
-            all_locus_data[locus] = None
-    cell = find_possible_alignments(all_locus_data, locus_names, cell_name, IMGT_seqs, output_dir, species, seq_method,
-                                     invariant_seqs, loci_for_segments, receptor, loci, max_junc_len)
-   """ 
-    
-    # return (isotype)
-
+                        elif line_x.startswith("</Iteration>"):
+                            header_string = "Segment\tquery_id\tsubject_id\t% identity\talignment length\tmismatches\tgap opens\tgaps\tq start\tq end\ts start\ts end\te                                   value\tbit score\n"
+                            out_string = "Query name: {blast_query_name}\nC gene: {C_segment}\nE-value: {evalue}\n".format(blast_query_name=blast_query_name,
+                            C_segment=C_segment, evalue=evalue)
+                            outfile.write(header_string)
+                            outfile.write(out_string)           
 
 def split_igblast_file(filename):
     # code adapted from http://stackoverflow.com/questions/19575702/pythonhow-to-split-file-into-chunks-by-the-occurrence-of-the-header-word
