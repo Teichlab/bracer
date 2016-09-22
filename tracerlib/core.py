@@ -317,7 +317,7 @@ class Recombinant(object):
 
     def __init__(self, contig_name, locus, identifier, all_poss_identifiers, productive, stop_codon, in_frame, TPM,
                  dna_seq, hit_table, summary, junction_details, best_VJ_names, alignment_summary, trinity_seq,
-                 imgt_reconstructed_seq, has_D):
+                 imgt_reconstructed_seq, has_D, output_dir):
         self.contig_name = contig_name
         self.locus = locus
         self.identifier = identifier
@@ -336,6 +336,7 @@ class Recombinant(object):
         self.trinity_seq = trinity_seq
         self.imgt_reconstructed_seq = imgt_reconstructed_seq
         self.has_D_segment = has_D
+        self.output_dir = output_dir
 
     def __str__(self):
         return ("{} {} {} {}".format(self.identifier, self.productive, self.TPM))
@@ -382,6 +383,19 @@ class Recombinant(object):
         summary_string += 'Segment\tquery_id\tsubject_id\t% identity\talignment length\tmismatches\tgap opens\tgaps\tq start\tq end\ts start\ts end\te value\tbit score\n'
         for line in self.hit_table:
             summary_string = summary_string + "\t".join(line) + "\n"
+        
+        locus = self.locus.split("_")[1]
+        blast_summary_file = "{output_dir}/BLAST_output/blastsummary_{locus}.txt".format(output_dir=self.output_dir, locus=locus)
+        store_details = False
+        with open(blast_summary_file, 'r') as input:
+            for line in input:
+                if self.contig_name in line:
+                    store_details = True
+                elif store_details == True:
+                    if line.startswith("C\t"):
+                        summary_string = summary_string + line + "\n"
+                
+
         return (summary_string)
 
 class Invar_cell(object):
@@ -399,6 +413,7 @@ class Invar_cell(object):
         found_identifiers = set()
         found_locus = False
         
+
         #check for expected recombinants for defining locus
         cell_recs = cell.recombinants[self.receptor_type][locus]
         invariant_recs = self.invariant_recombinants[locus]

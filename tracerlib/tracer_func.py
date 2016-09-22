@@ -285,7 +285,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                                           summary=rearrangement_summary, junction_details=junction_list,
                                           best_VJ_names=bestVJNames, alignment_summary=alignment_summary,
                                           trinity_seq=trinity_seq, imgt_reconstructed_seq=imgt_reconstructed_seq, 
-                                          has_D=has_D)
+                                          has_D=has_D, output_dir=output_dir)
                         recombinants[locus].append(rec)
 
     if recombinants:
