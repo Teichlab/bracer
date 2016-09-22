@@ -337,6 +337,7 @@ class Recombinant(object):
         self.imgt_reconstructed_seq = imgt_reconstructed_seq
         self.has_D_segment = has_D
         self.output_dir = output_dir
+        
 
     def __str__(self):
         return ("{} {} {} {}".format(self.identifier, self.productive, self.TPM))
@@ -364,17 +365,60 @@ class Recombinant(object):
 
     def get_summary(self):
         summary_string = "##{contig_name}##\n".format(contig_name=self.contig_name)
-        if not self.has_D_segment:
+
+        locus = self.locus.split("_")[1]
+        blast_summary_file = "{output_dir}/BLAST_output/blastsummary_{locus}.txt".format(output_dir=self.output_dir, locus=locus)
+       
+ 
+        if locus in ["H", "K", "L"]:
+            find_C_gene = True
+        else:
+            find_C_gene = False
+
+        if find_C_gene == True:
+            store_details = False
+            C_gene = None
+            with open(blast_summary_file, 'r') as input:
+                for line in input:
+                    if line.startswith("##{contig_name}##".format(contig_name=self.contig_name)) or line.startswith("##reversed|{contig_name}##".format(contig_name=self.contig_name)):
+                        store_details = True
+                    elif store_details == True:
+                        if line.startswith("C segment"):
+                            C_gene = line.split("\t")[1]
+                            store_details = False
+                
+                            
+
+       
+
+        if not self.has_D_segment and find_C_gene == False:
             V_segment = self.summary[0]
             J_segment = self.summary[1]
             segments_string = "V segment:\t{V_segment}\nJ segment:\t{J_segment}\n".format(V_segment=V_segment,
                                                                                           J_segment=J_segment)
-        else:
+        elif find_C_gene == False:
             V_segment = self.summary[0]
             D_segment = self.summary[1]
             J_segment = self.summary[2]
             segments_string = "V segment:\t{V_segment}\nD segment:\t{D_segment}\nJ segment:\t{J_segment}\n".format(
                 V_segment=V_segment, D_segment=D_segment, J_segment=J_segment)
+
+        elif self.has_D_segment and find_C_gene == True:
+            V_segment = self.summary[0]
+            D_segment = self.summary[1]
+            J_segment = self.summary[2]
+            C_segment = C_gene
+            segments_string = "V segment:\t{V_segment}\nD segment:\t{D_segment}\nJ segment:\t{J_segment}\nC segment:\t{C_segment}\n".format(
+                V_segment=V_segment, D_segment=D_segment, J_segment=J_segment, C_segment=C_segment)
+
+        else:
+            V_segment = self.summary[0]
+            J_segment = self.summary[1]
+            C_segment = C_gene
+            segments_string = "V segment:\t{V_segment}\nJ segment:\t{J_segment}\nC segment:\t{C_segment}\n".format(
+                V_segment=V_segment, J_segment=J_segment, C_segment=C_segment)
+
+
         summary_string += segments_string
         summary_string += "ID:\t{}\n".format(self.identifier)
         summary_string += "TPM:\t{TPM}\nProductive:\t{productive}\nStop codon:\t{stop_codon}\nIn frame:\t{in_frame}\n\n".format(
@@ -384,17 +428,16 @@ class Recombinant(object):
         for line in self.hit_table:
             summary_string = summary_string + "\t".join(line) + "\n"
         
-        locus = self.locus.split("_")[1]
-        blast_summary_file = "{output_dir}/BLAST_output/blastsummary_{locus}.txt".format(output_dir=self.output_dir, locus=locus)
-        store_details = False
-        with open(blast_summary_file, 'r') as input:
-            for line in input:
-                if line.startswith("##{contig_name}##".format(contig_name=self.contig_name)) or line.startswith("##reversed|{contig_name}##".format(contig_name=self.contig_name)):
-                    store_details = True
-                elif store_details == True:
-                    if line.startswith("C\t"):
-                        summary_string = summary_string + line + "\n"
-                        store_details = False
+        if find_C_gene == True:
+            store_details = False
+            with open(blast_summary_file, 'r') as input:
+                for line in input:
+                    if line.startswith("##{contig_name}##".format(contig_name=self.contig_name)) or line.startswith("##reversed|{contig_name}##".format(contig_name=self.contig_name)):
+                        store_details = True
+                    elif store_details == True:
+                        if line.startswith("C\t"):
+                            summary_string = summary_string + line + "\n"
+                            store_details = False
                 
 
         return (summary_string)
