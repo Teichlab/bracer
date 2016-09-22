@@ -389,11 +389,12 @@ class Recombinant(object):
         store_details = False
         with open(blast_summary_file, 'r') as input:
             for line in input:
-                if self.contig_name in line:
+                if line.startswith("##{contig_name}##".format(contig_name=self.contig_name)):
                     store_details = True
                 elif store_details == True:
                     if line.startswith("C\t"):
                         summary_string = summary_string + line + "\n"
+                        store_details = False
                 
 
         return (summary_string)
