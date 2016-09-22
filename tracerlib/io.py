@@ -14,7 +14,7 @@ import sys
 from Bio import SeqIO
 #from Bio.Blast import NCBIXML, Record
 
-from tracerlib.tracer_func import process_chunk, find_possible_alignments, process_blast_chunk
+from tracerlib.tracer_func import process_chunk, find_possible_alignments, extract_blast_info
 from tracerlib.core import Invar_cell
 import glob
 import pdb
@@ -109,11 +109,6 @@ def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species,
                                      invariant_seqs, loci_for_segments, receptor, loci, max_junc_len)
     return (cell)
 
-def extract_blast_info(line):
-    line = line.split()[0]
-    info = line.split(">")[1]
-    info = info.split("<")[0]
-    return (info)
 
 def parse_BLAST(receptor, loci, output_dir, cell_name, species):
     locus_names = ["_".join([receptor,x]) for x in loci]

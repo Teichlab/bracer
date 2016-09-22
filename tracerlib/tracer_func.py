@@ -99,95 +99,13 @@ def process_chunk(chunk):
     return (query_name, return_dict)
 
 
-
-def process_blast_chunk(chunk):
-    return_dict = defaultdict(list)
-    blast_query_name = None
-    for line_x in chunk:
-
-        line_x= line_x.strip()
-
-        if line_x.startswith("<Iteration_query-def>"):
-            line = line_x.split()[0]
-            blast_query_name = line.split(">")[1]
-            
-            
-        elif line_x.startswith("<Hit_accession>"):
-            line = line_x.split()[0]
-            hit_name = line.split(">")[1]
-            hit_name = hit_name.split("<")[0]
-            return_dict['hit_name']=hit_name
-
-        elif line_x.startswith("<Iteration_message>"):
-            line = line_x.split(">")[1]
-            iteration_message = line.split("<")[0]
-            return_dict['iteration_message']=iteration_message
-       
-        elif line_x.startswith("<Hsp_bit-score>"):
-            line = line_x.split()[0]
-            bit_score = line.split(">")[1]
-            bit_score = bit_score.split("<")[0]
-            return_dict['bit_score']=float(bit_score)
-
-
-        elif line_x.startswith("<Hsp_evalue>"):
-            line = line_x.split()[0]
-            evalue = line.split(">")[1]
-            evalue = evalue.split("<")[0]
-            return_dict['evalue']=float(evalue)
-
-
-        elif line_x.startswith("<Hsp_query-from>"):
-            line = line_x.split()[0]
-            q_start = line.split(">")[1]
-            q_start = q_start.split("<")[0]
-            return_dict['q_start']=int(q_start)
-
-        elif line_x.startswith("<Hsp_query-to>"):
-            line = line_x.split()[0]
-            q_end = line.split(">")[1]
-            q_end = q_end.split("<")[0]
-            return_dict['q_end']=int(q_end)
-
-        elif line_x.startswith("<Hsp_hit-from>"):
-            line = line_x.split()[0]
-            s_start = line.split(">")[1]
-            s_start = s_start.split("<")[0]
-            return_dict['s_start']=int(s_start)
-        
-        elif line_x.startswith("<Hsp_hit-to>"):
-            line = line_x.split()[0]
-            s_end = line.split(">")[1]
-            s_end = s_end.split("<")[0]
-            return_dict['s_end']=int(s_end)
-
- 
-        elif line_x.startswith("<Iteration_query-len>"):
-            line = line_x.split()[0]
-            query_length = line.split(">")[1]
-            query_length = query_length.split("<")[0]
-            return_dict['query_length']=int(query_length)
-            
-        elif line_x.startswith("<Hsp_align-len>"):
-            line = line_x.split()[0]
-            align_length = line.split(">")[1]
-            align_length = align_length.split("<")[0]
-            return_dict['align_length']=int(align_length)
-
-        elif line_x.startswith("<Hsp_gaps>"):
-            line = line_x.split()[0]
-            gaps = line.split(">")[1]
-            gaps = gaps.split("<")[0]
-            return_dict['gaps']=int(gaps)
-
-        elif line_x.startswith("<Hsp_identity>"):
-            line = line_x.split()[0]
-            identity = line.split(">")[1]
-            identity = identity.split("<")[0]
-            return_dict['identity']=int(identity)
-        
-    return (blast_query_name, return_dict)
-    
+      
+def extract_blast_info(line):
+    line = line.split()[0]
+    info = line.split(">")[1]
+    info = info.split("<")[0]
+    return (info)
+   
 
 def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, output_dir, species, seq_method,
                              invariant_seqs, loci_for_segments, receptor, loci, max_junc_string_length):
