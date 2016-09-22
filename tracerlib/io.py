@@ -138,7 +138,7 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species):
                         if line_x.startswith("<Iteration_query-def>"):
                             line = line_x.split()[0]
                             blast_query_name = line.split(">")[1]
-
+                            
                         elif line_x.startswith("<Hsp_evalue>"):
                             line = line_x.split()[0]
                             evalue = line.split(">")[1]
@@ -158,32 +158,32 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species):
                             line = line_x.split()[0]
                             q_start = line.split(">")[1]
                             q_start = q_start.split("<")[0]
-            
+                           
                         elif line_x.startswith("<Hsp_query-to>"):
                             line = line_x.split()[0]
                             q_end = line.split(">")[1]
                             q_end = q_end.split("<")[0]
-            
+                         
                         elif line_x.startswith("<Hsp_hit-from>"):
                             line = line_x.split()[0]
                             s_start = line.split(">")[1]
                             s_start = s_start.split("<")[0]
-            
+                            
                         elif line_x.startswith("<Hsp_hit-to>"):
                             line = line_x.split()[0]
                             s_end = line.split(">")[1]
                             s_end = s_end.split("<")[0]
-           
+                            
                         elif line_x.startswith("<Iteration_query-len>"):
                             line = line_x.split()[0]
                             query_length = line.split(">")[1]
                             query_length = query_length.split("<")[0]
-            
+                            
                         elif line_x.startswith("<Hsp_align-len>"):
                             line = line_x.split()[0]
                             align_length = line.split(">")[1]
                             align_length = align_length.split("<")[0]
-            
+                            
                         elif line_x.startswith("<Hsp_gaps>"):
                             line = line_x.split()[0]
                             gaps = line.split(">")[1]
@@ -198,14 +198,25 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species):
                             identity_pro = float(identity)/int(align_length)*100
                             identity_pro = format(identity_pro, '.2f')
                             mismatches = int(align_length) - int(identity)
+
+
+                            if int(s_start) > int(s_end):
+                                blast_query_name = "reversed|" + blast_query_name
+                                x, y = int(q_start), int(q_end)
+                                q_start = int(query_length) - y + 2
+                                q_end = int(query_length) - x + 2
+                                s_start, s_end = s_end, s_start
+                               
+
                             intro_string = "##{blast_query_name}##\nC segment:\t{C_segment}\n\n".format(blast_query_name=blast_query_name, C_segment=C_segment)
                             header_string = "Segment\tquery_id\tsubject_id\t% identity\talignment length\tmismatches\tgap opens\tgaps\tq start\tq end\ts start\ts end\tevalue\tbit score\n"
-                            out_string = "C\t{blast_query_name}\t{C_segment}\t{identity_pro}\t{align_length}\t{mismatches}\tNA\t{gaps}\t{q_start}\t{q_end}\t{s_start}\t{s_end}\t{evalue}\t{bit_score}\n\n".format(blast_query_name=blast_query_name,
+                            out_string = "C\t{blast_query_name}\t{C_segment}\t\t{identity_pro}\t{align_length}\t{mismatches}\tNA\t{gaps}\t{q_start}\t{q_end}\t{s_start}\t{s_end}\t{evalue}\t{bit_score}\n\n".format(blast_query_name=blast_query_name,
                             C_segment=C_segment, identity_pro=identity_pro, align_length=align_length, evalue=evalue, mismatches=mismatches, gaps=gaps, q_start=q_start, q_end=q_end, s_start=s_start, s_end=s_end, bit_score=bit_score)
                             
                             outfile.write(intro_string)
                             outfile.write(header_string)
-                            outfile.write(out_string)           
+                            outfile.write(out_string)  
+                                  
 
 def split_igblast_file(filename):
     # code adapted from http://stackoverflow.com/questions/19575702/pythonhow-to-split-file-into-chunks-by-the-occurrence-of-the-header-word
