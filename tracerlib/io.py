@@ -109,6 +109,11 @@ def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species,
                                      invariant_seqs, loci_for_segments, receptor, loci, max_junc_len)
     return (cell)
 
+def extract_blast_info(line):
+    line = line.split()[0]
+    info = line.split(">")[1]
+    info = info.split("<")[0]
+    return (info)
 
 def parse_BLAST(receptor, loci, output_dir, cell_name, species):
     locus_names = ["_".join([receptor,x]) for x in loci]
@@ -140,59 +145,37 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species):
                             blast_query_name = line.split(">")[1]
                             
                         elif line_x.startswith("<Hsp_evalue>"):
-                            line = line_x.split()[0]
-                            evalue = line.split(">")[1]
-                            evalue = evalue.split("<")[0] 
+                            evalue = extract_blast_info(line_x)
 
                         elif line_x.startswith("<Hit_accession>"):
-                            line = line_x.split()[0]
-                            hit_name = line.split(">")[1]
-                            C_segment = hit_name.split("<")[0]
+                            C_segment = extract_blast_info(line_x)
             
                         elif line_x.startswith("<Hsp_bit-score>"):
-                            line = line_x.split()[0]
-                            bit_score = line.split(">")[1]
-                            bit_score = bit_score.split("<")[0]
+                            bit_score = extract_blast_info(line_x)
                               
                         elif line_x.startswith("<Hsp_query-from>"):
-                            line = line_x.split()[0]
-                            q_start = line.split(">")[1]
-                            q_start = q_start.split("<")[0]
+                            q_start = extract_blast_info(line_x)
                            
                         elif line_x.startswith("<Hsp_query-to>"):
-                            line = line_x.split()[0]
-                            q_end = line.split(">")[1]
-                            q_end = q_end.split("<")[0]
+                            q_end = extract_blast_info(line_x)
                          
                         elif line_x.startswith("<Hsp_hit-from>"):
-                            line = line_x.split()[0]
-                            s_start = line.split(">")[1]
-                            s_start = s_start.split("<")[0]
+                            s_start = extract_blast_info(line_x)
                             
                         elif line_x.startswith("<Hsp_hit-to>"):
-                            line = line_x.split()[0]
-                            s_end = line.split(">")[1]
-                            s_end = s_end.split("<")[0]
+                            s_end = extract_blast_info(line_x)
                             
                         elif line_x.startswith("<Iteration_query-len>"):
-                            line = line_x.split()[0]
-                            query_length = line.split(">")[1]
-                            query_length = query_length.split("<")[0]
+                            query_length = extract_blast_info(line_x)
                             
                         elif line_x.startswith("<Hsp_align-len>"):
-                            line = line_x.split()[0]
-                            align_length = line.split(">")[1]
-                            align_length = align_length.split("<")[0]
+                            align_length = extract_blast_info(line_x)
                             
                         elif line_x.startswith("<Hsp_gaps>"):
-                            line = line_x.split()[0]
-                            gaps = line.split(">")[1]
-                            gaps = gaps.split("<")[0]
+                            gaps = extract_blast_info(line_x)
 
                         elif line_x.startswith("<Hsp_identity>"):
-                            line = line_x.split()[0]
-                            identity = line.split(">")[1]
-                            identity = identity.split("<")[0]
+                            identity = extract_blast_info(line_x)
                            
                         elif line_x.startswith("</Iteration>"):
                             identity_pro = float(identity)/int(align_length)*100
