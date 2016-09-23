@@ -111,23 +111,22 @@ def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species,
 
 
 def parse_BLAST(receptor, loci, output_dir, cell_name, species):
-    locus_names = ["_".join([receptor,x]) for x in loci]
-    
+    """Parses BLAST output from output files and writes formatted output to BLAST output summary files"""
+
+    locus_names = ["_".join([receptor,x]) for x in loci]    
 
     for locus in loci:
         output_file = "{outdir}/BLAST_output/blastsummary_{locus}.txt".format(outdir=output_dir, locus=locus)
         with open(output_file, 'w') as outfile:
 
-            outfile.write("------------------\n##{}##\n------------------\n\n".format(cell_name))
-
-            outfile.write("#{}_{}#\n\n".format(receptor, locus))
-
+            outfile.write("------------------\n##{}##\n------------------\n\n#{}_{}#\n\n".format(cell_name, receptor, locus))
         
-            file =  "{output_dir}/BLAST_output/{cell_name}_{receptor}_{locus}.xml".format(output_dir=output_dir,
+            input_file =  "{output_dir}/BLAST_output/{cell_name}_{receptor}_{locus}.xml".format(output_dir=output_dir,
                                                                                    cell_name=cell_name, locus=locus, receptor=receptor)
-            #with open(result_file) as result_handle:
-            if os.path.isfile(file):
-                blast_result_chunks = split_blast_file(file)
+
+            #Split result file into chunks corresponding to results for each query sequence.
+            if os.path.isfile(input_file):
+                blast_result_chunks = split_blast_file(input_file)
 
                 for chunk in blast_result_chunks:
                     message = False
@@ -172,17 +171,19 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species):
 
                         elif line_x.startswith("<Hsp_identity>"):
                             identity = extract_blast_info(line_x)
+
                         elif line_x.startswith("<Iteration_message>No hits found"):
                             message = True
                             out_string = "##{blast_query_name}##\nNo C segment found\n\n".format(blast_query_name=blast_query_name)
-
-                           
+                            outfile.write(out_string)
+                        
+                        #Create output string when reaching end of BLAST iteration result (marked by </Iteration>) and write to BLAST summary file
                         elif line_x.startswith("</Iteration>") and message is not True:
                             identity_pro = float(identity)/int(align_length)*100
                             identity_pro = format(identity_pro, '.2f')
                             mismatches = int(align_length) - int(identity)
 
-
+                            #Account for reversed sequences
                             if int(s_start) > int(s_end):
                                 blast_query_name = "reversed|" + blast_query_name
                                 x, y = int(q_start), int(q_end)
@@ -195,10 +196,13 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species):
                             header_string = "Segment\tquery_id\tsubject_id\t% identity\talignment length\tmismatches\tgap opens\tgaps\tq start\tq end\ts start\ts end\tevalue\tbit score\n"
                             out_string = "C\t{blast_query_name}\t{C_segment}\t{identity_pro}\t{align_length}\t{mismatches}\tNA\t{gaps}\t{q_start}\t{q_end}\t{s_start}\t{s_end}\t{evalue}\t{bit_score}\n\n".format(blast_query_name=blast_query_name,
                             C_segment=C_segment, identity_pro=identity_pro, align_length=align_length, evalue=evalue, mismatches=mismatches, gaps=gaps, q_start=q_start, q_end=q_end, s_start=s_start, s_end=s_end, bit_score=bit_score)
+                            string_to_write = intro_string + header_string + out_string
+                            outfile.write(string_to_write)
+                            #outfile.write(intro_string)
+                            #outfile.write(header_string)
+                            #outfile.write(out_string)  
+                        
                             
-                            outfile.write(intro_string)
-                            outfile.write(header_string)
-                            outfile.write(out_string)  
                                   
 
 def split_igblast_file(filename):
