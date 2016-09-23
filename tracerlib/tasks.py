@@ -283,8 +283,8 @@ class Assembler(TracerTask):
             io.makeOutputDir("{}/{}".format(self.output_dir, d))
 
         # Perform TraCeR's core functions
-        #self.align()
-        #self.de_novo_assemble()
+        self.align()
+        self.de_novo_assemble()
         self.blast()
         cell = self.ig_blast()
         #self.blast()
