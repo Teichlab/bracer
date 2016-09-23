@@ -340,54 +340,36 @@ class Recombinant(object):
         self.C_gene = self.get_C_gene()
         
         
-        
-
     def __str__(self):
         return ("{} {} {} {}".format(self.identifier, self.productive, self.TPM))
 
     def _get_cdr3(self, dna_seq):
         
         aaseq = Seq(str(dna_seq), generic_dna).translate()
-
-        if self.locus is not "BCR_H":
-
-            if re.findall('FG.G', str(aaseq)) and re.findall('C', str(aaseq)):
-                indices = [i for i, x in enumerate(aaseq) if x == 'C']
-                upper = str(aaseq).find(re.findall('FG.G', str(aaseq))[0])
-                lower = False
-                for i in indices:
-                    if i < upper:
-                        lower = i
-                if lower:
-                    cdr3 = aaseq[lower:upper + 4]
-                else:
-                    cdr3 = "Couldn't find conserved cysteine"
-            elif re.findall('FG.G', str(aaseq)):
-                cdr3 = "Couldn't find conserved cysteine"
-            elif re.findall('C', str(aaseq)):
-                cdr3 = "Couldn't find FGXG"
-            else:
-                cdr3 = "Couldn't find either conserved boundary"
-
-        # Look for conserved WG.G in BCR H chains
+        if self.locus in ["BCR_H", "H"]:
+            motif_start = "W"
         else:
-            if re.findall('WG.G', str(aaseq)) and re.findall('C', str(aaseq)):
-                indices = [i for i, x in enumerate(aaseq) if x == 'C']
-                upper = str(aaseq).find(re.findall('WG.G', str(aaseq))[0])
-                lower = False
-                for i in indices:
-                    if i < upper:
-                        lower = i
-                if lower:
-                    cdr3 = aaseq[lower:upper + 4]
-                else:
-                    cdr3 = "Couldn't find conserved cysteine"
-            elif re.findall('WG.G', str(aaseq)):
-                cdr3 = "Couldn't find conserved cysteine"
-            elif re.findall('C', str(aaseq)):
-                cdr3 = "Couldn't find WGXG"
+            motif_start = "F"
+        motif = motif_start + "G.G"
+
+        if re.findall(motif, str(aaseq)) and re.findall('C', str(aaseq)):
+            indices = [i for i, x in enumerate(aaseq) if x == 'C']
+            upper = str(aaseq).find(re.findall(motif, str(aaseq))[0])
+            lower = False
+            for i in indices:
+                if i < upper:
+                    lower = i
+            if lower:
+                cdr3 = aaseq[lower:upper + 4]
             else:
-                cdr3 = "Couldn't find either conserved boundary"
+                cdr3 = "Couldn't find conserved cysteine"
+        elif re.findall(motif, str(aaseq)):
+            cdr3 = "Couldn't find conserved cysteine"
+        elif re.findall('C', str(aaseq)):
+            cdr3 = "Couldn't find {}GXG".format(motif_start)
+        else:
+            cdr3 = "Couldn't find either conserved boundary"
+
         print(self.contig_name)
         print(self.locus)
         print(self.productive)
