@@ -238,14 +238,12 @@ def split_blast_file(filename):
             line = line.rstrip()
 
             if line.startswith(token) and current_chunk:
-                # if line starts with token and the current chunk is not empty
-                chunks.append(current_chunk[:])  # add not empty chunk to chunks
-                current_chunk = []  # make current chunk blank
-            # just append a line to the current chunk on each iteration
+                chunks.append(current_chunk[:])
+                current_chunk = []  
             if not line.startswith("Total queries"):
                 current_chunk.append(line)
 
-        chunks.append(current_chunk)  # append the last chunk outside the loop
+        chunks.append(current_chunk)  
     return (chunks)
 
 

@@ -9,7 +9,7 @@ import pdb
 
 class Cell(object):
 
-    """Class to describe T cells containing A and B loci"""
+    """Class to describe T cells containing A and B loci and B cells containing H, K and L loci"""
 
     def __init__(self, cell_name, recombinants, is_empty=False, species="Mmus", 
                     receptor=None, loci=None):
@@ -346,6 +346,7 @@ class Recombinant(object):
     def _get_cdr3(self, dna_seq):
         
         aaseq = Seq(str(dna_seq), generic_dna).translate()
+        # Specify first amino acid in conserved motif according to receptor and locus
         if self.locus in ["BCR_H", "H"]:
             motif_start = "W"
         else:
@@ -370,14 +371,8 @@ class Recombinant(object):
         else:
             cdr3 = "Couldn't find either conserved boundary"
 
-        print(self.contig_name)
-        print(self.locus)
-        print(self.productive)
-        print(cdr3)
         return (cdr3)
-
         
-
     def get_C_gene(self):
         
         locus = self.locus.split("_")[1]
