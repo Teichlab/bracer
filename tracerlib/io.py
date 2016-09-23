@@ -141,6 +141,7 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species):
                             
                         elif line_x.startswith("<Hsp_evalue>"):
                             evalue = extract_blast_info(line_x)
+                            evalue = format(float(evalue), '.0e')
 
                         elif line_x.startswith("<Hit_accession>"):
                             C_segment = extract_blast_info(line_x)
