@@ -283,10 +283,11 @@ class Assembler(TracerTask):
             io.makeOutputDir("{}/{}".format(self.output_dir, d))
 
         # Perform TraCeR's core functions
-        self.align()
-        self.de_novo_assemble()
-        cell = self.ig_blast()
+        #self.align()
+        #self.de_novo_assemble()
         self.blast()
+        cell = self.ig_blast()
+        #self.blast()
         self.quantify(cell)
         
         fasta_filename = "{output_dir}/unfiltered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
@@ -573,7 +574,11 @@ class Summariser(TracerTask):
         for l in self.loci:
             cell_recovery_count[l] = 0
 
-        possible_pairs = ["".join(x) for x in itertools.combinations(self.loci, 2)]
+        if self.receptor_name == "BCR":
+            possible_pairs = ["HK", "HL"]        
+
+        else:
+            possible_pairs = ["".join(x) for x in itertools.combinations(self.loci, 2)]
         
         for p in possible_pairs:
             cell_recovery_count[p] = 0
@@ -604,7 +609,7 @@ class Summariser(TracerTask):
         for p in possible_pairs:
             count = cell_recovery_count[p]
             pc = round((count/float(total_cells))*100, 1)
-            outfile.write("{p} productive reconstruction:\t{count} / {total} ({pc}%)\n".format(
+            outfile.write("Paired {p} productive reconstruction:\t{count} / {total} ({pc}%)\n".format(
                                                                                     p=p,
                                                                                     count=count,
                                                                                     total=total_cells, pc=pc))
