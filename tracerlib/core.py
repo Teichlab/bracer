@@ -313,7 +313,7 @@ class Cell(object):
 
 class Recombinant(object):
 
-    """Class to describe a recombined TCR locus as determined from the single-cell pipeline"""
+    """Class to describe a recombined TCR or BCR locus as determined from the single-cell pipeline"""
 
     def __init__(self, contig_name, locus, identifier, all_poss_identifiers, productive, stop_codon, in_frame, TPM,
                  dna_seq, hit_table, summary, junction_details, best_VJ_names, alignment_summary, trinity_seq,
@@ -337,31 +337,84 @@ class Recombinant(object):
         self.imgt_reconstructed_seq = imgt_reconstructed_seq
         self.has_D_segment = has_D
         self.output_dir = output_dir
+        self.C_gene = self.get_C_gene()
+        
+        
         
 
     def __str__(self):
         return ("{} {} {} {}".format(self.identifier, self.productive, self.TPM))
 
     def _get_cdr3(self, dna_seq):
+        
         aaseq = Seq(str(dna_seq), generic_dna).translate()
-        if re.findall('FG.G', str(aaseq)) and re.findall('C', str(aaseq)):
-            indices = [i for i, x in enumerate(aaseq) if x == 'C']
-            upper = str(aaseq).find(re.findall('FG.G', str(aaseq))[0])
-            lower = False
-            for i in indices:
-                if i < upper:
-                    lower = i
-            if lower:
-                cdr3 = aaseq[lower:upper + 4]
-            else:
+
+        if self.locus is not "BCR_H":
+
+            if re.findall('FG.G', str(aaseq)) and re.findall('C', str(aaseq)):
+                indices = [i for i, x in enumerate(aaseq) if x == 'C']
+                upper = str(aaseq).find(re.findall('FG.G', str(aaseq))[0])
+                lower = False
+                for i in indices:
+                    if i < upper:
+                        lower = i
+                if lower:
+                    cdr3 = aaseq[lower:upper + 4]
+                else:
+                    cdr3 = "Couldn't find conserved cysteine"
+            elif re.findall('FG.G', str(aaseq)):
                 cdr3 = "Couldn't find conserved cysteine"
-        elif re.findall('FG.G', str(aaseq)):
-            cdr3 = "Couldn't find conserved cysteine"
-        elif re.findall('C', str(aaseq)):
-            cdr3 = "Couldn't find FGXG"
+            elif re.findall('C', str(aaseq)):
+                cdr3 = "Couldn't find FGXG"
+            else:
+                cdr3 = "Couldn't find either conserved boundary"
+
+        # Look for conserved WG.G in BCR H chains
         else:
-            cdr3 = "Couldn't find either conserved boundary"
+            if re.findall('WG.G', str(aaseq)) and re.findall('C', str(aaseq)):
+                indices = [i for i, x in enumerate(aaseq) if x == 'C']
+                upper = str(aaseq).find(re.findall('WG.G', str(aaseq))[0])
+                lower = False
+                for i in indices:
+                    if i < upper:
+                        lower = i
+                if lower:
+                    cdr3 = aaseq[lower:upper + 4]
+                else:
+                    cdr3 = "Couldn't find conserved cysteine"
+            elif re.findall('WG.G', str(aaseq)):
+                cdr3 = "Couldn't find conserved cysteine"
+            elif re.findall('C', str(aaseq)):
+                cdr3 = "Couldn't find WGXG"
+            else:
+                cdr3 = "Couldn't find either conserved boundary"
+        print(self.contig_name)
+        print(self.locus)
+        print(self.productive)
+        print(cdr3)
         return (cdr3)
+
+        
+
+    def get_C_gene(self):
+        
+        locus = self.locus.split("_")[1]
+        blast_summary_file = "{output_dir}/BLAST_output/blastsummary_{locus}.txt".format(output_dir=self.output_dir, locus=locus)
+
+        store_details = False
+        C_gene = None
+        with open(blast_summary_file, 'r') as input:
+            for line in input:
+                if line.startswith("##{contig_name}##".format(contig_name=self.contig_name)) or line.startswith("##reversed|{contig_name}##".format(contig_name=self.contig_name)):
+                    store_details = True
+                elif store_details == True:
+                    if line.startswith("C segment"):
+                        C_gene = line.split("\t")[1]
+                        store_details = False
+                    elif line.startswith("No C segment found"):
+                        C_gene = None
+        return (C_gene)
+
 
     def get_summary(self):
         summary_string = "##{contig_name}##\n".format(contig_name=self.contig_name)
@@ -372,24 +425,9 @@ class Recombinant(object):
  
         if locus in ["H", "K", "L"]:
             find_C_gene = True
+            C_gene = self.C_gene
         else:
             find_C_gene = False
-
-        if find_C_gene == True:
-            store_details = False
-            C_gene = None
-            with open(blast_summary_file, 'r') as input:
-                for line in input:
-                    if line.startswith("##{contig_name}##".format(contig_name=self.contig_name)) or line.startswith("##reversed|{contig_name}##".format(contig_name=self.contig_name)):
-                        store_details = True
-                    elif store_details == True:
-                        if line.startswith("C segment"):
-                            C_gene = line.split("\t")[1]
-                            store_details = False
-                
-                            
-
-       
 
         if not self.has_D_segment and find_C_gene == False:
             V_segment = self.summary[0]
@@ -439,7 +477,6 @@ class Recombinant(object):
                             summary_string = summary_string + line + "\n"
                             store_details = False
                 
-
         return (summary_string)
 
 class Invar_cell(object):
