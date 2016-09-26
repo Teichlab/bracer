@@ -191,18 +191,12 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species):
                                 q_end = int(query_length) - x + 2
                                 s_start, s_end = s_end, s_start
                                
-
                             intro_string = "##{blast_query_name}##\nC segment:\t{C_segment}\n\n".format(blast_query_name=blast_query_name, C_segment=C_segment)
                             header_string = "Segment\tquery_id\tsubject_id\t% identity\talignment length\tmismatches\tgap opens\tgaps\tq start\tq end\ts start\ts end\tevalue\tbit score\n"
                             out_string = "C\t{blast_query_name}\t{C_segment}\t{identity_pro}\t{align_length}\t{mismatches}\tNA\t{gaps}\t{q_start}\t{q_end}\t{s_start}\t{s_end}\t{evalue}\t{bit_score}\n\n".format(blast_query_name=blast_query_name,
                             C_segment=C_segment, identity_pro=identity_pro, align_length=align_length, evalue=evalue, mismatches=mismatches, gaps=gaps, q_start=q_start, q_end=q_end, s_start=s_start, s_end=s_end, bit_score=bit_score)
                             string_to_write = intro_string + header_string + out_string
-                            outfile.write(string_to_write)
-                            #outfile.write(intro_string)
-                            #outfile.write(header_string)
-                            #outfile.write(out_string)  
-                        
-                            
+                            outfile.write(string_to_write)                           
                                   
 
 def split_igblast_file(filename):

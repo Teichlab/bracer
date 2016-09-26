@@ -684,6 +684,28 @@ class Summariser(TracerTask):
             if not found_multi:
                 outfile.write("None\n\n")
 
+        #Report cells with two productive chains from same locus
+        outstring = ""
+        for l in self.loci:
+            double_rec = []
+            cells_string = ""
+            for cell_name, cell in six.iteritems(cells):
+                prod_counts = dict()
+                prod_counts[l] = cell.count_productive_recombinants(self.receptor_name, l)
+                if prod_counts[l] == 2:
+                    double_rec.append(cell_name)
+            if len(double_rec) > 0 :   
+                cells_string = ', '.join(double_rec)             
+                locus_string = "Cells with two productive {} chains: \n".format(l) + cells_string + "\n\n"
+                outstring += locus_string 
+                
+        if len(outstring) != 0:
+            outstring = "\n\n#Cells with two productive recombinants for a locus#\n\n" + outstring
+
+
+        outfile.write(outstring)
+
+
         # Reporting iNKT cells
         #iNKT_count = len(NKT_cells)
         #if iNKT_count == 1:
