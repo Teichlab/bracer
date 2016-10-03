@@ -197,7 +197,14 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                                                                                           returned_locus, IMGT_seqs,
                                                                                           cell_name, query_name,
                                                                                           loci_for_segments)
-                    full_length = is_rearrangement_full_length(trinity_seq, processed_hit_table, query_name)
+                 
+                    (full_length, V_hit, J_hit, ref_V_start, J_end_pos, full_5_prime, query_length) = is_rearrangement_full_length(trinity_seq, query_data["hit_table"], query_name, query_data["query_length"])
+                    print("Full length: ", full_length)
+                    print(V_hit, "\n", J_hit)
+                    print("ref_V_start: ", ref_V_start)
+                    print("J_end_pos: ", J_end_pos)
+                    print("full_5_prime: ", full_5_prime)
+                    print("Query len: ", query_length)
                     if len(junc_string) < int(max_junc_string_length):
                         rec = Recombinant(contig_name=query_name, locus=returned_locus, identifier=identifier,
                                           all_poss_identifiers=all_poss_identifiers, productive=is_productive[0],
@@ -424,36 +431,34 @@ def is_rearrangement_productive(seq):
 
  
 
-def is_rearrangement_full_length_hit(seq, hit_table, query_name):
+def is_rearrangement_full_length(seq, hit_table, query_name, query_length):
     found_V = False
     found_J = False
     full_5_prime = False
     ref_V_start = None
     J_end_pos = None
+    V_hit = None
+    J_hit = None
     for hit in hit_table:
-        segment = hit[0]
+        info = hit.split()
+        segment = info[0]
         if segment == "V" and found_V == False:
-            ref_V_start = int(hit[10])
+            ref_V_start = int(info[10])
+            V_hit = hit
             found_V = True
         elif segment == "J" and found_J == False:
-            J_end_pos = int(hit[9])
+            J_end_pos = int(info[9])
+            J_hit = hit
             found_J = True
 
         if ref_V_start == 1:
             full_5_prime = True 
         if J_end_pos is not None:
-            if len(seq)>= J_end_pos - 1 and full_5_prime == True:
+            if int(query_length)>= (J_end_pos - 1) and full_5_prime == True:
                 full_length = True
         else:
             full_length = False
-    return (full_length)
-
-
-
-
-
-
-                       
+    return (full_length, V_hit, J_hit, ref_V_start, J_end_pos, full_5_prime, query_length)
 
 def get_segment_name(name, pattern):
     match = pattern.search(name)
