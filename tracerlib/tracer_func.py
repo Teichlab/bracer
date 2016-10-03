@@ -46,6 +46,7 @@ def process_chunk(chunk):
     hit_table = []
     looking_for_end = False
     return_dict = defaultdict(list)
+    query_name = None
     for line_x in chunk:
         
 
@@ -80,8 +81,8 @@ def process_chunk(chunk):
                     return_dict['hit_table'].append(line_x)
 
         elif line_x.startswith('# Query'):
-            query_name = line_x.split(" ")[2]
-            query_length = line_x.split(" ")[3]
+            query_name = line_x.split()[2]
+            query_length = line_x.split()[3]
             return_dict['query_length'] = int(query_length.split("=")[1])
             # return_dict['query_name'] = query_name
 
@@ -188,6 +189,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                         (fasta_line_for_contig, is_productive, bestVJNames) = get_fasta_line_for_contig_imgt(
                             rearrangement_summary, junction_list, good_hits, returned_locus, IMGT_seqs, cell_name,
                             query_name, species, loci_for_segments)
+                        
 
                     elif seq_method == 'assembly':
                         fasta_line_for_contig = trinity_seq
@@ -195,6 +197,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                                                                                           returned_locus, IMGT_seqs,
                                                                                           cell_name, query_name,
                                                                                           loci_for_segments)
+                    full_length = is_rearrangement_full_length(trinity_seq, processed_hit_table, query_name)
                     if len(junc_string) < int(max_junc_string_length):
                         rec = Recombinant(contig_name=query_name, locus=returned_locus, identifier=identifier,
                                           all_poss_identifiers=all_poss_identifiers, productive=is_productive[0],
@@ -203,7 +206,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                                           summary=rearrangement_summary, junction_details=junction_list,
                                           best_VJ_names=bestVJNames, alignment_summary=alignment_summary,
                                           trinity_seq=trinity_seq, imgt_reconstructed_seq=imgt_reconstructed_seq, 
-                                          has_D=has_D, output_dir=output_dir)
+                                          has_D=has_D, output_dir=output_dir, full_length=full_length)
                         recombinants[locus].append(rec)
 
     if recombinants:
@@ -419,6 +422,38 @@ def is_rearrangement_productive(seq):
 
     return (productive, contains_stop, in_frame)
 
+ 
+
+def is_rearrangement_full_length_hit(seq, hit_table, query_name):
+    found_V = False
+    found_J = False
+    full_5_prime = False
+    ref_V_start = None
+    J_end_pos = None
+    for hit in hit_table:
+        segment = hit[0]
+        if segment == "V" and found_V == False:
+            ref_V_start = int(hit[10])
+            found_V = True
+        elif segment == "J" and found_J == False:
+            J_end_pos = int(hit[9])
+            found_J = True
+
+        if ref_V_start == 1:
+            full_5_prime = True 
+        if J_end_pos is not None:
+            if len(seq)>= J_end_pos - 1 and full_5_prime == True:
+                full_length = True
+        else:
+            full_length = False
+    return (full_length)
+
+
+
+
+
+
+                       
 
 def get_segment_name(name, pattern):
     match = pattern.search(name)
@@ -1057,7 +1092,7 @@ def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, 
         if os.path.isfile(trinity_fasta):
             command = [igblast, '-germline_db_V', databases['V'], '-germline_db_J', databases['J'], '-germline_db_D', 
                         databases['D'], '-domain_system', 'imgt', '-organism', igblast_species,
-                       '-ig_seqtype', ig_seqtype, '-show_translation', '-num_alignments_V', '3',
+                       '-ig_seqtype', ig_seqtype, '-show_translation', '-num_alignments_V', '9',
                        '-num_alignments_D', '3', '-num_alignments_J', '3', '-outfmt', '7', '-query', trinity_fasta]
             igblast_out = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
                                                                                               cell_name=cell_name,
