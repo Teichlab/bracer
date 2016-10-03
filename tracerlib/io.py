@@ -103,7 +103,7 @@ def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species,
                 (query_name, chunk_details) = process_chunk(chunk)
 
                 all_locus_data[locus][query_name] = chunk_details
-                print(all_locus_data[locus][query_name])
+                
         else:
             all_locus_data[locus] = None
 
@@ -191,8 +191,8 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species):
                             if int(s_start) > int(s_end):
                                 blast_query_name = "reversed|" + blast_query_name
                                 x, y = int(q_start), int(q_end)
-                                q_start = int(query_length) - y + 2
-                                q_end = int(query_length) - x + 2
+                                q_start = int(query_length) - y + 1
+                                q_end = int(query_length) - x + 1
                                 s_start, s_end = s_end, s_start
                                
                             intro_string = "##{blast_query_name}##\nC segment:\t{C_segment}\n\n".format(blast_query_name=blast_query_name, C_segment=C_segment)

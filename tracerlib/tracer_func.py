@@ -198,13 +198,9 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                                                                                           cell_name, query_name,
                                                                                           loci_for_segments)
                  
-                    (full_length, V_hit, J_hit, ref_V_start, J_end_pos, full_5_prime, query_length) = is_rearrangement_full_length(trinity_seq, query_data["hit_table"], query_name, query_data["query_length"])
-                    print("Full length: ", full_length)
-                    print(V_hit, "\n", J_hit)
-                    print("ref_V_start: ", ref_V_start)
-                    print("J_end_pos: ", J_end_pos)
-                    print("full_5_prime: ", full_5_prime)
-                    print("Query len: ", query_length)
+                    (full_length, query_length) = is_rearrangement_full_length(trinity_seq, query_data["hit_table"], query_name, query_data["query_length"])
+                    query_length = query_data["query_length"]
+                    
                     if len(junc_string) < int(max_junc_string_length):
                         rec = Recombinant(contig_name=query_name, locus=returned_locus, identifier=identifier,
                                           all_poss_identifiers=all_poss_identifiers, productive=is_productive[0],
@@ -213,7 +209,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                                           summary=rearrangement_summary, junction_details=junction_list,
                                           best_VJ_names=bestVJNames, alignment_summary=alignment_summary,
                                           trinity_seq=trinity_seq, imgt_reconstructed_seq=imgt_reconstructed_seq, 
-                                          has_D=has_D, output_dir=output_dir, full_length=full_length)
+                                          has_D=has_D, output_dir=output_dir, full_length=full_length, query_length=query_length)
                         recombinants[locus].append(rec)
 
     if recombinants:
@@ -458,7 +454,7 @@ def is_rearrangement_full_length(seq, hit_table, query_name, query_length):
                 full_length = True
         else:
             full_length = False
-    return (full_length, V_hit, J_hit, ref_V_start, J_end_pos, full_5_prime, query_length)
+    return (full_length, query_length)
 
 def get_segment_name(name, pattern):
     match = pattern.search(name)
