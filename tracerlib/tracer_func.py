@@ -106,7 +106,60 @@ def extract_blast_info(line):
     info = line.split(">")[1]
     info = info.split("<")[0]
     return (info)
-   
+ 
+def create_identity_matrix_dictionary(species, receptor):
+    if receptor == "BCR":
+        matrix_identity = {}
+        matrix_file = "./resources/{}/identity_matrix/HV_identity_matrix.txt".format(species)
+        with open(matrix_file, "r") as file:
+            for line in file:
+                matrix_allele_number = int(line.split(":")[0].lstrip())
+                matrix_allele_name = line.split()[1]
+                #dict_entry = {matrix_allele_number:matrix_allele_name}
+                matrix_identity[matrix_allele_number] = matrix_allele_name
+        return (matrix_identity, matrix_file)
+
+def find_matrix_identity_hits(species, receptor, V_gene, matrix_identity, matrix_file):
+    #(matrix_identity, matrix_file) = create_identity_matrix_dictionary(species, receptor)
+    similar_alleles = []
+    similar_genes = []
+    print(matrix_identity)
+    #print(V_gene)
+    if receptor == "BCR":
+        with open(matrix_file, "r") as file:
+            for line in file:
+                line_allele = line.split()[1]
+                #print(line_allele)
+                if V_gene == line_allele:
+                    #print(line)
+                    hits = line.split()
+                    for i in range(2, len(hits)-1):
+                        identity = float(hits[i])
+                        #print(identity)
+                        if identity >= 95:
+                            similar_alleles.append(i)
+                            #print(i)
+                    for matrix_allele_number in similar_alleles:
+                        #print(i)
+                        allele_name = matrix_identity[matrix_allele_number]
+                        gene = allele_name.split("*")[0]
+                        if gene not in similar_genes:
+                            similar_genes.append(gene)
+                        print(similar_genes)
+                        """for allele_number, allele_name in six.iteritems(matrix_identity):
+                            if allele_number == i:
+                                print(i)
+                                gene = allele_name.split("*")[0]
+                                print(gene)
+                                if gene not in similar_genes:
+                                    similar_genes.append(gene)
+                    #similar_genes = set(similar_genes)"""
+                else:
+                    continue
+    return(similar_genes)
+                
+
+
 
 def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, output_dir, species, seq_method,
                              invariant_seqs, loci_for_segments, receptor, loci, max_junc_string_length):
@@ -201,6 +254,13 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                     (full_length, query_length) = is_rearrangement_full_length(trinity_seq, query_data["hit_table"], query_name, query_data["query_length"])
                     query_length = query_data["query_length"]
                     
+                    
+                    if receptor == "BCR" and locus in ["H", "BCR_H"]:
+                        (matrix_identity, matrix_file) = create_identity_matrix_dictionary(species, receptor)
+                        V_allele = rearrangement_summary[0].split(",")[0]
+                        V_matrix_genes = find_matrix_identity_hits(species, receptor, V_allele, matrix_identity, matrix_file)
+
+                    
                     if len(junc_string) < int(max_junc_string_length):
                         rec = Recombinant(contig_name=query_name, locus=returned_locus, identifier=identifier,
                                           all_poss_identifiers=all_poss_identifiers, productive=is_productive[0],
@@ -209,7 +269,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                                           summary=rearrangement_summary, junction_details=junction_list,
                                           best_VJ_names=bestVJNames, alignment_summary=alignment_summary,
                                           trinity_seq=trinity_seq, imgt_reconstructed_seq=imgt_reconstructed_seq, 
-                                          has_D=has_D, output_dir=output_dir, full_length=full_length, query_length=query_length)
+                                          has_D=has_D, output_dir=output_dir, full_length=full_length, query_length=query_length, V_matrix_genes=V_matrix_genes)
                         recombinants[locus].append(rec)
 
     if recombinants:
