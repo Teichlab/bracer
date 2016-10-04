@@ -137,16 +137,17 @@ def find_matrix_identity_hits(species, receptor, V_gene, matrix_identity, matrix
                         identity = float(hits[i])
                         #print(identity)
                         if identity >= 95:
-                            similar_alleles.append(i)
+                            matrix_allele_number = i - 2
+                            similar_alleles.append(matrix_allele_number)
                             #print(i)
                     for matrix_allele_number in similar_alleles:
-                        #print(i)
+                      
                         allele_name = matrix_identity[matrix_allele_number]
                         gene = allele_name.split("*")[0]
                         if gene not in similar_genes:
                             similar_genes.append(gene)
-                        print(similar_genes)
-                        """for allele_number, allele_name in six.iteritems(matrix_identity):
+                    print(similar_genes)
+                    """for allele_number, allele_name in six.iteritems(matrix_identity):
                             if allele_number == i:
                                 print(i)
                                 gene = allele_name.split("*")[0]
@@ -158,8 +159,7 @@ def find_matrix_identity_hits(species, receptor, V_gene, matrix_identity, matrix
                     continue
     return(similar_genes)
                 
-
-
+    
 
 def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, output_dir, species, seq_method,
                              invariant_seqs, loci_for_segments, receptor, loci, max_junc_string_length):
@@ -251,16 +251,24 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                                                                                           cell_name, query_name,
                                                                                           loci_for_segments)
                  
+                    #Assess if rearrangement is full-length (from start of V gene to start of C gene)
                     (full_length, query_length) = is_rearrangement_full_length(trinity_seq, query_data["hit_table"], query_name, query_data["query_length"])
                     query_length = query_data["query_length"]
                     
+                    #Identify the most likely V genes
                     
-                    if receptor == "BCR" and locus in ["H", "BCR_H"]:
+                    if receptor == "BCR":
+                        if locus in ["H", "BCR_H"]:
+                            threshold_percent = 0.05
+                        else:
+                            threshold_percent = 0.01
                         (matrix_identity, matrix_file) = create_identity_matrix_dictionary(species, receptor)
                         V_allele = rearrangement_summary[0].split(",")[0]
-                        V_matrix_genes = find_matrix_identity_hits(species, receptor, V_allele, matrix_identity, matrix_file)
+                        #V_matrix_genes = find_matrix_identity_hits(species, receptor, V_allele, matrix_identity, matrix_file)
+                        V_matrix_genes = find_V_genes_based_on_bit_score(trinity_seq, query_data["hit_table"], query_name, threshold_percent)  
+                    else:
+                        V_matrix_genes = None
 
-                    
                     if len(junc_string) < int(max_junc_string_length):
                         rec = Recombinant(contig_name=query_name, locus=returned_locus, identifier=identifier,
                                           all_poss_identifiers=all_poss_identifiers, productive=is_productive[0],
@@ -287,6 +295,29 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
     # pdb.set_trace()
     return (cell)
 
+
+def find_V_genes_based_on_bit_score(seq, hit_table, query_name, threshold_percent):
+    found_V = False
+    V_genes = []
+    threshold = None
+    for hit in hit_table:
+        info = hit.split()
+        segment = info[0]
+        allele = info[2]
+        V_gene = allele.split("*")[0]
+        bit_score = float(info[13])
+        if segment == "V":
+            if found_V == False:
+                top_bit_score = bit_score
+                found_V = True
+                threshold = bit_score - bit_score*threshold_percent 
+                V_genes.append(V_gene)
+            elif found_V == True:
+                if bit_score >= threshold and V_gene not in V_genes:
+                    V_genes.append(V_gene)
+    return(V_genes)
+        
+           
 
 def get_coords(hit_table):
     found_V = False
@@ -1147,14 +1178,23 @@ def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, 
     # Taken from http://stackoverflow.com/questions/11269575/how-to-hide-output-of-subprocess-in-python-2-7
     DEVNULL = open(os.devnull, 'wb')
 
+    if receptor == "BCR":
+        num_alignments_V = '20'
+        num_alignments_D = '3'
+        num_alignments_J = '5'
+    else:
+        num_alignments_V = '5'
+        num_alignments_D = '5'
+        num_alignments_J = '5'
+
     for locus in locus_names:
         print("##{}##".format(locus))
         trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(output_dir, cell_name, locus)
         if os.path.isfile(trinity_fasta):
             command = [igblast, '-germline_db_V', databases['V'], '-germline_db_J', databases['J'], '-germline_db_D', 
                         databases['D'], '-domain_system', 'imgt', '-organism', igblast_species,
-                       '-ig_seqtype', ig_seqtype, '-show_translation', '-num_alignments_V', '9',
-                       '-num_alignments_D', '3', '-num_alignments_J', '3', '-outfmt', '7', '-query', trinity_fasta]
+                       '-ig_seqtype', ig_seqtype, '-show_translation', '-num_alignments_V', num_alignments_V,
+                       '-num_alignments_D', num_alignments_D, '-num_alignments_J', num_alignments_J, '-outfmt', '7', '-query', trinity_fasta]
             igblast_out = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
                                                                                               cell_name=cell_name,
                                                                                               locus=locus)
