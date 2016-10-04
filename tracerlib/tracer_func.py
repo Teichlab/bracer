@@ -202,19 +202,16 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                     ##line attempting to add alignment summary to data for use with PCR comparisons
 
                     alignment_summary = query_data['alignment_summary']
-
-                    all_V_names = [remove_allele_stars(x) for x in rearrangement_summary[0].split(',')]
+                    if receptor is not "BCR":
+                        all_V_names = [remove_allele_stars(x) for x in rearrangement_summary[0].split(',')]
 
                     if has_D:
                         all_J_names = [remove_allele_stars(x) for x in rearrangement_summary[2].split(',')]
                     else:
                         all_J_names = [remove_allele_stars(x) for x in rearrangement_summary[1].split(',')]
+                    if receptor is not "BCR":
+                        all_V_names = [remove_allele_stars(x) for x in rearrangement_summary[0].split(',')]
 
-                    all_poss_identifiers = set()
-                    for V in all_V_names:
-                        for J in all_J_names:
-                            i = V + "_" + junc_string + "_" + J
-                            all_poss_identifiers.add(i)
 
                     # get original sequence from Trinity file - needed for summary of reconstructed lengths.
                     # Only use the VDJ portion found by IgBLAST
@@ -255,19 +252,31 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                     (full_length, query_length) = is_rearrangement_full_length(trinity_seq, query_data["hit_table"], query_name, query_data["query_length"])
                     query_length = query_data["query_length"]
                     
-                    #Identify the most likely V genes
+                    #Identify the most likely V genes if receptor is BCR
                     
                     if receptor == "BCR":
                         if locus in ["H", "BCR_H"]:
                             threshold_percent = 0.05
                         else:
                             threshold_percent = 0.01
-                        (matrix_identity, matrix_file) = create_identity_matrix_dictionary(species, receptor)
-                        V_allele = rearrangement_summary[0].split(",")[0]
+                        #(matrix_identity, matrix_file) = create_identity_matrix_dictionary(species, receptor)
+                        #V_allele = rearrangement_summary[0].split(",")[0]
                         #V_matrix_genes = find_matrix_identity_hits(species, receptor, V_allele, matrix_identity, matrix_file)
-                        V_matrix_genes = find_V_genes_based_on_bit_score(trinity_seq, query_data["hit_table"], query_name, threshold_percent)  
-                    else:
-                        V_matrix_genes = None
+                        all_V_names = find_V_genes_based_on_bit_score(trinity_seq, query_data["hit_table"], query_name, threshold_percent)
+                          
+                    V_genes = all_V_names
+
+
+                    all_poss_identifiers = set()
+                    for V in all_V_names:
+                        for J in all_J_names:
+                            if receptor != "BCR":
+                                i = V + "_" + junc_string + "_" + J
+                            else:
+                                i = V + "_" + J
+                            all_poss_identifiers.add(i)
+                    print(all_poss_identifiers)
+                    print(receptor)
 
                     if len(junc_string) < int(max_junc_string_length):
                         rec = Recombinant(contig_name=query_name, locus=returned_locus, identifier=identifier,
@@ -277,7 +286,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                                           summary=rearrangement_summary, junction_details=junction_list,
                                           best_VJ_names=bestVJNames, alignment_summary=alignment_summary,
                                           trinity_seq=trinity_seq, imgt_reconstructed_seq=imgt_reconstructed_seq, 
-                                          has_D=has_D, output_dir=output_dir, full_length=full_length, query_length=query_length, V_matrix_genes=V_matrix_genes)
+                                          has_D=has_D, output_dir=output_dir, full_length=full_length, query_length=query_length, V_genes=V_genes)
                         recombinants[locus].append(rec)
 
     if recombinants:

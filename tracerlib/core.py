@@ -317,7 +317,7 @@ class Recombinant(object):
 
     def __init__(self, contig_name, locus, identifier, all_poss_identifiers, productive, stop_codon, in_frame, TPM,
                  dna_seq, hit_table, summary, junction_details, best_VJ_names, alignment_summary, trinity_seq,
-                 imgt_reconstructed_seq, has_D, output_dir, full_length, query_length, V_matrix_genes):
+                 imgt_reconstructed_seq, has_D, output_dir, full_length, query_length, V_genes):
         self.contig_name = contig_name
         self.locus = locus
         self.identifier = identifier
@@ -340,7 +340,7 @@ class Recombinant(object):
         self.C_gene = self.get_C_gene()
         self.full_length = full_length
         self.query_length = query_length
-        self.V_matrix_genes = V_matrix_genes       
+        self.V_genes = V_genes       
         
     def __str__(self):
         return ("{} {} {} {}".format(self.identifier, self.productive, self.TPM))
@@ -438,8 +438,8 @@ class Recombinant(object):
 
         summary_string += segments_string
         summary_string += "ID:\t{}\n".format(self.identifier)
-        summary_string += "TPM:\t{TPM}\nProductive:\t{productive}\nStop codon:\t{stop_codon}\nIn frame:\t{in_frame}\nFull length:\t{full_length}\nSequence length: \t{query_length}\nPossible V genes:\t{V_matrix_genes}\n\n".format(
-            TPM=self.TPM, productive=self.productive, stop_codon=self.stop_codon, in_frame=self.in_frame, full_length=self.full_length, query_length=self.query_length, V_matrix_genes=self.V_matrix_genes)
+        summary_string += "TPM:\t{TPM}\nProductive:\t{productive}\nStop codon:\t{stop_codon}\nIn frame:\t{in_frame}\nFull length:\t{full_length}\nSequence length: \t{query_length}\nPossible V genes:\t{V_genes}\n\n".format(
+            TPM=self.TPM, productive=self.productive, stop_codon=self.stop_codon, in_frame=self.in_frame, full_length=self.full_length, query_length=self.query_length, V_genes=self.V_genes)
 
         summary_string += 'Segment\tquery_id\tsubject_id\t% identity\talignment length\tmismatches\tgap opens\tgaps\tq start\tq end\ts start\ts end\te value\tbit score\n'
         for line in self.hit_table:
