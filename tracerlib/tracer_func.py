@@ -107,58 +107,6 @@ def extract_blast_info(line):
     info = info.split("<")[0]
     return (info)
  
-def create_identity_matrix_dictionary(species, receptor):
-    if receptor == "BCR":
-        matrix_identity = {}
-        matrix_file = "./resources/{}/identity_matrix/HV_identity_matrix.txt".format(species)
-        with open(matrix_file, "r") as file:
-            for line in file:
-                matrix_allele_number = int(line.split(":")[0].lstrip())
-                matrix_allele_name = line.split()[1]
-                #dict_entry = {matrix_allele_number:matrix_allele_name}
-                matrix_identity[matrix_allele_number] = matrix_allele_name
-        return (matrix_identity, matrix_file)
-
-def find_matrix_identity_hits(species, receptor, V_gene, matrix_identity, matrix_file):
-    #(matrix_identity, matrix_file) = create_identity_matrix_dictionary(species, receptor)
-    similar_alleles = []
-    similar_genes = []
-    print(matrix_identity)
-    #print(V_gene)
-    if receptor == "BCR":
-        with open(matrix_file, "r") as file:
-            for line in file:
-                line_allele = line.split()[1]
-                #print(line_allele)
-                if V_gene == line_allele:
-                    #print(line)
-                    hits = line.split()
-                    for i in range(2, len(hits)-1):
-                        identity = float(hits[i])
-                        #print(identity)
-                        if identity >= 95:
-                            matrix_allele_number = i - 2
-                            similar_alleles.append(matrix_allele_number)
-                            #print(i)
-                    for matrix_allele_number in similar_alleles:
-                      
-                        allele_name = matrix_identity[matrix_allele_number]
-                        gene = allele_name.split("*")[0]
-                        if gene not in similar_genes:
-                            similar_genes.append(gene)
-                    print(similar_genes)
-                    """for allele_number, allele_name in six.iteritems(matrix_identity):
-                            if allele_number == i:
-                                print(i)
-                                gene = allele_name.split("*")[0]
-                                print(gene)
-                                if gene not in similar_genes:
-                                    similar_genes.append(gene)
-                    #similar_genes = set(similar_genes)"""
-                else:
-                    continue
-    return(similar_genes)
-                
     
 
 def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, output_dir, species, seq_method,
@@ -273,7 +221,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                             if receptor != "BCR":
                                 i = V + "_" + junc_string + "_" + J
                             else:
-                                i = V + "_" + J
+                                i = V + "_" + str(len(junc_string)) + "_" + J
                             all_poss_identifiers.add(i)
                     print(all_poss_identifiers)
                     print(receptor)
@@ -761,6 +709,149 @@ def load_kallisto_counts(tsv_file):
     return dict(counts)
 
 
+def define_potential_H_clonal_groups(cells, receptor):
+
+    H_clonal_groups = {}
+    group_counter = 1
+    H_clonal_groups[group_counter] = {}
+    for i in range(len(cells)):
+        current_cell = cells[i]
+        comparison_cells = cells[i + 1:]
+        locus = "H"
+        # current_identifiers = current_cell.getMainRecombinantIdentifiersForLocus(locus)
+        for comparison_cell in comparison_cells:
+            shared_H = False
+            shared_identifiers = 0
+            #group_counter = 1
+            if current_cell.recombinants[receptor][locus] is not None:
+                for current_recombinant in current_cell.recombinants[receptor][locus]:
+                    current_id_set = current_recombinant.all_poss_identifiers
+                    if comparison_cell.recombinants[receptor][locus] is not None:
+                        for comparison_recombinant in comparison_cell.recombinants[receptor][locus]:
+                            comparison_id_set = comparison_recombinant.all_poss_identifiers
+                            if len(current_id_set.intersection(comparison_id_set)) > 0:
+                                shared_identifiers += 1
+                                if group_counter == 1:
+                                    group_identifiers = set(list(current_id_set) + list(comparison_id_set))
+                                    print(group_identifiers) 
+                                    H_clonal_groups[group_counter] = group_identifiers
+                                    group_counter += 1
+                                elif group_counter > 1:
+                                    found_group = False
+                                    for group_counter in range(1, (group_counter -1)):
+                                    
+                                        identifiers = set(list(current_id_set) + list(comparison_id_set))
+                                        if len(identifiers.intersection(H_clonal_groups[group_counter])) > 0:
+                                            H_clonal_groups[group_counter] = set(list(group_identifiers) + (list(H_clonal_groups[group_counter])))
+                                            print(H_clonal_groups[group_counter])
+                                            found_group = True
+                                    if found_group == False:
+                                        group_counter += 1
+                                        group_identifiers = set(list(current_id_set) + list(comparison_id_set))
+                                        print(group_identifiers)
+                                        H_clonal_groups[group_counter] = group_identifiers
+                                
+                                shared_H = True
+                                    
+    return (H_clonal_groups)
+
+
+def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, receptor, loci,
+                               network_colours):
+    G = nx.MultiGraph()
+
+    #H_clonal_groups = define_potential_H_clonal_groups(cells, receptor)
+    # initialise all cells as nodes
+    
+    if shape == 'circle':
+        for cell in cells:
+            G.add_node(cell, shape=shape, label=cell.html_style_label_for_circles(receptor, loci, network_colours),
+                        sep=0.4, fontname="helvetica neue")
+
+    else:
+        for cell in cells:
+            G.add_node(cell, shape=shape, label=cell.html_style_label_dna(receptor, loci, network_colours),
+                        fontname="helvetica neue")
+    # make edges:
+    for i in range(len(cells)):
+        current_cell = cells[i]
+        
+        comparison_cells = cells[i + 1:]
+        for locus in loci:
+            col = network_colours[receptor][locus][0]
+
+            # current_identifiers = current_cell.getMainRecombinantIdentifiersForLocus(locus)
+            for comparison_cell in comparison_cells:
+                shared_identifiers = 0
+                if current_cell.recombinants[receptor][locus] is not None:
+                    for current_recombinant in current_cell.recombinants[receptor][locus]:
+                        current_id_set = current_recombinant.all_poss_identifiers
+                        #print("Current ID set")
+                        #print(current_id_set)
+                        if comparison_cell.recombinants[receptor][locus] is not None:
+                            for comparison_recombinant in comparison_cell.recombinants[receptor][locus]:
+                                comparison_id_set = comparison_recombinant.all_poss_identifiers
+                                #print("Comp ID set")
+                                #print(comparison_id_set)
+                                if len(current_id_set.intersection(comparison_id_set)) > 0:
+                                    shared_identifiers += 1
+                                    
+                                    
+                
+                if shared_identifiers > 0:
+                    width = shared_identifiers * 2
+                    
+                    if locus == "H" or G.has_edge(current_cell, comparison_cell):
+                    #print("Shared identifiers")
+                    #print(shared_identifiers)
+                      
+                    
+                        G.add_edge(current_cell, comparison_cell, locus, penwidth=width, color=col,
+                               weight=shared_identifiers)
+                
+           
+
+    deg = G.degree()
+
+    to_remove = [n for n in deg if deg[n] == 0]
+
+    if len(to_remove) < len(G.nodes()):
+        if not shape == 'circle':
+            G.remove_nodes_from(to_remove)
+            drawing_tool = [dot, '-Gsplines=true', '-Goverlap=false', '-Gsep=0.4']
+        
+        else:
+            drawing_tool = [dot, '-Gsplines=true', '-Goverlap=false']
+    else:
+        drawing_tool = [neato, '-Gsplines=true', '-Goverlap=false']
+
+    bgcolors = ['#8dd3c720', '#ffffb320', '#bebada20', '#fb807220', '#80b1d320', '#fdb46220', '#b3de6920', '#fccde520',
+                '#d9d9d920', '#bc80bd20', '#ccebc520', '#ffed6f20']
+
+    component_counter = 0
+    component_groups = list()
+    j = 0
+    components = nx.connected_components(G)
+
+    for component in components:
+        members = list()
+        if len(component) > 1:
+            for cell in component:
+                
+                members.append(cell.name)
+                G.node[cell]['style'] = 'filled'
+                G.node[cell]['fillcolor'] = bgcolors[j]
+                cell.bgcolor = bgcolors[j]
+            if j < 11:
+                    j += 1
+            else:
+                component_counter += 1
+                j = 0
+
+        component_groups.append(members)
+
+    return (G, drawing_tool, component_groups)
+
 def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato, receptor, loci, 
                                network_colours):
     G = nx.MultiGraph()
@@ -841,7 +932,12 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato, receptor
 
 def draw_network_from_cells(cells, output_dir, output_format, dot, neato, draw_graphs, receptor, loci, network_colours):
     cells = list(cells.values())
-    network, draw_tool, component_groups = make_cell_network_from_dna(cells, False, "box", dot,
+    if not receptor == "BCR":
+        print(receptor)
+        network, draw_tool, component_groups = make_cell_network_from_dna(cells, False, "box", dot,
+                                                                      neato, receptor, loci, network_colours)
+    else:
+        network, draw_tool, component_groups = make_cell_network_from_dna_B_cells(cells, False, "box", dot,
                                                                       neato, receptor, loci, network_colours)
     network_file = "{}/clonotype_network_with_identifiers.dot".format(output_dir)
     try:
@@ -853,9 +949,13 @@ def draw_network_from_cells(cells, output_dir, output_format, dot, neato, draw_g
         command = draw_tool + ['-o', "{output_dir}/clonotype_network_with_identifiers.{output_format}".format(
             output_dir=output_dir, output_format=output_format), "-T", output_format, network_file]
         subprocess.check_call(command)
-
-    network, draw_tool, cgx = make_cell_network_from_dna(cells, False, "circle", dot, 
+    if not receptor == "BCR":
+        network, draw_tool, cgx = make_cell_network_from_dna(cells, False, "circle", dot, 
                                                          neato, receptor, loci, network_colours)
+    else:
+        network, draw_tool, cgx = make_cell_network_from_dna_B_cells(cells, False, "circle", dot,
+                                                         neato, receptor, loci, network_colours)
+
     network_file = "{}/clonotype_network_without_identifiers.dot".format(output_dir)
     try:
         nx.write_dot(network, network_file)
