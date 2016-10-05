@@ -767,6 +767,8 @@ def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, 
         for cell in cells:
             G.add_node(cell, shape=shape, label=cell.html_style_label_for_circles(receptor, loci, network_colours),
                         sep=0.4, fontname="helvetica neue")
+            G.node[cell]['style'] = 'filled'
+            G.node[cell]['fillcolor'] = cell.bgcolor
 
     else:
         for cell in cells:
@@ -824,9 +826,11 @@ def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, 
             drawing_tool = [dot, '-Gsplines=true', '-Goverlap=false']
     else:
         drawing_tool = [neato, '-Gsplines=true', '-Goverlap=false']
-
+    
     bgcolors = ['#8dd3c720', '#ffffb320', '#bebada20', '#fb807220', '#80b1d320', '#fdb46220', '#b3de6920', '#fccde520',
                 '#d9d9d920', '#bc80bd20', '#ccebc520', '#ffed6f20']
+
+   
 
     component_counter = 0
     component_groups = list()
@@ -837,11 +841,32 @@ def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, 
         members = list()
         if len(component) > 1:
             for cell in component:
-                
+                """H_recombinants = []
+                if cell.species == "Mmus":
+                    isotype_bgcolors = isotype_bgcolors_Mmus
+                elif cell.species == "Hsap":
+                    isotype_bgcolors = isotype_bgcolors_Hsap"""
                 members.append(cell.name)
                 G.node[cell]['style'] = 'filled'
-                G.node[cell]['fillcolor'] = bgcolors[j]
-                cell.bgcolor = bgcolors[j]
+                """#G.node[cell]['fillcolor'] = bgcolors[j]
+                recombinant_dict = cell.recombinants
+                for recombinant in recombinant_dict["BCR"]["H"]:
+                    if recombinant.productive == True:
+                        H_recombinants.append(recombinant.C_gene)
+                if len(H_recombinants) == 1:
+                    isotype = H_recombinants[0]
+                elif len(H_recombinants) > 1:
+                    if H_recombinants[0] == H_recombinants[1]:
+                        isotype = H_recombinants[0]
+                    else:
+                        isotype = None
+                else:
+                    isotype = None
+                       
+                if isotype is not None:
+                    isotype = isotype[:4]
+                    G.node[cell]['fillcolor'] = isotype_bgcolors[isotype]       
+                    cell.bgcolor = isotype_bgcolors[isotype]"""
             if j < 11:
                     j += 1
             else:

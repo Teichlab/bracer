@@ -15,10 +15,12 @@ class Cell(object):
                     receptor=None, loci=None):
         
         self.name = cell_name
-        self.bgcolor = None
+        self.bgcolor = self.assign_bgcolor(receptor, species)
         self.recombinants = self._process_recombinants(recombinants, receptor, loci)
         self.is_empty = self._check_is_empty()
         self.species = species
+        if receptor == "BCR":
+            self.isotype = self.determine_isotype(loci, receptor)
         #self.cdr3_comparisons = {'A': None, 'B': None, 'mean_both': None}
         #invariant_types = []
         #if invariant_cells is not None:
@@ -44,6 +46,58 @@ class Cell(object):
             if l not in recombinant_dict[receptor]:
                 recombinant_dict[receptor][l] = None
         return dict(recombinant_dict)
+
+    def determine_isotype(self, loci, receptor):
+        for locus in ["H"]:
+            H_recombinants = self.recombinants[receptor][locus]
+        if len(H_recombinants) == 0:
+            isotype = None
+        isotype_list = []
+        for recombinant in H_recombinants:
+            if recombinant.productive == True:
+                C_gene = recombinant.C_gene
+                isotype_list.append(C_gene)
+        if len(isotype_list) == 0:
+            isotype = None
+        elif len(isotype_list == 1):
+            if isotype_list[0] is None:
+                isotype = None
+            else:
+                isotype = isotype_list[0][:4]
+        else:
+            if isotype_list[0] == isotype_list[1]:
+                isotype = isotype_list[0][:4]
+            else:
+                isotype = None 
+        return(isotype)
+
+    def assign_bgcolor(self, receptor, species, isotype):
+        """Assigns bgcolor for cell according to isotype (B cells)"""
+        bgcolors = ['#8dd3c720', '#ffffb320', '#bebada20', '#fb807220', '#80b1d320', '#fdb46220', '#b3de6920', '#fccde520',
+                '#d9d9d920', '#bc80bd20', '#ccebc520', '#ffed6f20']
+        if species == "Mmus":
+            isotype_keys = ["IGHM", "IGHD", "IGHA", "IGHE", "IGHG"]
+        elif species == "Hsap":
+            isotype_keys = ["IGHM", "IGHD", "IGHA", "IGHE", "IGHG"]
+        isotype_bgcolors = {}
+        j = 4
+        for isotype_key in isotype_keys:
+            isotype_bgcolors[isotype_key] = bgcolors[j]
+            j += 1
+
+        if receptor == "BCR":
+            if self.isotype is None:
+                bgcolor = None
+            else:
+                bgcolor = bgcolors[isotype]
+
+
+        else:
+            bg_color = None
+
+        return (bgcolor)
+    
+
                 
     def _check_is_empty(self):
         if (self.recombinants is None or len(self.recombinants) == 0):
