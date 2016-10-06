@@ -767,13 +767,22 @@ def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, 
         for cell in cells:
             G.add_node(cell, shape=shape, label=cell.html_style_label_for_circles(receptor, loci, network_colours),
                         sep=0.4, fontname="helvetica neue")
-            G.node[cell]['style'] = 'filled'
-            G.node[cell]['fillcolor'] = cell.bgcolor
+            #print(cell.bgcolor)
+            if cell.bgcolor is not None:
+                G.node[cell]['style'] = 'filled'
+            
+                G.node[cell]['fillcolor'] = cell.bgcolor
+            #print(cell.bgcolor)
+            #print(cell.name, cell.isotype, cell.bgcolor)
 
     else:
         for cell in cells:
             G.add_node(cell, shape=shape, label=cell.html_style_label_dna(receptor, loci, network_colours),
                         fontname="helvetica neue")
+            if cell.bgcolor is not None:
+                G.node[cell]['style'] = 'filled'
+
+                G.node[cell]['fillcolor'] = cell.bgcolor
     # make edges:
     for i in range(len(cells)):
         current_cell = cells[i]
@@ -827,8 +836,8 @@ def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, 
     else:
         drawing_tool = [neato, '-Gsplines=true', '-Goverlap=false']
     
-    bgcolors = ['#8dd3c720', '#ffffb320', '#bebada20', '#fb807220', '#80b1d320', '#fdb46220', '#b3de6920', '#fccde520',
-                '#d9d9d920', '#bc80bd20', '#ccebc520', '#ffed6f20']
+    """bgcolors = ['#8dd3c720', '#ffffb320', '#bebada20', '#fb807220', '#80b1d320', '#fdb46220', '#b3de6920', '#fccde520',
+                '#d9d9d920', '#bc80bd20', '#ccebc520', '#ffed6f20']"""
 
    
 
@@ -841,37 +850,8 @@ def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, 
         members = list()
         if len(component) > 1:
             for cell in component:
-                """H_recombinants = []
-                if cell.species == "Mmus":
-                    isotype_bgcolors = isotype_bgcolors_Mmus
-                elif cell.species == "Hsap":
-                    isotype_bgcolors = isotype_bgcolors_Hsap"""
                 members.append(cell.name)
-                G.node[cell]['style'] = 'filled'
-                """#G.node[cell]['fillcolor'] = bgcolors[j]
-                recombinant_dict = cell.recombinants
-                for recombinant in recombinant_dict["BCR"]["H"]:
-                    if recombinant.productive == True:
-                        H_recombinants.append(recombinant.C_gene)
-                if len(H_recombinants) == 1:
-                    isotype = H_recombinants[0]
-                elif len(H_recombinants) > 1:
-                    if H_recombinants[0] == H_recombinants[1]:
-                        isotype = H_recombinants[0]
-                    else:
-                        isotype = None
-                else:
-                    isotype = None
-                       
-                if isotype is not None:
-                    isotype = isotype[:4]
-                    G.node[cell]['fillcolor'] = isotype_bgcolors[isotype]       
-                    cell.bgcolor = isotype_bgcolors[isotype]"""
-            if j < 11:
-                    j += 1
-            else:
-                component_counter += 1
-                j = 0
+                
 
         component_groups.append(members)
 
@@ -958,7 +938,6 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato, receptor
 def draw_network_from_cells(cells, output_dir, output_format, dot, neato, draw_graphs, receptor, loci, network_colours):
     cells = list(cells.values())
     if not receptor == "BCR":
-        print(receptor)
         network, draw_tool, component_groups = make_cell_network_from_dna(cells, False, "box", dot,
                                                                       neato, receptor, loci, network_colours)
     else:
@@ -983,6 +962,7 @@ def draw_network_from_cells(cells, output_dir, output_format, dot, neato, draw_g
 
     network_file = "{}/clonotype_network_without_identifiers.dot".format(output_dir)
     try:
+
         nx.write_dot(network, network_file)
     except AttributeError:
         import pydotplus
@@ -1004,9 +984,9 @@ def get_component_groups_sizes(cells, receptor, loci):
     for i in range(len(cells)):
         current_cell = cells[i]
         comparison_cells = cells[i + 1:]
-
+        clonality = False
         for locus in loci:
-
+            
             # current_identifiers = current_cell.getMainRecombinantIdentifiersForLocus(locus)
             for comparison_cell in comparison_cells:
                 shared_identifiers = 0
@@ -1021,9 +1001,24 @@ def get_component_groups_sizes(cells, receptor, loci):
 
                 # comparison_identifiers = comparison_cell.getAllRecombinantIdentifiersForLocus(locus)
                 # common_identifiers = current_identifiers.intersection(comparison_identifiers)
+                
                 if shared_identifiers > 0:
                     width = shared_identifiers * 2
-                    G.add_edge(current_cell, comparison_cell, locus, penwidth=width, weight=shared_identifiers)
+                    if receptor != "BCR":
+                        G.add_edge(current_cell, comparison_cell, locus, penwidth=width, weight=shared_identifiers)
+                    if receptor == "BCR":
+                        if G.has_edge(current_cell, comparison_cell):
+                            clonality = True
+                        if locus == "H" or G.has_edge(current_cell, comparison_cell):
+                    #print("Shared identifiers")
+                    #print(shared_identifiers)
+
+
+                            G.add_edge(current_cell, comparison_cell, locus, penwidth=width, weight=shared_identifiers)
+                        
+
+        
+
 
     deg = G.degree()
 
