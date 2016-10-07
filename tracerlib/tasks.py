@@ -625,9 +625,9 @@ class Summariser(TracerTask):
         
         all_counters = defaultdict(Counter)
         prod_counters = defaultdict(Counter)
-        """if self.receptor_name == "BCR":
+        if self.receptor_name == "BCR":
             isotype_counters = defaultdict(Counter)
-            possible_isotypes = ["IGHM", "IGHG1", "IGHG2A", "IGHG2B", "IGHG2C", "IGHG3", "IGHA", "IGHE", "IGHD"]"""
+            possible_isotypes = ["IGHM", "IGHG1", "IGHG2A", "IGHG2B", "IGHG2C", "IGHG3", "IGHA", "IGHE", "IGHD"]
         
         for cell in cells.values():
             for l in self.loci:
@@ -698,7 +698,7 @@ class Summariser(TracerTask):
                 outfile.write("None\n\n")
 
 
-        """#count isotype usage and make isotype usage table
+        #count isotype usage and make isotype usage table
         if self.receptor_name == "BCR":
             prod_counters = defaultdict(Counter)
             #isotype_counters = defaultdict(Counter)
@@ -752,9 +752,9 @@ class Summariser(TracerTask):
             #total_determined = prod_H - not_determined
             header = ""
             value = ""
-            for isotype in list(set(cell_isotypes)):
-                number = str(isotype_counter[isotype])
-                value += "\n" + value
+            for isotype, number in six.iteritems(isotype_counter):
+                number = str(number)
+                value = value + "\n" + number 
                 header += "\n" + isotype
             outfile.write(header)
             outfile.write(value)
@@ -772,7 +772,7 @@ class Summariser(TracerTask):
 
 
             #outfile.write(t.get_string())
-            outfile.write("\n")"""
+            outfile.write("\n")
 
 
 
