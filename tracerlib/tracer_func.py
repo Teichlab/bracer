@@ -563,7 +563,7 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
     end_padding = (ref_J_length - ref_J_end)
 
     full_effective_length = start_padding + len(
-        trinity_seq) + end_padding + 2  # add two because need first two bases of constant region to put in frame
+        trinity_seq) + end_padding + 2  # add two because need first two bases of constant region to put in frame.
 
     if full_effective_length % 3 == 0:
         in_frame = True

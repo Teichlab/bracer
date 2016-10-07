@@ -459,7 +459,7 @@ class Summariser(TracerTask):
     def __init__(self, **kwargs):
 
         if not kwargs:
-            parser = argparse.ArgumentParser(description="Summarise set of cells with reconstructed TCR sequences",
+            parser = argparse.ArgumentParser(description="Summarise set of cells with reconstructed TCR/BCR sequences",
                                              parents=[self.base_parser])
             parser.add_argument('--species', '-s',
                                 help='Species to use for reconstruction',
@@ -475,6 +475,7 @@ class Summariser(TracerTask):
             parser.add_argument('--graph_format', '-f', metavar="<GRAPH_FORMAT>", help='graphviz output format [pdf]',
                                 default='pdf')
             parser.add_argument('--no_networks', help='skip attempts to draw network graphs', action = "store_true")
+            parser.add_argument('--IGH_networks', help='base network graphs only on IGH chains', action = "store_true")
             parser.add_argument('dir', metavar="<DIR>",
                                 help='directory containing subdirectories for each cell to be summarised')
             args = parser.parse_args(sys.argv[2:])
@@ -484,6 +485,7 @@ class Summariser(TracerTask):
             self.keep_invariant = args.keep_invariant
             self.use_unfiltered = args.use_unfiltered
             self.draw_graphs = not args.no_networks
+            self.IGH_networks = args.IGH_networks
             self.receptor_name = args.receptor_name
             self.loci = args.loci
             self.species = args.species
@@ -492,6 +494,7 @@ class Summariser(TracerTask):
             self.use_unfiltered = kwargs.get('use_unfiltered')
             self.root_dir = os.path.abspath(kwargs.get('root_dir'))
             self.draw_graphs = not (kwargs.get('no_networks'))
+            self.IGH_networks = kwargs.get('IGH_networks')
             self.graph_format = kwargs.get('graph_format')
             self.keep_invariant = kwargs.get('keep_invariant')
             self.receptor_name = kwargs.get('receptor_name')
@@ -574,11 +577,8 @@ class Summariser(TracerTask):
         for l in self.loci:
             cell_recovery_count[l] = 0
 
-        if self.receptor_name == "BCR":
-            possible_pairs = ["HK", "HL"]        
-
-        else:
-            possible_pairs = ["".join(x) for x in itertools.combinations(self.loci, 2)]
+        
+        possible_pairs = ["".join(x) for x in itertools.combinations(self.loci, 2)]
         
         for p in possible_pairs:
             cell_recovery_count[p] = 0
@@ -609,7 +609,13 @@ class Summariser(TracerTask):
         for p in possible_pairs:
             count = cell_recovery_count[p]
             pc = round((count/float(total_cells))*100, 1)
-            outfile.write("Paired {p} productive reconstruction:\t{count} / {total} ({pc}%)\n".format(
+            if pc == "KL":
+                outfile.write("Productive reconstruction of K and L:\t{count} / {total} ({pc}%)\n".format(
+                                                                                    p=p,
+                                                                                    count=count,
+                                                                                    total=total_cells, pc=pc))
+            else:
+                outfile.write("Paired {p} productive reconstruction:\t{count} / {total} ({pc}%)\n".format(
                                                                                     p=p,
                                                                                     count=count,
                                                                                     total=total_cells, pc=pc))
@@ -704,6 +710,27 @@ class Summariser(TracerTask):
 
 
         outfile.write(outstring)
+
+        #Report cells with productive kappa and lambda chain
+        if self.receptor_name == "BCR":
+            outstring = ""
+            kappa_lambda = []
+            cells_string = ""
+            store_cell = True
+            for cell_name, cell in six.iteritems(cells):
+                store_cell = True
+                for l in ["K", "L"]:
+                    prod_counts = dict()
+                    prod_counts[l] = cell.count_productive_recombinants(self.receptor_name, l)
+                    if prod_counts[l] == 0:
+                        store_cell = False 
+                if store_cell == True:
+                    kappa_lambda.append(cell_name)
+            if len(kappa_lambda) > 0 :
+                cells_string = ', '.join(kappa_lambda)
+                outstring = "\n\n#Cells with productive K and L chain#\n\n" + cells_string + "\n\n"
+                   
+                outfile.write(outstring)
 
 
         # Reporting iNKT cells
