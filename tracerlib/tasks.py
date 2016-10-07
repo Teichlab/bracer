@@ -556,6 +556,7 @@ class Summariser(TracerTask):
 
         outfile = open("{}/{}_summary.txt".format(outdir, self.receptor_name), 'w')
         length_filename_root = "{}/reconstructed_lengths_{}".format(outdir, self.receptor_name)
+        isotype_filename_root = "{}/isotypes_{}".format(outdir, self.receptor_name)
 
         for d in subdirectories:
             cell_pkl = "{root_dir}/{d}/{pkl_dir}/{d}.pkl".format(pkl_dir=pkl_dir, d=d, root_dir=self.root_dir)
@@ -701,85 +702,46 @@ class Summariser(TracerTask):
         #count isotype usage and make isotype usage table
         if self.receptor_name == "BCR":
             prod_counters = defaultdict(Counter)
-            #isotype_counters = defaultdict(Counter)
-            #possible_isotypes = ["IGHM", "IGHG1", "IGHG2A", "IGHG2B", "IGHG2C", "IGHG3", "IGHA", "IGHE", "IGHD", "None"]
             cell_isotypes = []
             isotype_counter = dict()
-            #for isotype in possible_isotypes:
-                #isotype_counter[isotype] = 0
 
             for cell_name, cell in six.iteritems(cells):
-            #for cell in cells.values():
                 for l in ["H"]:
-                    prod_counters[l].update({cell.count_productive_recombinants(self.receptor_name, l): 1})
+                    productive = cell.count_productive_recombinants(self.receptor_name, l)
+                    prod_counters[l].update({productive: 1})
                     isotype = cell.isotype
                     if isotype == None:
                         isotype = "None"
-                    cell_isotypes.append(isotype)
-                    #outfile.write(isotype)
-            #outfile.write(str(cell_isotypes))
+                    if productive > 0:
+                        cell_isotypes.append(isotype)
             for isotype in cell_isotypes: 
                 if not isotype in isotype_counter:
                     isotype_counter[isotype] = 1
                 else:
                     isotype_counter[isotype] += 1
-                        #isotype_counters[isotype].update({cell.isotype: 1})
-                        #isotype_counter = dict()
                        
-
-
-            table_header = ['']
-            for isotype in list(isotype_counter.keys()):
-                table_header.append(isotype)
-            isotype_range = range(len(table_header))
-        
-
-            t = PrettyTable(table_header)
-            t.padding_width = 1
-            t.align = "l"
-            outfile.write(str(table_header))
-            outfile.write(str(isotype_range))
-
 
         #make isotype usage table
         
             prod_H = cell_recovery_count["H"]
-            outfile.write("Productive H: ")
-            outfile.write(str(prod_H))
-            prod_H = int(str(prod_H))
             counter = counter_set[isotype]
-            count_array = [count for isotype in range(len(isotype_counter.keys()))]
-            #total_determined = prod_H - not_determined
-            header = ""
-            value = ""
+            header = "##Isotype of cells with productive heavy chain##\n\nIsotype\tcells\t% of cells\n"
+            outstring = ""
             for isotype, number in six.iteritems(isotype_counter):
                 number = str(number)
-                value = value + "\n" + number 
-                header += "\n" + isotype
-            outfile.write(header)
-            outfile.write(value)
+                if isotype == "None":
+                    isotype = "Unknown"
+                percent = float(number)/int(prod_H)*100
+                percent = format(percent, '.2f')
                 
-                #if total_determined > 0:
-                #percentages = [''] + [" (" + str(round((float(x) / prod_counters["H"] * 100))) + "%)" for x in count_array[1:]]
-                #else:
-                    #percentages = [''] + [" (N/A%)" for x in count_array[1:]]
-            row = []
-                #for i in range(len(isotype_counter.keys())):
-                    #row.append(str(count_array[i]) + percentages[i])
-                #label = '{}'.format(isotype)
-                #t.add_row([label] + row)
+                
+                string = "{isotype}\t{number}\t{percent}\n".format(isotype=isotype, number=number, percent=percent)
+                outstring = outstring + string
+            outfile.write(header)
+            outfile.write(outstring)
 
 
-
-            #outfile.write(t.get_string())
             outfile.write("\n")
-
-
-
-
-
-
-
 
 
         #Report cells with two productive chains from same locus
@@ -889,7 +851,22 @@ class Summariser(TracerTask):
                              outfile.write("{}_{}: {}\n".format(ivc.receptor_type, l, ivc_details[l]))
                      outfile.write("\n")
                  
-        
+        # plot isotype distributions
+        isotypes = cell_isotypes
+        if len(isotypes) > 1:
+            plt.figure()
+            #plt.axvline(q[0], linestyle="--", color='k')
+            #plt.axvline(q[1], linestyle="--", color='k')
+            sns.distplot(isotypes)
+            sns.despine()
+            plt.xlabel("{receptor}_{locus} isotype)".format(receptor=self.receptor_name,
+                                                                                 locus=l))
+            plt.ylabel("Cell number")
+            plt.savefig("{}.pdf".format(isotype_filename_root))
+
+
+
+
         # plot lengths of reconstructed sequences
         lengths = defaultdict(list)
         for cell in cells.values():
