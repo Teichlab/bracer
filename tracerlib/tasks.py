@@ -589,12 +589,13 @@ class Summariser(TracerTask):
                 prod_counts[l] = cell.count_productive_recombinants(self.receptor_name, l)
                 if prod_counts[l] > 0:
                     cell_recovery_count[l] += 1
-            
+         
             for p in possible_pairs:
                 if prod_counts[p[0]] > 0 and prod_counts[p[1]] > 0:
                     cell_recovery_count[p] += 1
 
         total_cells = len(cells)
+       
 
 
         for l in self.loci:
@@ -624,11 +625,17 @@ class Summariser(TracerTask):
         
         all_counters = defaultdict(Counter)
         prod_counters = defaultdict(Counter)
+        """if self.receptor_name == "BCR":
+            isotype_counters = defaultdict(Counter)
+            possible_isotypes = ["IGHM", "IGHG1", "IGHG2A", "IGHG2B", "IGHG2C", "IGHG3", "IGHA", "IGHE", "IGHD"]"""
         
         for cell in cells.values():
             for l in self.loci:
                 all_counters[l].update({cell.count_total_recombinants(self.receptor_name, l): 1})
                 prod_counters[l].update({cell.count_productive_recombinants(self.receptor_name, l): 1})
+                #if l in ["H", "BCR_H"]:
+                    #for l in possible_isotypes:
+                        #isotype_counters[l].update({cell.isotype: 1})
         
         
         all_recombinant_counts = []
@@ -689,6 +696,91 @@ class Summariser(TracerTask):
                     found_multi = True
             if not found_multi:
                 outfile.write("None\n\n")
+
+
+        """#count isotype usage and make isotype usage table
+        if self.receptor_name == "BCR":
+            prod_counters = defaultdict(Counter)
+            #isotype_counters = defaultdict(Counter)
+            #possible_isotypes = ["IGHM", "IGHG1", "IGHG2A", "IGHG2B", "IGHG2C", "IGHG3", "IGHA", "IGHE", "IGHD", "None"]
+            cell_isotypes = []
+            isotype_counter = dict()
+            #for isotype in possible_isotypes:
+                #isotype_counter[isotype] = 0
+
+            for cell_name, cell in six.iteritems(cells):
+            #for cell in cells.values():
+                for l in ["H"]:
+                    prod_counters[l].update({cell.count_productive_recombinants(self.receptor_name, l): 1})
+                    isotype = cell.isotype
+                    if isotype == None:
+                        isotype = "None"
+                    cell_isotypes.append(isotype)
+                    #outfile.write(isotype)
+            #outfile.write(str(cell_isotypes))
+            for isotype in cell_isotypes: 
+                if not isotype in isotype_counter:
+                    isotype_counter[isotype] = 1
+                else:
+                    isotype_counter[isotype] += 1
+                        #isotype_counters[isotype].update({cell.isotype: 1})
+                        #isotype_counter = dict()
+                       
+
+
+            table_header = ['']
+            for isotype in list(isotype_counter.keys()):
+                table_header.append(isotype)
+            isotype_range = range(len(table_header))
+        
+
+            t = PrettyTable(table_header)
+            t.padding_width = 1
+            t.align = "l"
+            outfile.write(str(table_header))
+            outfile.write(str(isotype_range))
+
+
+        #make isotype usage table
+        
+            prod_H = cell_recovery_count["H"]
+            outfile.write("Productive H: ")
+            outfile.write(str(prod_H))
+            prod_H = int(str(prod_H))
+            counter = counter_set[isotype]
+            count_array = [count for isotype in range(len(isotype_counter.keys()))]
+            #total_determined = prod_H - not_determined
+            header = ""
+            value = ""
+            for isotype in list(set(cell_isotypes)):
+                number = str(isotype_counter[isotype])
+                value += "\n" + value
+                header += "\n" + isotype
+            outfile.write(header)
+            outfile.write(value)
+                
+                #if total_determined > 0:
+                #percentages = [''] + [" (" + str(round((float(x) / prod_counters["H"] * 100))) + "%)" for x in count_array[1:]]
+                #else:
+                    #percentages = [''] + [" (N/A%)" for x in count_array[1:]]
+            row = []
+                #for i in range(len(isotype_counter.keys())):
+                    #row.append(str(count_array[i]) + percentages[i])
+                #label = '{}'.format(isotype)
+                #t.add_row([label] + row)
+
+
+
+            #outfile.write(t.get_string())
+            outfile.write("\n")"""
+
+
+
+
+
+
+
+
 
         #Report cells with two productive chains from same locus
         outstring = ""
