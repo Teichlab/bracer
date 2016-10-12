@@ -982,22 +982,17 @@ class Summariser(TracerTask):
             values_all.append(int(D_all[l]))
             values_prod.append(int(D_prod[l]))
         n_groups = len(self.loci)
-        
         values_all = tuple(values_all)
         values_prod = tuple(values_prod)
-        print (values_all)
         fig, ax = plt.subplots()
         x_ticks = tuple(self.loci)
 
         index = np.arange(n_groups)
-        bar_width = 0.35
+        bar_width = 0.25
+        opacity = 0.2
 
-        opacity = 0.4
-        #error_config = {'ecolor': '0.3'}
-
-        rects1 = plt.bar(index, values_all, bar_width, color='b', label='All')
-
-        rects2 = plt.bar(index + bar_width, values_prod, bar_width, color='r', label='Prod')
+        rects1 = plt.bar(index, values_all, bar_width, color='#000000', label='All')
+        rects2 = plt.bar(index + bar_width, values_prod, bar_width, color='#cccccc', label='Prod')
 
         plt.xlabel('Locus')
         plt.ylabel('Percentage')
