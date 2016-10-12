@@ -338,6 +338,26 @@ class Cell(object):
             count = len(recs)
         return (count)
 
+    def count_full_length_recombinants(self, receptor, locus):
+        recs = self.recombinants[receptor][locus]
+        count = 0
+        if recs is not None:
+            for rec in recs:
+                if rec.full_length:
+                    count += 1
+        return (count)
+
+    def count_productive_full_length_recombinants(self, receptor, locus):
+        recs = self.recombinants[receptor][locus]
+        count = 0
+        if recs is not None:
+            for rec in recs:
+                if rec.full_length and rec.productive:
+                    count += 1
+        return (count)
+
+
+
     def get_trinity_lengths(self, receptor, locus):
         recs = self.recombinants[receptor][locus]
         lengths = []

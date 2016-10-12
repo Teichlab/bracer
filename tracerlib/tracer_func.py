@@ -197,7 +197,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                                                                                           loci_for_segments)
                  
                     #Assess if rearrangement is full-length (from start of V gene to start of C gene)
-                    (full_length, query_length) = is_rearrangement_full_length(trinity_seq, query_data["hit_table"], query_name, query_data["query_length"])
+                    full_length = is_rearrangement_full_length(trinity_seq, query_data["hit_table"], query_name, query_data["query_length"])
                     query_length = query_data["query_length"]
                     
                     #Identify the most likely V genes if receptor is BCR
@@ -502,7 +502,7 @@ def is_rearrangement_full_length(seq, hit_table, query_name, query_length):
                 full_length = True
         else:
             full_length = False
-    return (full_length, query_length)
+    return (full_length)
 
 def get_segment_name(name, pattern):
     match = pattern.search(name)

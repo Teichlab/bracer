@@ -634,12 +634,9 @@ class Summariser(TracerTask):
             for l in self.loci:
                 all_counters[l].update({cell.count_total_recombinants(self.receptor_name, l): 1})
                 prod_counters[l].update({cell.count_productive_recombinants(self.receptor_name, l): 1})
-                #if l in ["H", "BCR_H"]:
-                    #for l in possible_isotypes:
-                        #isotype_counters[l].update({cell.isotype: 1})
-        
         
         all_recombinant_counts = []
+        
         for locus in all_counters:
             all_recombinant_counts = all_recombinant_counts + \
                                      list(all_counters[locus].keys())
@@ -698,6 +695,71 @@ class Summariser(TracerTask):
             if not found_multi:
                 outfile.write("None\n\n")
 
+
+
+        #count all full length sequences and productive full length sequences
+        full_length_counter = dict()
+        full_length_prod_counter = dict()
+        productive_counter = dict()
+        total_counter = dict()
+
+        for l in self.loci:
+            full_length_counter[l] = 0
+            full_length_prod_counter[l] = 0
+            productive_counter[l] = 0
+            total_counter[l] = 0
+   
+        for cell_name, cell in six.iteritems(cells):
+            for l in self.loci:
+                full_length_count = cell.count_full_length_recombinants(self.receptor_name, l)
+                full_length_prod_count = cell.count_productive_full_length_recombinants(self.receptor_name, l)
+                productive = cell.count_productive_recombinants(self.receptor_name, l)
+                total = cell.count_total_recombinants(self.receptor_name, l)
+                if full_length_count > 0:
+                    full_length_counter[l] += full_length_count
+                if full_length_prod_count > 0:
+                    full_length_prod_counter[l] +=full_length_prod_count
+                if productive > 0:
+                    productive_counter[l] += productive
+                if total > 0:
+                    total_counter[l] += total
+                
+     
+        # Make full length statistics table
+        
+        header = "##Proportion of full-length sequences of all recovered sequences##\n\n\t"
+        for l in self.loci:
+            header = header + "{}\t".format(l)
+
+        outstring = ""
+        all_outstring = "all\t"
+        prod_outstring = "prod\t"
+        for l in self.loci:
+            all_seqs = total_counter[l]
+            prod_seqs = productive_counter[l]
+            full_length_seqs = full_length_counter[l]
+            prod_full_length_seqs = full_length_prod_counter[l]
+            if prod_seqs > 0:
+                prod_percent = float(prod_full_length_seqs)/int(prod_seqs)*100
+                prod_percent = format(prod_percent, '.0f')
+            if all_seqs > 0:
+                all_percent = float(full_length_seqs)/int(all_seqs)*100
+                all_percent = format(all_percent, '.0f')
+            else:
+                all_percent = "N/A"
+                prod_percent = "N/A"
+            
+            all_string = "{}/{} ({}%)\t".format(full_length_seqs, all_seqs, all_percent)
+            prod_string = "{}/{} ({}%)\t".format(prod_full_length_seqs, prod_seqs, prod_percent)
+            all_outstring += all_string
+            prod_outstring += prod_string
+                
+        outstring = "{header}\n{all_outstring}\n{prod_outstring}\n".format(header=header, all_outstring=all_outstring, prod_outstring=prod_outstring)
+     
+            #outfile.write(header)
+        print(outstring)
+        outfile.write(outstring)
+        outfile.write("\n")
 
         #count isotype usage and make isotype usage table
         if self.receptor_name == "BCR":
