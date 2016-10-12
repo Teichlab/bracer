@@ -30,6 +30,7 @@ from Bio.Seq import Seq
 from Bio import SeqIO
 import itertools
 import pdb
+import numpy as np
 from numpy import percentile, array
 from matplotlib.colors import hex2color, rgb2hex
 import random
@@ -697,7 +698,7 @@ class Summariser(TracerTask):
 
 
 
-        #count all full length sequences and productive full length sequences
+        # Count all full length sequences and productive full length sequences
         full_length_counter = dict()
         full_length_prod_counter = dict()
         productive_counter = dict()
@@ -731,9 +732,10 @@ class Summariser(TracerTask):
         for l in self.loci:
             header = header + "{}\t".format(l)
 
-        outstring = ""
         all_outstring = "all\t"
         prod_outstring = "prod\t"
+        all_dict = dict()
+        prod_dict = dict()
         for l in self.loci:
             all_seqs = total_counter[l]
             prod_seqs = productive_counter[l]
@@ -742,12 +744,17 @@ class Summariser(TracerTask):
             if prod_seqs > 0:
                 prod_percent = float(prod_full_length_seqs)/int(prod_seqs)*100
                 prod_percent = format(prod_percent, '.0f')
+                prod_dict[l] = prod_percent
+            else:
+                prod_percent = "N/A"
+                prod_dict[l] = "0"
             if all_seqs > 0:
                 all_percent = float(full_length_seqs)/int(all_seqs)*100
                 all_percent = format(all_percent, '.0f')
+                all_dict[l] = all_percent
             else:
                 all_percent = "N/A"
-                prod_percent = "N/A"
+                all_dict[l] = "0"
             
             all_string = "{}/{} ({}%)\t".format(full_length_seqs, all_seqs, all_percent)
             prod_string = "{}/{} ({}%)\t".format(prod_full_length_seqs, prod_seqs, prod_percent)
@@ -755,9 +762,6 @@ class Summariser(TracerTask):
             prod_outstring += prod_string
                 
         outstring = "{header}\n{all_outstring}\n{prod_outstring}\n".format(header=header, all_outstring=all_outstring, prod_outstring=prod_outstring)
-     
-            #outfile.write(header)
-        print(outstring)
         outfile.write(outstring)
         outfile.write("\n")
 
@@ -784,7 +788,6 @@ class Summariser(TracerTask):
                        
 
         #make isotype usage table
-        
             prod_H = cell_recovery_count["H"]
             counter = counter_set[isotype]
             header = "##Isotype of cells with productive heavy chain##\n\nIsotype\tcells\t% of cells\n"
@@ -969,6 +972,41 @@ class Summariser(TracerTask):
             for cell_name in invariant_cells:
                 del cells[cell_name]
         
+        # Plot proportions of sequences that are full-length
+
+        D_all = all_dict
+        D_prod = prod_dict
+        values_all = []
+        values_prod = []
+        for l in self.loci:
+            values_all.append(int(D_all[l]))
+            values_prod.append(int(D_prod[l]))
+        n_groups = len(self.loci)
+        
+        values_all = tuple(values_all)
+        values_prod = tuple(values_prod)
+        print (values_all)
+        fig, ax = plt.subplots()
+        x_ticks = tuple(self.loci)
+
+        index = np.arange(n_groups)
+        bar_width = 0.35
+
+        opacity = 0.4
+        #error_config = {'ecolor': '0.3'}
+
+        rects1 = plt.bar(index, values_all, bar_width, color='b', label='All')
+
+        rects2 = plt.bar(index + bar_width, values_prod, bar_width, color='r', label='Prod')
+
+        plt.xlabel('Locus')
+        plt.ylabel('Percentage')
+        plt.title('Percentage full-length of all or productive sequences')
+        plt.xticks(index + bar_width, x_ticks)
+        plt.legend()
+
+        #plt.tight_layout()
+        plt.savefig("{}/full_length_seqs.pdf".format(outdir))
         
         # Write out recombinant details for each cell
         with open("{}/recombinants.txt".format(outdir), 'w') as f:
