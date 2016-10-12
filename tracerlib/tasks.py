@@ -852,20 +852,22 @@ class Summariser(TracerTask):
                      outfile.write("\n")
                  
         # plot isotype distributions
-        isotypes = cell_isotypes
+        isotypes = []
+        isotype_counts = []
+        D = isotype_counter
+        for isotype, count in six.iteritems(isotype_counter):
+            if isotype == "None":
+                isotype = "Unknown"
+            isotypes.append(isotype)
+            isotype_counts.append(count)
         if len(isotypes) > 1:
             plt.figure()
-            #plt.axvline(q[0], linestyle="--", color='k')
-            #plt.axvline(q[1], linestyle="--", color='k')
-            sns.distplot(isotypes)
-            sns.despine()
-            plt.xlabel("{receptor}_{locus} isotype)".format(receptor=self.receptor_name,
-                                                                                 locus=l))
-            plt.ylabel("Cell number")
-            plt.savefig("{}.pdf".format(isotype_filename_root))
-
-
-
+            w = 0.85
+            plt.bar(range(len(D)), D.values(), width=w, color='black', align='center')
+            plt.xticks(range(len(D)), list(D.keys()))
+            plt.xlabel("Isotype")
+            plt.ylabel("Cell count")
+            plt.savefig("{}/isotype_distribution.pdf".format(outdir))
 
         # plot lengths of reconstructed sequences
         lengths = defaultdict(list)
