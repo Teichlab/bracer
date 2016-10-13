@@ -28,6 +28,7 @@ import networkx as nx
 import six
 from Bio import SeqIO
 from Bio.Alphabet import IUPAC
+from Bio.Alphabet import generic_dna
 from Bio.Seq import Seq
 
 from tracerlib.core import Cell, Recombinant, Invar_cell
@@ -187,11 +188,12 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                         (fasta_line_for_contig, is_productive, bestVJNames) = get_fasta_line_for_contig_imgt(
                             rearrangement_summary, junction_list, good_hits, returned_locus, IMGT_seqs, cell_name,
                             query_name, species, loci_for_segments)
+                        cdr3 = None
                         
 
                     elif seq_method == 'assembly':
                         fasta_line_for_contig = trinity_seq
-                        (is_productive, bestVJNames) = get_fasta_line_for_contig_assembly(trinity_seq, good_hits,
+                        (is_productive, bestVJNames, cdr3) = get_fasta_line_for_contig_assembly(trinity_seq, good_hits,
                                                                                           returned_locus, IMGT_seqs,
                                                                                           cell_name, query_name,
                                                                                           loci_for_segments)
@@ -234,7 +236,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                                           summary=rearrangement_summary, junction_details=junction_list,
                                           best_VJ_names=bestVJNames, alignment_summary=alignment_summary,
                                           trinity_seq=trinity_seq, imgt_reconstructed_seq=imgt_reconstructed_seq, 
-                                          has_D=has_D, output_dir=output_dir, full_length=full_length, query_length=query_length, V_genes=V_genes)
+                                          has_D=has_D, output_dir=output_dir, full_length=full_length, query_length=query_length, V_genes=V_genes, cdr3=cdr3)
                         recombinants[locus].append(rec)
 
     if recombinants:
@@ -565,6 +567,7 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
     full_effective_length = start_padding + len(
         trinity_seq) + end_padding + 2  # add two because need first two bases of constant region to put in frame.
 
+    
     if locus in ["H", "K", "L", "BCR_H", "BCR_K", "BCR_L"]:
         if ref_V_start > 1 and end_padding == 0:
             #full_effective_length = len(trinity_seq) + 2
@@ -577,41 +580,90 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
         in_frame = True
     else:
         in_frame = False
-    print("############")
-    print("Query:", query_name)
-    print(locus)
-    print(trinity_seq)
-    print("Ref_v_start:", ref_V_start)
-    print("Start_padding:", start_padding)
-    print("End padding:", end_padding)
-    print("Full effective length:", full_effective_length)
-    print("In frame:", in_frame)
+    
     # remove the minimal nucleotides from the trinity sequence to check for stop codons
     start_base_removal_count = (3 - (ref_V_start - 1)) % 3
     end_base_removal_count = (1 - end_padding) % 3
 
+
     seq = trinity_seq[start_base_removal_count:-(end_base_removal_count)]
     seq = Seq(seq, IUPAC.unambiguous_dna)
-    print(seq)
+    cdr3 = get_cdr3(seq, locus)
+    print(cdr3) 
+    cdr3_in_frame = is_cdr3_in_frame(cdr3, locus)
+           
     aa_seq = seq.translate()
-    print(aa_seq)
+    
     contains_stop = "*" in aa_seq
-    print("Contains stop:", contains_stop)
 
-    if in_frame and not contains_stop:
+    if in_frame and cdr3_in_frame and not contains_stop:
         productive = True
-    elif in_frame == "Unknown" and not contains_stop:
+        in_frame = True
+    elif in_frame == "Unknown" and cdr3_in_frame and not contains_stop:
         productive = True
+        in_frame = True
     else:
         productive = False
-    print("Productive:", productive)
+        in_frame = False
+
+    print(productive)
+    print(contains_stop)
+    print(in_frame)
+    print(cdr3_in_frame)
 
     productive_rearrangement = (productive, contains_stop, in_frame)
 
     bestVJ = [best_V_name, best_J_name]
 
-    return (productive_rearrangement, bestVJ)
+    return (productive_rearrangement, bestVJ, cdr3)
 
+
+def get_cdr3(dna_seq, locus):
+
+    aaseq = Seq(str(dna_seq), generic_dna).translate()
+    # Specify first amino acid in conserved motif according to receptor and locus
+    if locus in ["BCR_H", "H"]:
+        motif_start = "W"
+    else:
+        motif_start = "F"
+    motif = motif_start + "G.G"
+
+    if re.findall(motif, str(aaseq)) and re.findall('C', str(aaseq)):
+        indices = [i for i, x in enumerate(aaseq) if x == 'C']
+        upper = str(aaseq).find(re.findall(motif, str(aaseq))[0])
+        lower = False
+        for i in indices:
+            if i < upper:
+                lower = i
+        # If motif not found, allow to search for "FSDG" in kappa sequences (present in IGKJ3)
+        if lower == False:
+            if locus in ["BCR_K", "K"]:
+                motif = "FSDG"
+                upper = str(aaseq).find(re.findall(motif, str(aaseq))[0])
+                for i in indices:
+                    if i < upper:
+                        lower = i
+
+        if lower:
+            cdr3 = aaseq[lower:upper + 4]
+        else:
+            cdr3 = "Couldn't find conserved cysteine"
+    elif re.findall(motif, str(aaseq)):
+        cdr3 = "Couldn't find conserved cysteine"
+    elif re.findall('C', str(aaseq)):
+        cdr3 = "Couldn't find {}GXG".format(motif_start)
+    else:
+        cdr3 = "Couldn't find either conserved boundary"
+
+    return (cdr3)
+
+def is_cdr3_in_frame(cdr3, locus):
+    if "Couldn't" not in cdr3:
+        cdr3_in_frame = True
+    else:
+        cdr3_in_frame = False
+
+    return (cdr3_in_frame)
 
 def collapse_close_sequences(recombinants, locus):
     # pdb.set_trace()

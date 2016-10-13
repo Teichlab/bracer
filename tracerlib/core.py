@@ -395,7 +395,7 @@ class Recombinant(object):
 
     def __init__(self, contig_name, locus, identifier, all_poss_identifiers, productive, stop_codon, in_frame, TPM,
                  dna_seq, hit_table, summary, junction_details, best_VJ_names, alignment_summary, trinity_seq,
-                 imgt_reconstructed_seq, has_D, output_dir, full_length, query_length, V_genes):
+                 imgt_reconstructed_seq, has_D, output_dir, full_length, query_length, V_genes, cdr3):
         self.contig_name = contig_name
         self.locus = locus
         self.identifier = identifier
@@ -403,7 +403,8 @@ class Recombinant(object):
         self.productive = productive
         self.TPM = TPM
         self.dna_seq = dna_seq
-        self.cdr3 = self._get_cdr3(dna_seq)
+        #self.cdr3 = self._get_cdr3(dna_seq)
+        self.cdr3 = cdr3
         self.hit_table = hit_table
         self.summary = summary
         self.junction_details = junction_details
