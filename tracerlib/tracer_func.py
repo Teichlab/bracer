@@ -565,24 +565,46 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
     full_effective_length = start_padding + len(
         trinity_seq) + end_padding + 2  # add two because need first two bases of constant region to put in frame.
 
-    if full_effective_length % 3 == 0:
+    if locus in ["H", "K", "L", "BCR_H", "BCR_K", "BCR_L"]:
+        if ref_V_start > 1 and end_padding == 0:
+            #full_effective_length = len(trinity_seq) + 2
+            full_effective_length = "Unknown"
+        if ref_V_start > 1 and end_padding > 0:
+            full_effective_length = "Unknown"
+    if full_effective_length == "Unknown":
+        in_frame = "Unknown" 
+    elif full_effective_length % 3 == 0:
         in_frame = True
     else:
         in_frame = False
-
+    print("############")
+    print("Query:", query_name)
+    print(locus)
+    print(trinity_seq)
+    print("Ref_v_start:", ref_V_start)
+    print("Start_padding:", start_padding)
+    print("End padding:", end_padding)
+    print("Full effective length:", full_effective_length)
+    print("In frame:", in_frame)
     # remove the minimal nucleotides from the trinity sequence to check for stop codons
     start_base_removal_count = (3 - (ref_V_start - 1)) % 3
     end_base_removal_count = (1 - end_padding) % 3
 
     seq = trinity_seq[start_base_removal_count:-(end_base_removal_count)]
     seq = Seq(seq, IUPAC.unambiguous_dna)
+    print(seq)
     aa_seq = seq.translate()
+    print(aa_seq)
     contains_stop = "*" in aa_seq
+    print("Contains stop:", contains_stop)
 
     if in_frame and not contains_stop:
         productive = True
+    elif in_frame == "Unknown" and not contains_stop:
+        productive = True
     else:
         productive = False
+    print("Productive:", productive)
 
     productive_rearrangement = (productive, contains_stop, in_frame)
 
@@ -709,52 +731,6 @@ def load_kallisto_counts(tsv_file):
     return dict(counts)
 
 
-def define_potential_H_clonal_groups(cells, receptor):
-
-    H_clonal_groups = {}
-    group_counter = 1
-    H_clonal_groups[group_counter] = {}
-    for i in range(len(cells)):
-        current_cell = cells[i]
-        comparison_cells = cells[i + 1:]
-        locus = "H"
-        # current_identifiers = current_cell.getMainRecombinantIdentifiersForLocus(locus)
-        for comparison_cell in comparison_cells:
-            shared_H = False
-            shared_identifiers = 0
-            #group_counter = 1
-            if current_cell.recombinants[receptor][locus] is not None:
-                for current_recombinant in current_cell.recombinants[receptor][locus]:
-                    current_id_set = current_recombinant.all_poss_identifiers
-                    if comparison_cell.recombinants[receptor][locus] is not None:
-                        for comparison_recombinant in comparison_cell.recombinants[receptor][locus]:
-                            comparison_id_set = comparison_recombinant.all_poss_identifiers
-                            if len(current_id_set.intersection(comparison_id_set)) > 0:
-                                shared_identifiers += 1
-                                if group_counter == 1:
-                                    group_identifiers = set(list(current_id_set) + list(comparison_id_set))
-                                    print(group_identifiers) 
-                                    H_clonal_groups[group_counter] = group_identifiers
-                                    group_counter += 1
-                                elif group_counter > 1:
-                                    found_group = False
-                                    for group_counter in range(1, (group_counter -1)):
-                                    
-                                        identifiers = set(list(current_id_set) + list(comparison_id_set))
-                                        if len(identifiers.intersection(H_clonal_groups[group_counter])) > 0:
-                                            H_clonal_groups[group_counter] = set(list(group_identifiers) + (list(H_clonal_groups[group_counter])))
-                                            print(H_clonal_groups[group_counter])
-                                            found_group = True
-                                    if found_group == False:
-                                        group_counter += 1
-                                        group_identifiers = set(list(current_id_set) + list(comparison_id_set))
-                                        print(group_identifiers)
-                                        H_clonal_groups[group_counter] = group_identifiers
-                                
-                                shared_H = True
-                                    
-    return (H_clonal_groups)
-
 
 def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, receptor, loci,
                                network_colours):
@@ -836,9 +812,6 @@ def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, 
     else:
         drawing_tool = [neato, '-Gsplines=true', '-Goverlap=false']
     
-    """bgcolors = ['#8dd3c720', '#ffffb320', '#bebada20', '#fb807220', '#80b1d320', '#fdb46220', '#b3de6920', '#fccde520',
-                '#d9d9d920', '#bc80bd20', '#ccebc520', '#ffed6f20']"""
-
    
 
     component_counter = 0
@@ -1016,8 +989,6 @@ def get_component_groups_sizes(cells, receptor, loci):
 
                             G.add_edge(current_cell, comparison_cell, locus, penwidth=width, weight=shared_identifiers)
                         
-
-        
 
 
     deg = G.degree()

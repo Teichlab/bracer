@@ -22,7 +22,6 @@ class Cell(object):
         
         self.isotype = self.determine_isotype(loci, receptor, self.recombinants)
         self.bgcolor = self.assign_bgcolor(species, self.isotype)
-        print(self.isotype, self.bgcolor)
         #self.cdr3_comparisons = {'A': None, 'B': None, 'mean_both': None}
         #invariant_types = []
         #if invariant_cells is not None:
@@ -58,7 +57,6 @@ class Cell(object):
             if recombinant.productive == True:
                 C_gene = recombinant.C_gene
                 isotype_list.append(C_gene)
-        print(isotype_list)
         if len(isotype_list) == 0:
             isotype = None
         elif len(isotype_list) == 1:
@@ -76,8 +74,8 @@ class Cell(object):
 
     def assign_bgcolor(self, species, isotype):
         """Assigns bgcolor for cell according to isotype (B cells)"""
-        if species == "Mmus":
-            isotype_bgcolors = {"IGHM":'#99e699', "IGHD":'#66a3ff', "IGHA":'#b366ff', "IGHE":'#ffff66', "IGHG1":'#b30000', "IGHG2A":'#e60000', "IGHG2B":'#ff3333', "IGHG2C":'#ff6666', "IGHG3":'#ffb3b3'}
+        
+        isotype_bgcolors = {"IGHM":'#99e699', "IGHD":'#66a3ff', "IGHA":'#b366ff', "IGHE":'#ffff66', "IGHG1":'#b30000', "IGHG2A":'#e60000', "IGHG2B":'#ff3333', "IGHG2C":'#ff6666', "IGHG3":'#ffb3b3'}
 
         if isotype is None:
             bgcolor = None
@@ -425,6 +423,15 @@ class Recombinant(object):
             for i in indices:
                 if i < upper:
                     lower = i
+            # If motif not found, allow to search for "FSDG" in kappa sequences (present in IGKJ3)
+            if lower == False:
+                if self.locus in ["BCR_K", "K"]:
+                    motif = "FSDG"
+                    upper = str(aaseq).find(re.findall(motif, str(aaseq))[0])
+                    for i in indices:
+                        if i < upper:
+                            lower = i
+
             if lower:
                 cdr3 = aaseq[lower:upper + 4]
             else:
