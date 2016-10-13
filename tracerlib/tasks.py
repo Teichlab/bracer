@@ -808,6 +808,41 @@ class Summariser(TracerTask):
 
             outfile.write("\n")
 
+        #count cdr3 length distributions
+       
+        prod_counters = defaultdict(Counter)
+        all_cdr3_counter = dict()
+        prod_cdr3_counter = dict()
+        for l in self.loci:
+            
+            all_cdr3_counter[l] = dict()
+            prod_cdr3_counter[l] = dict()
+
+        for cell_name, cell in six.iteritems(cells):
+            for l in self.loci:
+                #productive = cell.count_productive_recombinants(self.receptor_name, l)
+                #if productive > 0:
+                all_lengths = cell.get_all_cdr3_lengths(self.receptor_name, l)
+                prod_lengths = cell.get_prod_cdr3_lengths(self.receptor_name, l)
+                
+                for length in all_lengths:
+                    if not length in all_cdr3_counter[l]:
+                        all_cdr3_counter[l][length] = 1
+                    else:
+                        all_cdr3_counter[l][length] += 1
+
+                for length in prod_lengths:
+                    if not length in prod_cdr3_counter[l]:
+                        prod_cdr3_counter[l][length] = 1
+                    else:
+                        prod_cdr3_counter[l][length] += 1
+
+        print (all_cdr3_counter)
+        print (prod_cdr3_counter)
+
+
+
+
 
         #Report cells with two productive chains from same locus
         outstring = ""

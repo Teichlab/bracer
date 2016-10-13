@@ -213,7 +213,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                         all_V_names = find_V_genes_based_on_bit_score(trinity_seq, query_data["hit_table"], query_name, threshold_percent)
                           
                     V_genes = all_V_names
-
+                    
 
                     all_poss_identifiers = set()
                     for V in all_V_names:

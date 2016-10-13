@@ -363,7 +363,24 @@ class Cell(object):
             for rec in recs:
                 lengths.append(len(rec.trinity_seq))
         return (lengths)
-        
+ 
+    def get_all_cdr3_lengths(self, receptor, locus):
+        recs = self.recombinants[receptor][locus]
+        lengths = []
+        if recs is not None:
+            for rec in recs:
+                lengths.append(len(rec.cdr3))
+        return (lengths)
+ 
+    def get_prod_cdr3_lengths(self, receptor, locus):
+        recs = self.recombinants[receptor][locus]
+        lengths = []
+        if recs is not None:
+            for rec in recs:
+                if rec.cdr3_in_frame == True:
+                    lengths.append(len(rec.cdr3))
+        return (lengths)
+       
     def has_excess_recombinants(self, max_r=2):
         for receptor, locus_dict in six.iteritems(self.recombinants):
             for locus, recs in six.iteritems(locus_dict):
@@ -401,7 +418,8 @@ class Recombinant(object):
         self.C_gene = self.get_C_gene()
         self.full_length = full_length
         self.query_length = query_length
-        self.V_genes = V_genes       
+        self.V_genes = V_genes
+        self.cdr3_in_frame = self.is_cdr3_in_frame(self.cdr3)       
         
     def __str__(self):
         return ("{} {} {} {}".format(self.identifier, self.productive, self.TPM))
@@ -444,7 +462,14 @@ class Recombinant(object):
             cdr3 = "Couldn't find either conserved boundary"
 
         return (cdr3)
-        
+ 
+    def is_cdr3_in_frame(self, cdr3):
+        if len(cdr3) % 3 == 0:
+            cdr3_in_frame = True
+        else:
+            cdr3_in_frame = False
+        return (cdr3_in_frame)
+       
     def get_C_gene(self):
         
         locus = self.locus.split("_")[1]
