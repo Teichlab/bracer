@@ -547,26 +547,47 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
             found_best_J = True
     
     # work out if sequence that exists is in frame
-
+    print("##################################")
+    print("Query name: ", query_name)
+    print(locus)
     found_V = False
     found_J = False
     for entry in hit_table:
         if entry[0] == 'V':
             if not found_V:
                 ref_V_start = int(entry[10])
+                V_gaps = int(entry[7])
+                if V_gaps > 0:
+                    ref_V_end = int(entry[11])
+                    seq_V_start = int(entry[8])
+                    seq_V_end = int(entry[9])
+                    difference = (ref_V_end - ref_V_start) - (seq_V_end - seq_V_start)
+                    if difference > 0:
+                        new_V_start = ref_V_start + difference - 1
+                    else:
+                        new_V_start = ref_V_start + difference
+                    print("Difference: ", difference)
+                    print("Old V start: ", ref_V_start)
+                    print("Corrected V start: ", new_V_start)
+                
+                else:
+                    difference = 0
+                    new_V_start = ref_V_start
                 found_V = True
         if entry[0] == 'J':
             if not found_J:
                 ref_J_end = int(entry[11])
                 found_J = True
-    start_padding = ref_V_start - 1
+    start_padding = new_V_start - 1
+    print("Start padding: ", start_padding)
 
     ref_J_length = len(ref_J_seq)
     end_padding = (ref_J_length - ref_J_end)
+    print("End padding: ", end_padding)
 
     full_effective_length = start_padding + len(
         trinity_seq) + end_padding + 2  # add two because need first two bases of constant region to put in frame.
-
+    print("Full effective length: ", full_effective_length)
     
     if locus in ["H", "K", "L", "BCR_H", "BCR_K", "BCR_L"]:
         if ref_V_start > 1 and end_padding == 0:
@@ -580,19 +601,25 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
         in_frame = True
     else:
         in_frame = False
+    print("Full effective length: ", full_effective_length)
     
     # remove the minimal nucleotides from the trinity sequence to check for stop codons
-    start_base_removal_count = (3 - (ref_V_start - 1)) % 3
+    start_base_removal_count = (3 - (new_V_start - 1)) % 3
     end_base_removal_count = (1 - end_padding) % 3
-
+    print("Trinity seq: ", trinity_seq)
+    print("Start base removal count: ", start_base_removal_count)
+    print("End base removal count: ", end_base_removal_count)
 
     seq = trinity_seq[start_base_removal_count:-(end_base_removal_count)]
+    print("Trimmed seq: ", seq)
     seq = Seq(seq, IUPAC.unambiguous_dna)
     cdr3 = get_cdr3(seq, locus)
-    print(cdr3) 
+    print("Cdr3: ", cdr3) 
+    
     cdr3_in_frame = is_cdr3_in_frame(cdr3, locus)
-           
+    print("Cdr3 in frame: ", cdr3_in_frame)       
     aa_seq = seq.translate()
+    print("Translated sequence: ", aa_seq)
     
     contains_stop = "*" in aa_seq
 
@@ -606,13 +633,13 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
         productive = False
         in_frame = False
 
-    print(productive)
-    print(contains_stop)
-    print(in_frame)
-    print(cdr3_in_frame)
+    print("Productive: ", productive)
+    print("Contains stop: ", contains_stop)
+    print("In frame: ", in_frame)
+    
 
     productive_rearrangement = (productive, contains_stop, in_frame)
-
+    print("Prod rearr: ", productive_rearrangement)
     bestVJ = [best_V_name, best_J_name]
 
     return (productive_rearrangement, bestVJ, cdr3)
