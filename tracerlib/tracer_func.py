@@ -604,13 +604,22 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
     print("Full effective length: ", full_effective_length)
     
     # remove the minimal nucleotides from the trinity sequence to check for stop codons
-    start_base_removal_count = (3 - (new_V_start - 1)) % 3
+    #start_base_removal_count = (3 - (new_V_start - 1)) % 3
+
     end_base_removal_count = (1 - end_padding) % 3
+    if full_effective_length == "Unknown":
+        start_base_removal_count = len(trinity_seq[:-end_base_removal_count]) % 3
+    else:
+        start_base_removal_count = (3 - (ref_V_start - 1)) % 3
+    seq_len_trimmed_C = len(trinity_seq[:-end_base_removal_count])
+    
+    print("Seq len when trimmed C", seq_len_trimmed_C)
+    #end_base_removal_count = (1 - end_padding) % 3
     print("Trinity seq: ", trinity_seq)
     print("Start base removal count: ", start_base_removal_count)
     print("End base removal count: ", end_base_removal_count)
 
-    seq = trinity_seq[start_base_removal_count:-(end_base_removal_count)]
+    seq = trinity_seq[start_base_removal_count:-end_base_removal_count]
     print("Trimmed seq: ", seq)
     seq = Seq(seq, IUPAC.unambiguous_dna)
     cdr3 = get_cdr3(seq, locus)
