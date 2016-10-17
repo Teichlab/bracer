@@ -355,7 +355,6 @@ class Cell(object):
         return (count)
 
 
-
     def get_trinity_lengths(self, receptor, locus):
         recs = self.recombinants[receptor][locus]
         lengths = []

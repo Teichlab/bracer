@@ -555,9 +555,12 @@ class Summariser(TracerTask):
 
         io.makeOutputDir(outdir)
 
+        
+
         outfile = open("{}/{}_summary.txt".format(outdir, self.receptor_name), 'w')
         length_filename_root = "{}/reconstructed_lengths_{}".format(outdir, self.receptor_name)
         isotype_filename_root = "{}/isotypes_{}".format(outdir, self.receptor_name)
+        cdr3_filename_root = "{}/cdr3_lengths_{}".format(outdir, self.receptor_name)
 
         for d in subdirectories:
             cell_pkl = "{root_dir}/{d}/{pkl_dir}/{d}.pkl".format(pkl_dir=pkl_dir, d=d, root_dir=self.root_dir)
@@ -568,7 +571,12 @@ class Summariser(TracerTask):
                 if cl.is_empty or cl.missing_loci_of_interest(self.receptor_name, self.loci):
                     empty_cells.append(d)
                
-                
+        """with open("{}/{}_sequences.txt".format(outdir, self.receptor_name), 'w') as s_out:
+            for cell_name, cell in six.iteritems(cells):
+                with open("/lustre/scratch109/sanger/il5/output/test/{}/filtered_BCR_seqs/{}_BCRseqs.fa".format(cell_name, cell_name), 'r') as input:
+                    for line in input:
+                        s_out.write(line)"""
+         
                 
                 
                 #if cl.is_inkt:
@@ -811,25 +819,25 @@ class Summariser(TracerTask):
         #count cdr3 length distributions
        
         prod_counters = defaultdict(Counter)
-        all_cdr3_counter = dict()
+        #all_cdr3_counter = dict()
         prod_cdr3_counter = dict()
         for l in self.loci:
             
-            all_cdr3_counter[l] = dict()
+            #all_cdr3_counter[l] = dict()
             prod_cdr3_counter[l] = dict()
 
-        for cell_name, cell in six.iteritems(cells):
+        """for cell_name, cell in six.iteritems(cells):
             for l in self.loci:
                 #productive = cell.count_productive_recombinants(self.receptor_name, l)
                 #if productive > 0:
-                all_lengths = cell.get_all_cdr3_lengths(self.receptor_name, l)
+                #all_lengths = cell.get_all_cdr3_lengths(self.receptor_name, l)
                 prod_lengths = cell.get_prod_cdr3_lengths(self.receptor_name, l)
                 
-                for length in all_lengths:
-                    if not length in all_cdr3_counter[l]:
-                        all_cdr3_counter[l][length] = 1
-                    else:
-                        all_cdr3_counter[l][length] += 1
+                #for length in all_lengths:
+                    #if not length in all_cdr3_counter[l]:
+                        #all_cdr3_counter[l][length] = 1
+                    #else:
+                        #all_cdr3_counter[l][length] += 1
 
                 for length in prod_lengths:
                     if not length in prod_cdr3_counter[l]:
@@ -837,9 +845,59 @@ class Summariser(TracerTask):
                     else:
                         prod_cdr3_counter[l][length] += 1
 
-        print (all_cdr3_counter)
-        print (prod_cdr3_counter)
+        #print (all_cdr3_counter)
+        print (prod_cdr3_counter)"""
 
+
+        # plot cdr3 distributions
+        
+        """dictionary = prod_cdr3_counter
+        for l in self.loci:
+            D = dictionary[l]
+            lengths = []
+            counts = []
+        
+            for length, count in six.iteritems(D):
+                lengths.append(length)
+                counts.append(count)
+            if len(lengths) > 1:
+                plt.figure()
+                w = 0.85
+                plt.bar(range(len(D)), D.values(), width=w, color='black', align='center')
+                plt.xticks(range(len(D)), list(D.keys()))
+                plt.xlabel("CDR3 length (aa)")
+                plt.ylabel("Frequency")
+                plt.savefig("{}/cdr3_distribution.pdf".format(outdir))"""
+
+        # plot cdr3 distributions
+        
+        lengths = defaultdict(list)
+        for cell in cells.values():
+            for l in self.loci:
+                lengths[l].extend(cell.get_prod_cdr3_lengths(self.receptor_name, l))
+
+
+        #D = prod_cdr3_counter
+        #for l in self.loci:
+            #D = dictionary[l]
+            #lengths = []
+            #counts = []
+
+
+        for l in self.loci:
+            lns = lengths[l]
+            if len(lns) > 1:
+                plt.figure()
+                sns.distplot(lns)
+                sns.despine()
+                plt.xlabel("{receptor}_{locus} CDR3 length (aa)".format(receptor=self.receptor_name,
+                                                                                 locus=l))
+                plt.ylabel("Density")
+                plt.savefig("{}_{}.pdf".format(cdr3_filename_root, l))
+            if len(lns) > 0:
+                with open("{}_{}.txt".format(cdr3_filename_root,l), 'w') as f:
+                        for l in sorted(lns):
+                            f.write("{}\n".format(l))
 
 
 
