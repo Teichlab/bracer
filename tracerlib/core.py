@@ -290,6 +290,10 @@ class Cell(object):
         #            seq_string.append("\n".join([name, seq]))
         return ("\n".join(seq_string + ["\n"]))
 
+
+
+
+
     def summarise_productivity(self, receptor, locus):
         if (self.recombinants is None or locus not in self.recombinants[receptor] or 
             self.recombinants[receptor][locus] is None):
@@ -363,21 +367,22 @@ class Cell(object):
                 lengths.append(len(rec.trinity_seq))
         return (lengths)
  
-    def get_all_cdr3_lengths(self, receptor, locus):
+    """def get_all_cdr3_lengths(self, receptor, locus):
         recs = self.recombinants[receptor][locus]
         lengths = []
         if recs is not None:
             for rec in recs:
                 lengths.append(len(rec.cdr3))
-        return (lengths)
+        return (lengths)"""
  
     def get_prod_cdr3_lengths(self, receptor, locus):
         recs = self.recombinants[receptor][locus]
         lengths = []
         if recs is not None:
             for rec in recs:
-                if rec.cdr3_in_frame == True:
-                    lengths.append(len(rec.cdr3))
+                if rec.cdr3 is not None and rec.productive:
+                    length = len(rec.cdr3) - 5
+                    lengths.append(length)
         return (lengths)
        
     def has_excess_recombinants(self, max_r=2):
@@ -552,6 +557,23 @@ class Recombinant(object):
                             store_details = False
                 
         return (summary_string)
+
+
+    def create_changeo_db_string(self):
+        changeo_db_header = "SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\tJUNCTION_LENGTH\tJUNCTION"
+        #Add sequence_ID at cell level to include cell name
+        if self.productive:
+            V_genes = self.V_genes
+            V_call = ",".join(str(x) for x in V_genes
+            D_call = "None"
+            if not self.has_D_segment:
+                J_call = self.summary[1]
+            else:
+                J_call = self.summary[2]
+            sequence_vdj = self.dna_seq
+            changeo_db_string = "{}\t{}\t{}\t{}\t".format(V_call, D_call, J_call, sequence_vdj)
+
+    return(changeo_db_string)
 
 class Invar_cell(object):
     

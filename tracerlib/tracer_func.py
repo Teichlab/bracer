@@ -188,7 +188,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                         (fasta_line_for_contig, is_productive, bestVJNames) = get_fasta_line_for_contig_imgt(
                             rearrangement_summary, junction_list, good_hits, returned_locus, IMGT_seqs, cell_name,
                             query_name, species, loci_for_segments)
-                        cdr3 = None
+                        cdr3 = get_cdr3(seq, locus)
                         
 
                     elif seq_method == 'assembly':
@@ -197,7 +197,6 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                                                                                           returned_locus, IMGT_seqs,
                                                                                           cell_name, query_name,
                                                                                           loci_for_segments)
-                 
                     #Assess if rearrangement is full-length (from start of V gene to start of C gene)
                     full_length = is_rearrangement_full_length(trinity_seq, query_data["hit_table"], query_name, query_data["query_length"])
                     query_length = query_data["query_length"]
@@ -225,8 +224,6 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                             else:
                                 i = V + "_" + str(len(junc_string)) + "_" + J
                             all_poss_identifiers.add(i)
-                    print(all_poss_identifiers)
-                    print(receptor)
 
                     if len(junc_string) < int(max_junc_string_length):
                         rec = Recombinant(contig_name=query_name, locus=returned_locus, identifier=identifier,
@@ -553,19 +550,6 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
         if entry[0] == 'V':
             if not found_V:
                 ref_V_start = int(entry[10])
-                """V_gaps = int(entry[7])
-                if V_gaps > 0:
-                    ref_V_end = int(entry[11])
-                    seq_V_start = int(entry[8])
-                    seq_V_end = int(entry[9])
-                    difference = (ref_V_end - ref_V_start) - (seq_V_end - seq_V_start)
-                    if difference > 0:
-                        new_V_start = ref_V_start + difference - 1
-                    else:
-                        new_V_start = ref_V_start + difference
-                else:
-                    difference = 0
-                    new_V_start = ref_V_start"""
                 found_V = True
         if entry[0] == 'J':
             if not found_J:
@@ -616,6 +600,8 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
     else:
         productive = False
         in_frame = False
+    print(sample_name, query_name, locus)
+    print(cdr3)
 
     productive_rearrangement = (productive, contains_stop, in_frame)
     bestVJ = [best_V_name, best_J_name]
@@ -632,34 +618,49 @@ def get_cdr3(dna_seq, locus):
     else:
         motif_start = "F"
     motif = motif_start + "G.G"
-
+    lower = False
     if re.findall(motif, str(aaseq)) and re.findall('C', str(aaseq)):
         indices = [i for i, x in enumerate(aaseq) if x == 'C']
         upper = str(aaseq).find(re.findall(motif, str(aaseq))[0])
-        lower = False
         for i in indices:
             if i < upper:
                 lower = i
-        # If motif not found, allow to search for "FSDG" in kappa sequences (present in IGKJ3)
-        if lower == False:
-            if locus in ["BCR_K", "K"]:
-                motif = "FSDG"
-                upper = str(aaseq).find(re.findall(motif, str(aaseq))[0])
-                for i in indices:
-                    if i < upper:
-                        lower = i
-
         if lower:
             cdr3 = aaseq[lower:upper + 4]
         else:
             cdr3 = "Couldn't find conserved cysteine"
-    elif re.findall(motif, str(aaseq)):
+    elif re.findall("G.G", str(aaseq)) and re.findall('C', str(aaseq)):
+        indices = [i for i, x in enumerate(aaseq) if x == 'C']
+        upper = str(aaseq).find(re.findall("G.G", str(aaseq))[0])
+        lower = False
+        for i in indices:
+            if i < upper:
+                lower = i
+        if lower:
+            cdr3 = aaseq[lower:upper + 3]
+        else:
+            cdr3 = "Couldn't find conserved cysteine"
+
+    
+    elif re.findall("FSDG", str(aaseq)) and re.findall('C', str(aaseq)):
+        indices = [i for i, x in enumerate(aaseq) if x == 'C']
+        upper = str(aaseq).find(re.findall("FSDG", str(aaseq))[0])
+        lower = False
+        for i in indices:
+            if i < upper:
+                lower = i
+        if lower:
+            cdr3 = aaseq[lower:upper + 4]
+        else:
+            cdr3 = "Couldn't find conserved cysteine"
+
+    elif re.findall("G.G", str(aaseq)):
         cdr3 = "Couldn't find conserved cysteine"
     elif re.findall('C', str(aaseq)):
-        cdr3 = "Couldn't find {}GXG".format(motif_start)
+        cdr3 = "Couldn't find GXG".format(motif_start)
     else:
         cdr3 = "Couldn't find either conserved boundary"
-
+    
     return (cdr3)
 
 def is_cdr3_in_frame(cdr3, locus):

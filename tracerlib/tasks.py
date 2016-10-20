@@ -816,7 +816,7 @@ class Summariser(TracerTask):
 
             outfile.write("\n")
 
-        #count cdr3 length distributions
+        """#count cdr3 length distributions
        
         prod_counters = defaultdict(Counter)
         #all_cdr3_counter = dict()
@@ -826,19 +826,10 @@ class Summariser(TracerTask):
             #all_cdr3_counter[l] = dict()
             prod_cdr3_counter[l] = dict()
 
-        """for cell_name, cell in six.iteritems(cells):
+        for cell_name, cell in six.iteritems(cells):
             for l in self.loci:
-                #productive = cell.count_productive_recombinants(self.receptor_name, l)
-                #if productive > 0:
-                #all_lengths = cell.get_all_cdr3_lengths(self.receptor_name, l)
                 prod_lengths = cell.get_prod_cdr3_lengths(self.receptor_name, l)
                 
-                #for length in all_lengths:
-                    #if not length in all_cdr3_counter[l]:
-                        #all_cdr3_counter[l][length] = 1
-                    #else:
-                        #all_cdr3_counter[l][length] += 1
-
                 for length in prod_lengths:
                     if not length in prod_cdr3_counter[l]:
                         prod_cdr3_counter[l][length] = 1
@@ -846,35 +837,78 @@ class Summariser(TracerTask):
                         prod_cdr3_counter[l][length] += 1
 
         #print (all_cdr3_counter)
-        print (prod_cdr3_counter)"""
+        print (prod_cdr3_counter)
 
 
         # plot cdr3 distributions
         
-        """dictionary = prod_cdr3_counter
+        dictionary = prod_cdr3_counter
         for l in self.loci:
             D = dictionary[l]
             lengths = []
             counts = []
+             
         
             for length, count in six.iteritems(D):
                 lengths.append(length)
                 counts.append(count)
+                shortest = min(lengths)
+                longest = max(lengths)
+                
             if len(lengths) > 1:
                 plt.figure()
                 w = 0.85
-                plt.bar(range(len(D)), D.values(), width=w, color='black', align='center')
-                plt.xticks(range(len(D)), list(D.keys()))
+                plt.bar(range(shortest, longest), D.values(), width=w, color='black', align='center')
+                plt.xticks(range(len(D)), 1)
                 plt.xlabel("CDR3 length (aa)")
                 plt.ylabel("Frequency")
-                plt.savefig("{}/cdr3_distribution.pdf".format(outdir))"""
+                plt.savefig("{}/{}cdr3_distribution.pdf".format(outdir, locus))
 
         # plot cdr3 distributions
         
         lengths = defaultdict(list)
         for cell in cells.values():
             for l in self.loci:
+                print(cell)
+                print(cell.get_prod_cdr3_lengths(self.receptor_name, l))
                 lengths[l].extend(cell.get_prod_cdr3_lengths(self.receptor_name, l))
+
+
+
+
+        # Plot proportions of sequences that are full-length
+
+        D_prod = prod_cdr3_counter
+        highest = None
+        lowest = None
+      
+        H_values = int(D_prod["H"])
+        K_values = int(D_prod["K"])
+        L_values = int(D_prod["L"])
+        all_values = H_values + K_values + L_values
+        highest = max(all_values)
+        lowest = min(all_values)
+
+        n_groups = len(range(lowest, highest+1))
+        
+        fig, ax = plt.subplots()
+        x_ticks = tuple(range(lowest, highest+1, 1))
+        index = np.arange(n_groups)
+        bar_width = 0.25
+        opacity = 0.2
+
+        rects1 = plt.bar(index, tuple(H_values), bar_width, color='#000000', label='H')
+        rects2 = plt.bar(index + bar_width, tuple(K_values), bar_width, color='#cccccc', label='K')
+        rects3 = plt.bar(index + bar_width + bar_width, tuple(L_values), bar_width, color='#cccccc', label='L')
+
+        plt.xlabel('Locus')
+        plt.ylabel('Frequency')
+        plt.title('CDR3 length distribution (aa)')
+        plt.xticks(index + bar_width, x_ticks)
+        plt.legend()
+
+        #plt.tight_layout()
+        plt.savefig("{}/full_length_seqs.pdf".format(outdir))                
 
 
         #D = prod_cdr3_counter
@@ -897,7 +931,7 @@ class Summariser(TracerTask):
             if len(lns) > 0:
                 with open("{}_{}.txt".format(cdr3_filename_root,l), 'w') as f:
                         for l in sorted(lns):
-                            f.write("{}\n".format(l))
+                            f.write("{}\n".format(l))"""
 
 
 

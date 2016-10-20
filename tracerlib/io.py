@@ -98,7 +98,7 @@ def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species,
                                                                                    cell_name=cell_name, locus=locus)
         if os.path.isfile(file):
             igblast_result_chunks = split_igblast_file(file)
-
+         
             for chunk in igblast_result_chunks:
                 (query_name, chunk_details) = process_chunk(chunk)
 
