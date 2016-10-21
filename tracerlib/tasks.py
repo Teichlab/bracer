@@ -706,7 +706,7 @@ class Summariser(TracerTask):
 
 
 
-        # Count all full length sequences and productive full length sequences and make input files for ChangeO
+        # Count all full length sequences and productive full length sequences
         full_length_counter = dict()
         full_length_prod_counter = dict()
         productive_counter = dict()
@@ -731,16 +731,16 @@ class Summariser(TracerTask):
                     full_length_prod_counter[l] +=full_length_prod_count
                 if productive > 0:
                     productive_counter[l] += productive
-                    print(cell.changeodict[l])
+                    #print(cell.changeodict[l])
                     
                 if total > 0:
                     total_counter[l] += total
                 
-        #Make input file for clonal assignment by ChangeO
-        cdr3_filename_root = "{}/cdr3_lengths_{}".format(outdir, self.receptor_name)
-        changeo_string = dict()
+        # Make initial clonal assignments for B cells
         if self.receptor_name == "BCR":
-        
+            changeo_string = dict()
+
+            # Make input file compatible with ChangeO
             for l in self.loci:
                 changeo_string = "SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\tJUNCTION_LENGTH\tJUNCTION\n"
                 changeo_input = "{}/changeo_input_{}.tab".format(outdir, l)
@@ -753,9 +753,105 @@ class Summariser(TracerTask):
                         if productive > 0:
                             output.write(cell.changeodict[l])
                        
+            # Run ChangeO DefineCloses bygroup for each locus
+            # Command = "python DefineClones.py bygroup -d {changeo_input_file} --mode gene --act set --model m1n --dist 0.02 --sf JUNCTION"
+
+
+            # Read ChangeO result files and define clone groups for each locus
+            clones = dict()
+            cell_clones = dict()
+            cell_dict = dict()
+            cell_list = []
+            
+            for l in self.loci:
+                clones[l] = dict()
+                cell_clones[l] = dict()
+                changeo_result = "{}/changeo_input_{}_clone-pass.tab".format(outdir, l)
+                clone_column = False
+                with open(changeo_result, 'r') as input_file:
+                    for line in input_file:
+                        if not line.startswith("SEQUENCE_ID"):
+                            fields = line.split("\t")
+                            clone = fields[len(fields)-1].rstrip()
+                            cell = fields[0].split("_")[0]
+                            cell_clones[l][cell] = clone
+                            if not clone in clones[l].keys():
+                                clones[l][clone] = []
+                            clones[l][clone].append(cell)
+                            if not cell in cell_list:
+                                cell_list.append(cell)
+            print(cell_list)
+            print(clones)
+            for cell in cell_list:
+                #cell_clone_id = ""
+                cell_dict[cell] = dict()
+                for l in self.loci:
+                    if cell in cell_clones[l].keys(): #and len(cell_clones[l][cell]) > 0:
+                        print(cell)
+                        #cell_clone_id += l + "-" + cell_clones[l][cell] + "_"
+                        #for cell, clone in six.iteritems(cell_clones[l]):
+                        cell_dict[cell][l] = clone
+                        print("cell_dict[cell][l]: ", cell_dict[cell][l])
+                    else:
+                        cell_dict[cell][l] = None
+                        print("Locus not found for cell")
+                #cell_dict[cell] = cell_clone_id[:len(cell_clone_id)-1]        
+            
+            #print(cell_dict)
+
+
+            #print(clones)
+
+
+            # Filter out clone groups consisting of a single cell
+
+            paired_clone_groups = dict()
+            counter = 0
+            for clone, cell_list in six.iteritems(clones["H"]):
+                if len(cell_list) > 1:
+                   
+                    for i in range(len(cell_list)):
+                        current_cell = cell_list[i]
+                        comparison_cells = cell_list[i + 1:]
+                        for comparison_cell in comparison_cells:
+                            clone = False
+                            if cell_dict[comparison_cell]["K"] is not None and cell_dict[current_cell]["K"] is not None:
+                                if (cell_dict[comparison_cell]["K"] in cell_dict[current_cell]["K"]) or (cell_dict[current_cell]["K"] in cell_dict[comparison_cell]["K"]):
+                                    clone = True
+                                    if cell_dict[comparison_cell]["L"] is not None and cell_dict[current_cell]["L"] is not None:
+                                        if not (cell_dict[comparison_cell]["L"] in cell_dict[current_cell]["L"]) or (cell_dict[current_cell]["L"] in cell_dict[comparison_cell]["L"]):
+                                            clone = False    
+                            elif cell_dict[comparison_cell]["L"] is not None and cell_dict[current_cell]["L"] is not None:
+                                if (cell_dict[comparison_cell]["L"] in cell_dict[current_cell]["L"]) or (cell_dict[current_cell]["L"] in cell_dict[comparison_cell]["L"]):
+                                    clone = True
+                            if clone == True:
+                                if counter == 0:
+                                    counter = 1
+                                    clone_list = []
+                                    clone_list.append(current_cell)
+                                    clone_list.append(comparison_cell)
+                                    paired_clone_groups[counter] = clone_list
+                                    
+                                else:
+                                    if current_cell in paired_clone_groups[counter]:
+                                        paired_clone_groups[counter].append(comparison_cell)
+                                    else:
+                                        counter += 1
+                                        paired_clone_groups[counter] = []
+                                        paired_clone_groups[counter].append(comparison_cell) 
+                                        paired_clone_groups[counter].append(current_cell)
+                                  
                 
 
+            #clone_groups = dict()
+            print(paired_clone_groups)
+            
+            #print(clone_groups)
+            
+            
 
+            
+        
         # Make full length statistics table
         
         header = "##Proportion of full-length sequences of all recovered sequences##\n\n\t"
