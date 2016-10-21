@@ -780,21 +780,21 @@ class Summariser(TracerTask):
                             clones[l][clone].append(cell)
                             if not cell in cell_list:
                                 cell_list.append(cell)
-            print(cell_list)
-            print(clones)
-            for cell in cell_list:
+            #print(cell_list)
+            #print(clones)
+            #for cell in cell_list:
                 #cell_clone_id = ""
-                cell_dict[cell] = dict()
-                for l in self.loci:
-                    if cell in cell_clones[l].keys(): #and len(cell_clones[l][cell]) > 0:
-                        print(cell)
+                #cell_dict[cell] = dict()
+                #for l in self.loci:
+                    #if cell in cell_clones[l].keys(): #and len(cell_clones[l][cell]) > 0:
+                        #print(cell)
                         #cell_clone_id += l + "-" + cell_clones[l][cell] + "_"
                         #for cell, clone in six.iteritems(cell_clones[l]):
-                        cell_dict[cell][l] = clone
-                        print("cell_dict[cell][l]: ", cell_dict[cell][l])
-                    else:
-                        cell_dict[cell][l] = None
-                        print("Locus not found for cell")
+                            #cell_dict[cell][l] = clone
+                        #print("cell_dict[cell][l]: ", cell_dict[cell][l])
+                    #else:
+                        #cell_dict[cell][l] = None
+                        #print("Locus not found for cell")
                 #cell_dict[cell] = cell_clone_id[:len(cell_clone_id)-1]        
             
             #print(cell_dict)
@@ -807,44 +807,89 @@ class Summariser(TracerTask):
 
             paired_clone_groups = dict()
             counter = 0
+            multiple_clones_H = dict()
+            #only_paired = True
             for clone, cell_list in six.iteritems(clones["H"]):
                 if len(cell_list) > 1:
+                    print(clone,cell_list)
+                    multiple_clones_H[clone] = cell_list
+            for clone, cell_list in six.iteritems(multiple_clones_H):
+
+                counter = len(paired_clone_groups.keys())
+                print("CLONE", clone)
+                print("Counter", counter)
                    
-                    for i in range(len(cell_list)):
-                        current_cell = cell_list[i]
-                        comparison_cells = cell_list[i + 1:]
-                        for comparison_cell in comparison_cells:
+                for i in range(len(cell_list)):
+                    current_cell = cell_list[i]
+                    print("CURRENT CELL: ", current_cell)
+                    comparison_cells = cell_list[i + 1:]
+                    for comparison_cell in comparison_cells:
+                        for l in self.loci:
+                            if not comparison_cell in cell_clones[l].keys():
+                                cell_clones[l][comparison_cell] = None
+                            elif not current_cell in cell_clones[l].keys():
+                                cell_clones[l][current_cell] = None
+
+             
+                        print("COMPCELL: ", comparison_cell)
+                        clone = False
+                        if ((cell_clones["K"][comparison_cell] is None) or (cell_clones["K"][current_cell] is None)) and ((cell_clones["L"][comparison_cell] is None) or (cell_clones["L"][current_cell] is None)):
                             clone = False
-                            if cell_dict[comparison_cell]["K"] is not None and cell_dict[current_cell]["K"] is not None:
-                                if (cell_dict[comparison_cell]["K"] in cell_dict[current_cell]["K"]) or (cell_dict[current_cell]["K"] in cell_dict[comparison_cell]["K"]):
-                                    clone = True
-                                    if cell_dict[comparison_cell]["L"] is not None and cell_dict[current_cell]["L"] is not None:
-                                        if not (cell_dict[comparison_cell]["L"] in cell_dict[current_cell]["L"]) or (cell_dict[current_cell]["L"] in cell_dict[comparison_cell]["L"]):
-                                            clone = False    
-                            elif cell_dict[comparison_cell]["L"] is not None and cell_dict[current_cell]["L"] is not None:
-                                if (cell_dict[comparison_cell]["L"] in cell_dict[current_cell]["L"]) or (cell_dict[current_cell]["L"] in cell_dict[comparison_cell]["L"]):
-                                    clone = True
-                            if clone == True:
-                                if counter == 0:
-                                    counter = 1
-                                    clone_list = []
-                                    clone_list.append(current_cell)
-                                    clone_list.append(comparison_cell)
-                                    paired_clone_groups[counter] = clone_list
+                            print("No K or L")
+                        elif (cell_clones["L"][comparison_cell] is None) or (cell_clones["L"][current_cell] is None):
+                            if cell_clones["K"][comparison_cell] == cell_clones["K"][current_cell]:
+                                clone = True
+                                print("same K, no L")
+                                print(cell_clones["K"][comparison_cell], cell_clones["K"][current_cell])
+                        elif (cell_clones["K"][comparison_cell] is None) or (cell_clones["K"][current_cell] is None):
+                            if cell_clones["L"][comparison_cell] == cell_clones["L"][current_cell]:
+                                clone = True
+                                print("same L, no K")
+                        elif (cell_clones["K"][comparison_cell] == cell_clones["K"][current_cell]) and (cell_clones["L"][comparison_cell] == cell_clones["L"][current_cell]):
+                            clone = True
+                            print("same k and l")
+                        else:
+                            clone = False
+                            print("something else")
+                        print(clone)
+
+                    
+                        if clone == True:
+                            found = False
+                            clones_so_far = len(paired_clone_groups.keys())
+                            print("Clones so far:", clones_so_far)
+                            if clones_so_far == 0:
+        
+                                paired_clone_groups[1] = [current_cell, comparison_cell]
+                            else:
+                                for i in range(1, clones_so_far+1):
+                                    if (current_cell or comparison_cell) in paired_clone_groups[i]:
+                                            
+                                        found = True
+                                        if not current_cell in paired_clone_groups[i]:
+                                            paired_clone_groups[i].append(current_cell)
+                                        elif not comparison_cell in paired_clone_groups[i]:
+                                            paired_clone_groups[i].append(comparison_cell)
+                                        break
+                                if not found == True:
+                                    paired_clone_groups[clones_so_far + 1] = [current_cell, comparison_cell]
                                     
-                                else:
-                                    if current_cell in paired_clone_groups[counter]:
-                                        paired_clone_groups[counter].append(comparison_cell)
+                                    
+                                    """if current_cell in paired_clone_groups[counter]:
+                                        if not comparison_cell in parired_clone_groups[counter]: 
+                                            paired_clone_groups[counter].append(comparison_cell)
+                                    elif current_cell
                                     else:
                                         counter += 1
                                         paired_clone_groups[counter] = []
                                         paired_clone_groups[counter].append(comparison_cell) 
-                                        paired_clone_groups[counter].append(current_cell)
+                                        paired_clone_groups[counter].append(current_cell)"""
                                   
                 
 
             #clone_groups = dict()
-            print(paired_clone_groups)
+            for clone, cell_list in six.iteritems(paired_clone_groups):
+                print(clone, cell_list)
             
             #print(clone_groups)
             
