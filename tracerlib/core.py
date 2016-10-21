@@ -5,6 +5,7 @@ import six
 from Bio.Alphabet import generic_dna
 from Bio.Seq import Seq
 import pdb
+from tracerlib import tracer_func
 
 
 class Cell(object):
@@ -22,6 +23,9 @@ class Cell(object):
         
         self.isotype = self.determine_isotype(loci, receptor, self.recombinants)
         self.bgcolor = self.assign_bgcolor(species, self.isotype)
+        self.changeodict = self.get_changeo_db_for_locus(self.recombinants, receptor, loci)
+        for l in loci:
+            print(self.changeodict[l])
         #self.cdr3_comparisons = {'A': None, 'B': None, 'mean_both': None}
         #invariant_types = []
         #if invariant_cells is not None:
@@ -47,6 +51,23 @@ class Cell(object):
             if l not in recombinant_dict[receptor]:
                 recombinant_dict[receptor][l] = None
         return dict(recombinant_dict)
+
+
+    def get_changeo_db_for_locus(self, recombinants, receptor, loci):
+        changeodict = defaultdict(dict)
+        for l in loci:
+            changeodict[l] = None
+            changeo_string = ""
+            recombinants = self.recombinants[receptor][l]
+            for rec in recombinants:
+                string = rec.create_changeo_db_string()
+                string = self.name + "_" + string
+                changeo_string += string + "\n"
+            changeodict[l] = changeo_string
+        return(changeodict)
+            
+
+
 
     def determine_isotype(self, loci, receptor, recombinants):
         
@@ -562,18 +583,26 @@ class Recombinant(object):
     def create_changeo_db_string(self):
         changeo_db_header = "SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\tJUNCTION_LENGTH\tJUNCTION"
         #Add sequence_ID at cell level to include cell name
+        changeo_db_string = ""
         if self.productive:
             V_genes = self.V_genes
-            V_call = ",".join(str(x) for x in V_genes
+            V_call = ",".join(str(x) for x in V_genes)
             D_call = "None"
             if not self.has_D_segment:
                 J_call = self.summary[1]
             else:
                 J_call = self.summary[2]
             sequence_vdj = self.dna_seq
-            changeo_db_string = "{}\t{}\t{}\t{}\t".format(V_call, D_call, J_call, sequence_vdj)
+            junc_string = "".join(self.junction_details)
+            junc_string = tracer_func.remove_NA(junc_string)
+            junc_string = junc_string.split("(")
+            junc_string = "".join(junc_string)
+            junc_string = junc_string.split(")")
+            junction = "".join(junc_string)
+            junction_length = int(len(junction))
+            changeo_db_string = "{}_{}\t{}\t{}\t{}\t{}\t{}\t{}".format(self.contig_name, self.identifier, V_call, D_call, J_call, sequence_vdj, junction_length, junction)
 
-    return(changeo_db_string)
+        return(changeo_db_string)
 
 class Invar_cell(object):
     

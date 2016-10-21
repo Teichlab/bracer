@@ -706,11 +706,12 @@ class Summariser(TracerTask):
 
 
 
-        # Count all full length sequences and productive full length sequences
+        # Count all full length sequences and productive full length sequences and make input files for ChangeO
         full_length_counter = dict()
         full_length_prod_counter = dict()
         productive_counter = dict()
         total_counter = dict()
+        changeo_string = dict()
 
         for l in self.loci:
             full_length_counter[l] = 0
@@ -730,10 +731,31 @@ class Summariser(TracerTask):
                     full_length_prod_counter[l] +=full_length_prod_count
                 if productive > 0:
                     productive_counter[l] += productive
+                    print(cell.changeodict[l])
+                    
                 if total > 0:
                     total_counter[l] += total
                 
-     
+        #Make input file for clonal assignment by ChangeO
+        cdr3_filename_root = "{}/cdr3_lengths_{}".format(outdir, self.receptor_name)
+        changeo_string = dict()
+        if self.receptor_name == "BCR":
+        
+            for l in self.loci:
+                changeo_string = "SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\tJUNCTION_LENGTH\tJUNCTION\n"
+                changeo_input = "{}/changeo_input_{}.tab".format(outdir, l)
+                with open(changeo_input, 'w') as output:
+                    output.write(changeo_string)
+                    for cell_name, cell in six.iteritems(cells):
+                
+                        productive = cell.count_productive_recombinants(self.receptor_name, l)
+                
+                        if productive > 0:
+                            output.write(cell.changeodict[l])
+                       
+                
+
+
         # Make full length statistics table
         
         header = "##Proportion of full-length sequences of all recovered sequences##\n\n\t"
