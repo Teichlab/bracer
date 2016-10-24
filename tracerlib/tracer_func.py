@@ -1470,3 +1470,31 @@ def quantify_with_kallisto(kallisto, cell, output_dir, cell_name, kallisto_base_
     # os.remove(idx_file)
     # os.remove(output_transcriptome)
     shutil.rmtree("{}/expression_quantification/kallisto_index/".format(output_dir))
+
+
+def run_changeo(changeo, locus, outdir, species):
+    
+    Command = "python DefineClones.py bygroup -d {changeo_input_file} --mode gene --act set --model m1n --dist 0.02 --sf JUNCTION"
+    # Set model to Hamming distance if species is not Mmus or Hsap
+    if species == "Mmus":
+        model = "m1n"
+        dist = "0.02"
+    elif species == "Hsap":
+        model = "hs5f"
+        dist = "0.02"
+    else:
+        model = "ham"
+        dist = "0.02"
+
+    
+    changeo_input = "{}/changeo_input_{}.tab".format(outdir, locus)
+    if os.path.isfile(changeo_input):
+        command = [changeo, "bygroup", '-d', changeo_input, '--mode', 'gene', '--act', 'set', 
+                        '--model', model, '--dist', dist, '--sf', "JUNCTION"]
+
+            #changeo_out = "{}/changeo_input_{}_clone-pass.tab".format(outdir, locus)
+            #with open(changeo_result, 'w') as out:
+                # print(" ").join(pipes.quote(s) for s in command)
+        subprocess.check_call(command)
+
+

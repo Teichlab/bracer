@@ -514,6 +514,8 @@ class Summariser(TracerTask):
             self.invariant_cells = io.parse_invariant_cells(invariant_cells)
         else:
             self.invariant_cells = None
+
+
         
     def run(self):
 
@@ -571,12 +573,6 @@ class Summariser(TracerTask):
                 if cl.is_empty or cl.missing_loci_of_interest(self.receptor_name, self.loci):
                     empty_cells.append(d)
                
-        """with open("{}/{}_sequences.txt".format(outdir, self.receptor_name), 'w') as s_out:
-            for cell_name, cell in six.iteritems(cells):
-                with open("/lustre/scratch109/sanger/il5/output/test/{}/filtered_BCR_seqs/{}_BCRseqs.fa".format(cell_name, cell_name), 'r') as input:
-                    for line in input:
-                        s_out.write(line)"""
-         
                 
                 
                 #if cl.is_inkt:
@@ -705,13 +701,11 @@ class Summariser(TracerTask):
                 outfile.write("None\n\n")
 
 
-
         # Count all full length sequences and productive full length sequences
         full_length_counter = dict()
         full_length_prod_counter = dict()
         productive_counter = dict()
         total_counter = dict()
-        changeo_string = dict()
 
         for l in self.loci:
             full_length_counter[l] = 0
@@ -731,30 +725,38 @@ class Summariser(TracerTask):
                     full_length_prod_counter[l] +=full_length_prod_count
                 if productive > 0:
                     productive_counter[l] += productive
-                    #print(cell.changeodict[l])
-                    
                 if total > 0:
                     total_counter[l] += total
                 
         # Make initial clonal assignments for B cells
         if self.receptor_name == "BCR":
-            changeo_string = dict()
+            for locus in self.loci:
+                self.make_changeo_input(outdir, locus, self.receptor_name, cells)
+                
+                """changeo_string = dict()
 
-            # Make input file compatible with ChangeO
-            for l in self.loci:
-                changeo_string = "SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\tJUNCTION_LENGTH\tJUNCTION\n"
-                changeo_input = "{}/changeo_input_{}.tab".format(outdir, l)
-                with open(changeo_input, 'w') as output:
-                    output.write(changeo_string)
-                    for cell_name, cell in six.iteritems(cells):
+                # Make input file compatible with ChangeO
+                for l in self.loci:
+                    changeo_string = "SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\tJUNCTION_LENGTH\tJUNCTION\n"
+                    changeo_input = "{}/changeo_input_{}.tab".format(outdir, l)
+                    with open(changeo_input, 'w') as output:
+                        output.write(changeo_string)
+                        for cell_name, cell in six.iteritems(cells):
                 
-                        productive = cell.count_productive_recombinants(self.receptor_name, l)
+                            productive = cell.count_productive_recombinants(self.receptor_name, l)
                 
-                        if productive > 0:
-                            output.write(cell.changeodict[l])
-                       
-            # Run ChangeO DefineCloses bygroup for each locus
-            # Command = "python DefineClones.py bygroup -d {changeo_input_file} --mode gene --act set --model m1n --dist 0.02 --sf JUNCTION"
+                            if productive > 0:
+                                output.write(cell.changeodict[l])"""
+           
+                # Run ChangeO DefineCloses bygroup for each locus
+                # Command = "python DefineClones.py bygroup -d {changeo_input_file} --mode gene --act set --model m1n --dist 0.02 --sf JUNCTION"
+                changeo = self.get_binary('changeo')
+
+                tracer_func.run_changeo(changeo, locus, outdir, self.species)
+                print()
+
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
 
 
             # Read ChangeO result files and define clone groups for each locus
@@ -780,27 +782,6 @@ class Summariser(TracerTask):
                             clones[l][clone].append(cell)
                             if not cell in cell_list:
                                 cell_list.append(cell)
-            #print(cell_list)
-            #print(clones)
-            #for cell in cell_list:
-                #cell_clone_id = ""
-                #cell_dict[cell] = dict()
-                #for l in self.loci:
-                    #if cell in cell_clones[l].keys(): #and len(cell_clones[l][cell]) > 0:
-                        #print(cell)
-                        #cell_clone_id += l + "-" + cell_clones[l][cell] + "_"
-                        #for cell, clone in six.iteritems(cell_clones[l]):
-                            #cell_dict[cell][l] = clone
-                        #print("cell_dict[cell][l]: ", cell_dict[cell][l])
-                    #else:
-                        #cell_dict[cell][l] = None
-                        #print("Locus not found for cell")
-                #cell_dict[cell] = cell_clone_id[:len(cell_clone_id)-1]        
-            
-            #print(cell_dict)
-
-
-            #print(clones)
 
 
             # Filter out clone groups consisting of a single cell
@@ -816,12 +797,9 @@ class Summariser(TracerTask):
             for clone, cell_list in six.iteritems(multiple_clones_H):
 
                 counter = len(paired_clone_groups.keys())
-                print("CLONE", clone)
-                print("Counter", counter)
                    
                 for i in range(len(cell_list)):
                     current_cell = cell_list[i]
-                    print("CURRENT CELL: ", current_cell)
                     comparison_cells = cell_list[i + 1:]
                     for comparison_cell in comparison_cells:
                         for l in self.loci:
@@ -831,33 +809,24 @@ class Summariser(TracerTask):
                                 cell_clones[l][current_cell] = None
 
              
-                        print("COMPCELL: ", comparison_cell)
                         clone = False
                         if ((cell_clones["K"][comparison_cell] is None) or (cell_clones["K"][current_cell] is None)) and ((cell_clones["L"][comparison_cell] is None) or (cell_clones["L"][current_cell] is None)):
                             clone = False
-                            print("No K or L")
                         elif (cell_clones["L"][comparison_cell] is None) or (cell_clones["L"][current_cell] is None):
                             if cell_clones["K"][comparison_cell] == cell_clones["K"][current_cell]:
                                 clone = True
-                                print("same K, no L")
-                                print(cell_clones["K"][comparison_cell], cell_clones["K"][current_cell])
                         elif (cell_clones["K"][comparison_cell] is None) or (cell_clones["K"][current_cell] is None):
                             if cell_clones["L"][comparison_cell] == cell_clones["L"][current_cell]:
                                 clone = True
-                                print("same L, no K")
                         elif (cell_clones["K"][comparison_cell] == cell_clones["K"][current_cell]) and (cell_clones["L"][comparison_cell] == cell_clones["L"][current_cell]):
                             clone = True
-                            print("same k and l")
                         else:
                             clone = False
-                            print("something else")
-                        print(clone)
 
                     
                         if clone == True:
                             found = False
                             clones_so_far = len(paired_clone_groups.keys())
-                            print("Clones so far:", clones_so_far)
                             if clones_so_far == 0:
         
                                 paired_clone_groups[1] = [current_cell, comparison_cell]
@@ -873,25 +842,16 @@ class Summariser(TracerTask):
                                         break
                                 if not found == True:
                                     paired_clone_groups[clones_so_far + 1] = [current_cell, comparison_cell]
-                                    
-                                    
-                                    """if current_cell in paired_clone_groups[counter]:
-                                        if not comparison_cell in parired_clone_groups[counter]: 
-                                            paired_clone_groups[counter].append(comparison_cell)
-                                    elif current_cell
-                                    else:
-                                        counter += 1
-                                        paired_clone_groups[counter] = []
-                                        paired_clone_groups[counter].append(comparison_cell) 
-                                        paired_clone_groups[counter].append(current_cell)"""
-                                  
-                
+            
 
-            #clone_groups = dict()
+            outstring = "\n\n###CLONES###\n\n"
             for clone, cell_list in six.iteritems(paired_clone_groups):
                 print(clone, cell_list)
+                string = ", ".join(cell_list) + "\n"
+                outstring += string
+            outfile.write(outstring)
             
-            #print(clone_groups)
+            
             
             
 
@@ -1374,7 +1334,20 @@ class Summariser(TracerTask):
         return(quartiles)
             
         
+    def make_changeo_input(self, outdir, locus, receptor, cells):
+        """Creates input file for each locus compatible with ChangeO"""
+        
+        
+        changeo_string = "SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\tJUNCTION_LENGTH\tJUNCTION\n"
+        changeo_input = "{}/changeo_input_{}.tab".format(outdir, locus)
+        with open(changeo_input, 'w') as output:
+            output.write(changeo_string)
+            for cell_name, cell in six.iteritems(cells):
 
+                productive = cell.count_productive_recombinants(receptor, locus)
+
+                if productive > 0:
+                    output.write(cell.changeodict[locus])
 
 class Tester(TracerTask):
 
