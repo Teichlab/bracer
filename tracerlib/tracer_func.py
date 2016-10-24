@@ -1474,7 +1474,6 @@ def quantify_with_kallisto(kallisto, cell, output_dir, cell_name, kallisto_base_
 
 def run_changeo(changeo, locus, outdir, species):
     
-    Command = "python DefineClones.py bygroup -d {changeo_input_file} --mode gene --act set --model m1n --dist 0.02 --sf JUNCTION"
     # Set model to Hamming distance if species is not Mmus or Hsap
     if species == "Mmus":
         model = "m1n"
@@ -1490,11 +1489,34 @@ def run_changeo(changeo, locus, outdir, species):
     changeo_input = "{}/changeo_input_{}.tab".format(outdir, locus)
     if os.path.isfile(changeo_input):
         command = [changeo, "bygroup", '-d', changeo_input, '--mode', 'gene', '--act', 'set', 
-                        '--model', model, '--dist', dist, '--sf', "JUNCTION"]
+                        '--model', model, '--dist', dist, '--sf', "JUNCTION", '--norm', 'len']
 
             #changeo_out = "{}/changeo_input_{}_clone-pass.tab".format(outdir, locus)
             #with open(changeo_result, 'w') as out:
                 # print(" ").join(pipes.quote(s) for s in command)
         subprocess.check_call(command)
 
+def run_changeo_clonal_alignment(changeo, locus, outdir, species):
 
+    Command = "python DefineClones.py bygroup -d {changeo_input_file} --mode gene --act set --model m1n --dist 0.02 --sf JUNCTION"
+    # Set model to Hamming distance if species is not Mmus or Hsap
+    if species == "Mmus":
+        model = "m1n"
+        dist = "1.5"
+    elif species == "Hsap":
+        model = "hs5f"
+        dist = "0.02"
+    else:
+        model = "ham"
+        dist = "0.02"
+
+
+    changeo_input = "{}/changeo_clonal_alignment_input_{}.tab".format(outdir, locus)
+    if os.path.isfile(changeo_input):
+        command = [changeo, "bygroup", '-d', changeo_input, '--mode', 'gene', '--act', 'set',
+                        '--model', model, '--dist', dist, '--sf', "SEQUENCE_VDJ", '--norm', 'len', '-f', 'CLONE_GROUP']
+
+            #changeo_out = "{}/changeo_input_{}_clone-pass.tab".format(outdir, locus)
+            #with open(changeo_result, 'w') as out:
+                # print(" ").join(pipes.quote(s) for s in command)
+        subprocess.check_call(command)

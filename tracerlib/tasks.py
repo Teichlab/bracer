@@ -733,25 +733,8 @@ class Summariser(TracerTask):
             for locus in self.loci:
                 self.make_changeo_input(outdir, locus, self.receptor_name, cells)
                 
-                """changeo_string = dict()
-
-                # Make input file compatible with ChangeO
-                for l in self.loci:
-                    changeo_string = "SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\tJUNCTION_LENGTH\tJUNCTION\n"
-                    changeo_input = "{}/changeo_input_{}.tab".format(outdir, l)
-                    with open(changeo_input, 'w') as output:
-                        output.write(changeo_string)
-                        for cell_name, cell in six.iteritems(cells):
-                
-                            productive = cell.count_productive_recombinants(self.receptor_name, l)
-                
-                            if productive > 0:
-                                output.write(cell.changeodict[l])"""
-           
                 # Run ChangeO DefineCloses bygroup for each locus
-                # Command = "python DefineClones.py bygroup -d {changeo_input_file} --mode gene --act set --model m1n --dist 0.02 --sf JUNCTION"
                 changeo = self.get_binary('changeo')
-
                 tracer_func.run_changeo(changeo, locus, outdir, self.species)
                 print()
 
@@ -845,13 +828,49 @@ class Summariser(TracerTask):
             
 
             outstring = "\n\n###CLONES###\n\n"
+            clonal_cells = []
             for clone, cell_list in six.iteritems(paired_clone_groups):
                 print(clone, cell_list)
                 string = ", ".join(cell_list) + "\n"
                 outstring += string
+                for cell in cell_list:
+                    clonal_cells.append(cell)
             outfile.write(outstring)
+            print(clonal_cells)
+
+
+
+            # Align full sequences within clonal groups using ChangeO
+        
+            for locus in self.loci:
+                self.make_changeo_clonal_alignment_input(outdir, locus, self.receptor_name, cells, clonal_cells)
+
+                # Run ChangeO DefineCloses bygroup for each locus
+                changeo = self.get_binary('changeo')
+                tracer_func.run_changeo_clonal_alignment(changeo, locus, outdir, self.species)
+                print()
+
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+
             
-            
+            # Make input file for sequence alignment of clonal sequences
+            for l in self.loci:
+                changeo_output = "{}/changeo_input_{}_clone-pass.tab".format(outdir, l)
+                changeo_string = "SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\tJUNCTION_LENGTH\tJUNCTION\tCLONE_GROUP\n"
+
+                changeo_clonal_alignment_input = "{}/changeo_clonal_alignment_input_{}.tab".format(outdir, l)
+                with open(changeo_output, 'r') as input:
+                    with open(changeo_clonal_alignment_input, 'w') as output:
+                        output.write(changeo_string)
+                        for line in input:
+                            if not line.startswith("SEQUENCE_ID"):
+                                cell_name = line.split("_")[0]
+                                print(clonal_cells)
+                                if cell_name in clonal_cells:
+                                    output.write(line)
+
+                        
             
             
 
@@ -1348,6 +1367,27 @@ class Summariser(TracerTask):
 
                 if productive > 0:
                     output.write(cell.changeodict[locus])
+
+
+
+
+    def make_changeo_clonal_alignment_input(self, outdir, locus, receptor, cells, clonal_cells):
+        """Creates input file for each locus only containing sequences from cells belonging to clonal groups"""
+
+        changeo_output = "{}/changeo_input_{}_clone-pass.tab".format(outdir, locus)
+        changeo_string = "SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\tJUNCTION_LENGTH\tJUNCTION\tCLONE_GROUP\n"
+
+        changeo_clonal_alignment_input = "{}/changeo_clonal_alignment_input_{}.tab".format(outdir, locus)
+        with open(changeo_output, 'r') as input:
+            with open(changeo_clonal_alignment_input, 'w') as output:
+                output.write(changeo_string)
+                for line in input:
+                    if not line.startswith("SEQUENCE_ID"):
+                        cell_name = line.split("_")[0]
+                        if cell_name in clonal_cells:
+                            output.write(line)
+
+
 
 class Tester(TracerTask):
 
