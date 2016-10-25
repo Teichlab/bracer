@@ -699,14 +699,28 @@ class Summariser(TracerTask):
             if not found_multi:
                 outfile.write("None\n\n")
       
-        # Make full length statistics table
+        # Make full length statistics table and plot proportion of sequences that are full-length
         (full_length_counter, full_length_prod_counter, productive_counter, total_counter) = self.count_full_length_sequences(self.loci, cells, self.receptor_name)
         (full_length_statistics_table, all_dict, prod_dict) = self.make_full_length_statistics_table(self.loci, total_counter, productive_counter, full_length_counter, full_length_prod_counter)
         outfile.write(full_length_statistics_table)
         outfile.write("\n")
-               
-        # Make initial clonal assignments for B cells using ChangeO DefineClones bygroup
+        self.plot_full_length_sequences_proportions(all_dict, prod_dict, self.loci, outdir)
+         
+        #Report cells with two productive chains from same locus
+        outstring = self.two_productive_chains_per_locus(self.loci, cells, self.receptor_name)
+        if len(outstring) > 0:
+            outfile.write(outstring)
+      
+        # B CELL SPECIFIC TASKS
+
         if self.receptor_name == "BCR":
+
+            #Report cells with productive kappa and lambda chain
+            outstring = self.report_kappa_lambda_cells(self.loci, cells, self.receptor_name)
+            if len(outstring) > 0:
+                outfile.write(outstring)
+
+            # Make initial clonal assignments for B cells using ChangeO DefineClones bygroup
             for locus in self.loci:
                 self.make_changeo_input(outdir, locus, self.receptor_name, cells)
                 changeo = self.get_binary('changeo')
@@ -727,205 +741,27 @@ class Summariser(TracerTask):
             # Get groups of clones sharing heavy and light chain
             paired_clone_groups = self.get_initial_clone_groups(self.loci, multiple_clones_H, cell_clones)
             
-            # Print output of clonal grouping
-            outstring = "\n\n###CLONES###\n\n"
+            # Print output of initial clonal grouping
+            outstring = "\n\n###Initial clonal groups determined by ChangeO###\n\n"
             clonal_cells = []
             for clone, cell_list in six.iteritems(paired_clone_groups):
-                print(clone, cell_list)
+                #print(clone, cell_list)
                 string = ", ".join(cell_list) + "\n"
                 outstring += string
                 for cell in cell_list:
                     clonal_cells.append(cell)
             outfile.write(outstring)
-            print(clonal_cells)
+            outfile.write("\n")
+            #print(clonal_cells)
         
-        # Make isotype usage table for B cells
-        if self.receptor_name == "BCR":
+            # Make isotype usage table and plot isotype distributions
             isotype_counter = self.count_isotype_usage(cells)
-
-            prod_H = cell_recovery_count["H"]
-            header = "##Isotype of cells with productive heavy chain##\n\nIsotype\tcells\t% of cells\n"
-            outstring = ""
-            for isotype, number in six.iteritems(isotype_counter):
-                number = str(number)
-                if isotype == "None":
-                    isotype = "Unknown"
-                percent = float(number)/int(prod_H)*100
-                percent = format(percent, '.2f')
-                
-                
-                string = "{isotype}\t{number}\t{percent}\n".format(isotype=isotype, number=number, percent=percent)
-                outstring = outstring + string
+            (header, outstring) = self.make_isotype_table(cell_recovery_count, isotype_counter)
             outfile.write(header)
             outfile.write(outstring)
-
-
             outfile.write("\n")
+            self.plot_isotype_distributions(isotype_counter, outdir)
 
-        """#count cdr3 length distributions
-       
-        prod_counters = defaultdict(Counter)
-        #all_cdr3_counter = dict()
-        prod_cdr3_counter = dict()
-        for l in self.loci:
-            
-            #all_cdr3_counter[l] = dict()
-            prod_cdr3_counter[l] = dict()
-
-        for cell_name, cell in six.iteritems(cells):
-            for l in self.loci:
-                prod_lengths = cell.get_prod_cdr3_lengths(self.receptor_name, l)
-                
-                for length in prod_lengths:
-                    if not length in prod_cdr3_counter[l]:
-                        prod_cdr3_counter[l][length] = 1
-                    else:
-                        prod_cdr3_counter[l][length] += 1
-
-        #print (all_cdr3_counter)
-        print (prod_cdr3_counter)
-
-
-        # plot cdr3 distributions
-        
-        dictionary = prod_cdr3_counter
-        for l in self.loci:
-            D = dictionary[l]
-            lengths = []
-            counts = []
-             
-        
-            for length, count in six.iteritems(D):
-                lengths.append(length)
-                counts.append(count)
-                shortest = min(lengths)
-                longest = max(lengths)
-                
-            if len(lengths) > 1:
-                plt.figure()
-                w = 0.85
-                plt.bar(range(shortest, longest), D.values(), width=w, color='black', align='center')
-                plt.xticks(range(len(D)), 1)
-                plt.xlabel("CDR3 length (aa)")
-                plt.ylabel("Frequency")
-                plt.savefig("{}/{}cdr3_distribution.pdf".format(outdir, locus))
-
-        # plot cdr3 distributions
-        
-        lengths = defaultdict(list)
-        for cell in cells.values():
-            for l in self.loci:
-                print(cell)
-                print(cell.get_prod_cdr3_lengths(self.receptor_name, l))
-                lengths[l].extend(cell.get_prod_cdr3_lengths(self.receptor_name, l))
-
-
-
-
-        # Plot proportions of sequences that are full-length
-
-        D_prod = prod_cdr3_counter
-        highest = None
-        lowest = None
-      
-        H_values = int(D_prod["H"])
-        K_values = int(D_prod["K"])
-        L_values = int(D_prod["L"])
-        all_values = H_values + K_values + L_values
-        highest = max(all_values)
-        lowest = min(all_values)
-
-        n_groups = len(range(lowest, highest+1))
-        
-        fig, ax = plt.subplots()
-        x_ticks = tuple(range(lowest, highest+1, 1))
-        index = np.arange(n_groups)
-        bar_width = 0.25
-        opacity = 0.2
-
-        rects1 = plt.bar(index, tuple(H_values), bar_width, color='#000000', label='H')
-        rects2 = plt.bar(index + bar_width, tuple(K_values), bar_width, color='#cccccc', label='K')
-        rects3 = plt.bar(index + bar_width + bar_width, tuple(L_values), bar_width, color='#cccccc', label='L')
-
-        plt.xlabel('Locus')
-        plt.ylabel('Frequency')
-        plt.title('CDR3 length distribution (aa)')
-        plt.xticks(index + bar_width, x_ticks)
-        plt.legend()
-
-        #plt.tight_layout()
-        plt.savefig("{}/full_length_seqs.pdf".format(outdir))                
-
-
-        #D = prod_cdr3_counter
-        #for l in self.loci:
-            #D = dictionary[l]
-            #lengths = []
-            #counts = []
-
-
-        for l in self.loci:
-            lns = lengths[l]
-            if len(lns) > 1:
-                plt.figure()
-                sns.distplot(lns)
-                sns.despine()
-                plt.xlabel("{receptor}_{locus} CDR3 length (aa)".format(receptor=self.receptor_name,
-                                                                                 locus=l))
-                plt.ylabel("Density")
-                plt.savefig("{}_{}.pdf".format(cdr3_filename_root, l))
-            if len(lns) > 0:
-                with open("{}_{}.txt".format(cdr3_filename_root,l), 'w') as f:
-                        for l in sorted(lns):
-                            f.write("{}\n".format(l))"""
-
-
-
-
-        #Report cells with two productive chains from same locus
-        outstring = ""
-        for l in self.loci:
-            double_rec = []
-            cells_string = ""
-            for cell_name, cell in six.iteritems(cells):
-                prod_counts = dict()
-                prod_counts[l] = cell.count_productive_recombinants(self.receptor_name, l)
-                if prod_counts[l] == 2:
-                    double_rec.append(cell_name)
-            if len(double_rec) > 0 :   
-                cells_string = ', '.join(double_rec)             
-                locus_string = "Cells with two productive {} chains: \n".format(l) + cells_string + "\n\n"
-                outstring += locus_string 
-                
-        if len(outstring) != 0:
-            outstring = "\n\n#Cells with two productive recombinants for a locus#\n\n" + outstring
-
-
-        outfile.write(outstring)
-
-        #Report cells with productive kappa and lambda chain
-        if self.receptor_name == "BCR":
-            outstring = ""
-            kappa_lambda = []
-            cells_string = ""
-            store_cell = True
-            for cell_name, cell in six.iteritems(cells):
-                store_cell = True
-                for l in ["K", "L"]:
-                    prod_counts = dict()
-                    prod_counts[l] = cell.count_productive_recombinants(self.receptor_name, l)
-                    if prod_counts[l] == 0:
-                        store_cell = False 
-                if store_cell == True:
-                    kappa_lambda.append(cell_name)
-            if len(kappa_lambda) > 0 :
-                cells_string = ', '.join(kappa_lambda)
-                outstring = "\n\n#Cells with productive K and L chain#\n\n" + cells_string + "\n\n"
-                   
-                outfile.write(outstring)
-
-
-        # Reporting iNKT cells
         #iNKT_count = len(NKT_cells)
         #if iNKT_count == 1:
         #    cell_word = 'cell'
@@ -989,23 +825,6 @@ class Summariser(TracerTask):
                              outfile.write("{}_{}: {}\n".format(ivc.receptor_type, l, ivc_details[l]))
                      outfile.write("\n")
                  
-        # plot isotype distributions
-        isotypes = []
-        isotype_counts = []
-        D = isotype_counter
-        for isotype, count in six.iteritems(isotype_counter):
-            if isotype == "None":
-                isotype = "Unknown"
-            isotypes.append(isotype)
-            isotype_counts.append(count)
-        if len(isotypes) > 1:
-            plt.figure()
-            w = 0.85
-            plt.bar(range(len(D)), D.values(), width=w, color='black', align='center')
-            plt.xticks(range(len(D)), list(D.keys()))
-            plt.xlabel("Isotype")
-            plt.ylabel("Cell count")
-            plt.savefig("{}/isotype_distribution.pdf".format(outdir))
 
         # plot lengths of reconstructed sequences
         lengths = defaultdict(list)
@@ -1045,38 +864,8 @@ class Summariser(TracerTask):
             for cell_name in invariant_cells:
                 del cells[cell_name]
         
-        # Plot proportions of sequences that are full-length
 
-        D_all = all_dict
-        D_prod = prod_dict
-        values_all = []
-        values_prod = []
-        for l in self.loci:
-            values_all.append(int(D_all[l]))
-            values_prod.append(int(D_prod[l]))
-        n_groups = len(self.loci)
-        values_all = tuple(values_all)
-        values_prod = tuple(values_prod)
-        fig, ax = plt.subplots()
-        x_ticks = tuple(self.loci)
-
-        index = np.arange(n_groups)
-        bar_width = 0.25
-        opacity = 0.2
-
-        rects1 = plt.bar(index, values_all, bar_width, color='#000000', label='All')
-        rects2 = plt.bar(index + bar_width, values_prod, bar_width, color='#cccccc', label='Prod')
-
-        plt.xlabel('Locus')
-        plt.ylabel('Percentage')
-        plt.title('Percentage full-length of all or productive sequences')
-        plt.xticks(index + bar_width, x_ticks)
-        plt.legend()
-
-        #plt.tight_layout()
-        plt.savefig("{}/full_length_seqs.pdf".format(outdir))
-        
-        # Write out recombinant details for each cell
+        # Write recombinant details
         with open("{}/recombinants.txt".format(outdir), 'w') as f:
             f.write("cell_name\tlocus\trecombinant_id\tproductive\treconstructed_length\n")
             sorted_cell_names = sorted(list(cells.keys()))
@@ -1157,6 +946,46 @@ class Summariser(TracerTask):
         return(quartiles)
             
         
+    def two_productive_chains_per_locus(self, loci, cells, receptor):
+        """#Report cells with two productive chains from same locus"""
+        outstring = ""
+        for l in loci:
+            double_rec = []
+            cells_string = ""
+            for cell_name, cell in six.iteritems(cells):
+                prod_counts = dict()
+                prod_counts[l] = cell.count_productive_recombinants(self.receptor_name, l)
+                if prod_counts[l] == 2:
+                    double_rec.append(cell_name)
+            if len(double_rec) > 0 :
+                cells_string = ', '.join(double_rec)
+                locus_string = "Cells with two productive {} chains: \n".format(l) + cells_string + "\n\n"
+                outstring += locus_string
+        if len(outstring) != 0:
+            outstring = "\n\n#Cells with two productive recombinants for a locus#\n\n" + outstring
+        return (outstring)
+
+
+    def report_kappa_lambda_cells(self, loci, cells, receptor):
+        """Report cells with both productive kappa and lambda chain"""
+        outstring = ""
+        kappa_lambda = []
+        cells_string = ""
+        for cell_name, cell in six.iteritems(cells):
+            store_cell = True
+            for l in ["K", "L"]:
+                prod_counts = dict()
+                prod_counts[l] = cell.count_productive_recombinants(self.receptor_name, l)
+                if prod_counts[l] == 0:
+                    store_cell = False
+            if store_cell == True:
+                kappa_lambda.append(cell_name)
+        if len(kappa_lambda) > 0 :
+            cells_string = ', '.join(kappa_lambda)
+            outstring = "\n\n#Cells with productive K and L chain#\n\n" + cells_string + "\n\n"
+        return(outstring)
+
+
     def make_changeo_input(self, outdir, locus, receptor, cells):
         """Creates input file for each locus compatible with ChangeO"""
         
@@ -1201,7 +1030,6 @@ class Summariser(TracerTask):
         """Get groups of B cell clones sharing clonally related heavy and light chains (from changeo output)"""
         paired_clone_groups = dict()
         for clone, cell_list in six.iteritems(multiple_clones_H):
-
             for i in range(len(cell_list)):
                 current_cell = cell_list[i]
                 comparison_cells = cell_list[i + 1:]
@@ -1211,7 +1039,6 @@ class Summariser(TracerTask):
                             cell_clones[l][comparison_cell] = None
                         elif not current_cell in cell_clones[l].keys():
                             cell_clones[l][current_cell] = None
-
                     clone = False
                     if ((cell_clones["K"][comparison_cell] is None) or (cell_clones["K"][current_cell] is None)) and ((cell_clones["L"][comparison_cell] is None) or (cell_clones["L"][current_cell] is None)):
                         clone = False
@@ -1270,7 +1097,6 @@ class Summariser(TracerTask):
         productive_counter = dict()
         total_counter = dict()
         
-      
         for l in self.loci:
             (full_length_counter[l], full_length_prod_counter[l], productive_counter[l], total_counter[l]) = (0, 0, 0, 0)
 
@@ -1289,6 +1115,38 @@ class Summariser(TracerTask):
                 if total > 0:
                     total_counter[l] += total
         return (full_length_counter, full_length_prod_counter, productive_counter, total_counter)
+
+
+    def plot_full_length_sequences_proportions(self, all_dict, prod_dict, loci, outdir):
+        D_all = all_dict
+        D_prod = prod_dict
+        values_all = []
+        values_prod = []
+        for l in self.loci:
+            values_all.append(int(D_all[l]))
+            values_prod.append(int(D_prod[l]))
+        n_groups = len(self.loci)
+        values_all = tuple(values_all)
+        values_prod = tuple(values_prod)
+        fig, ax = plt.subplots()
+        x_ticks = tuple(self.loci)
+
+        index = np.arange(n_groups)
+        bar_width = 0.25
+        opacity = 0.2
+
+        rects1 = plt.bar(index, values_all, bar_width, color='#000000', label='All')
+        rects2 = plt.bar(index + bar_width, values_prod, bar_width, color='#cccccc', label='Prod')
+
+        plt.xlabel('Locus')
+        plt.ylabel('Percentage')
+        plt.title('Percentage full-length of all or productive sequences')
+        plt.xticks(index + bar_width, x_ticks)
+        plt.legend()
+
+        #plt.tight_layout()
+        plt.savefig("{}/full_length_seqs.pdf".format(outdir))
+
 
     def make_full_length_statistics_table(self, loci, total_counter, productive_counter, full_length_counter, full_length_prod_counter):
         """ Make full length statistics table"""
@@ -1329,6 +1187,64 @@ class Summariser(TracerTask):
         return (full_length_statistics_table, all_dict, prod_dict)
 
 
+    def make_full_length_plots(self):
+        # Plot proportions of sequences that are full-length
+
+        """D_prod = prod_cdr3_counter
+        highest = None
+        lowest = None
+
+        H_values = int(D_prod["H"])
+        K_values = int(D_prod["K"])
+        L_values = int(D_prod["L"])
+        all_values = H_values + K_values + L_values
+        highest = max(all_values)
+        lowest = min(all_values)
+
+        n_groups = len(range(lowest, highest+1))
+
+        fig, ax = plt.subplots()
+        x_ticks = tuple(range(lowest, highest+1, 1))
+        index = np.arange(n_groups)
+        bar_width = 0.25
+        opacity = 0.2
+
+        rects1 = plt.bar(index, tuple(H_values), bar_width, color='#000000', label='H')
+        rects2 = plt.bar(index + bar_width, tuple(K_values), bar_width, color='#cccccc', label='K')
+        rects3 = plt.bar(index + bar_width + bar_width, tuple(L_values), bar_width, color='#cccccc', label='L')
+
+        plt.xlabel('Locus')
+        plt.ylabel('Frequency')
+        plt.title('CDR3 length distribution (aa)')
+        plt.xticks(index + bar_width, x_ticks)
+        plt.legend()
+
+        #plt.tight_layout()
+        plt.savefig("{}/full_length_seqs.pdf".format(outdir))
+
+
+        #D = prod_cdr3_counter
+        #for l in self.loci:
+            #D = dictionary[l]
+            #lengths = []
+            #counts = []
+
+
+        for l in self.loci:
+            lns = lengths[l]
+            if len(lns) > 1:
+                plt.figure()
+                sns.distplot(lns)
+                sns.despine()
+                plt.xlabel("{receptor}_{locus} CDR3 length (aa)".format(receptor=self.receptor_name,
+                                                                                 locus=l))
+                plt.ylabel("Density")
+                plt.savefig("{}_{}.pdf".format(cdr3_filename_root, l))
+            if len(lns) > 0:
+                with open("{}_{}.txt".format(cdr3_filename_root,l), 'w') as f:
+                        for l in sorted(lns):
+                            f.write("{}\n".format(l))"""
+
     def count_isotype_usage(self, cells):
         """Counts isotype usage of cells"""
 
@@ -1352,7 +1268,99 @@ class Summariser(TracerTask):
                 isotype_counter[isotype] += 1
         return (isotype_counter)
 
+    def make_isotype_table(self, cell_recovery_count, isotype_counter):
+        prod_H = cell_recovery_count["H"]
+        header = "##Isotype of cells with productive heavy chain##\n\nIsotype\tcells\t% of cells\n"
+        outstring = ""
+        for isotype, number in six.iteritems(isotype_counter):
+            number = str(number)
+            if isotype == "None":
+                isotype = "Unknown"
+            percent = float(number)/int(prod_H)*100
+            percent = format(percent, '.2f')
+            string = "{isotype}\t{number}\t{percent}\n".format(isotype=isotype, number=number, percent=percent)
+            outstring = outstring + string
+        return (header, outstring)
 
+
+    def plot_isotype_distributions(self, isotype_counter, outdir):
+        isotypes = []
+        isotype_counts = []
+        D = isotype_counter
+        for isotype, count in six.iteritems(isotype_counter):
+            if isotype == "None":
+                isotype = "Unknown"
+            isotypes.append(isotype)
+            isotype_counts.append(count)
+        if len(isotypes) > 1:
+            plt.figure()
+            w = 0.85
+            plt.bar(range(len(D)), D.values(), width=w, color='black', align='center')
+            plt.xticks(range(len(D)), list(D.keys()))
+            plt.xlabel("Isotype")
+            plt.ylabel("Cell count")
+            plt.savefig("{}/isotype_distribution.pdf".format(outdir))
+
+
+    def count_cdr3_length_distributions(self):
+        pass
+        """#count cdr3 length distributions
+
+        prod_counters = defaultdict(Counter)
+        #all_cdr3_counter = dict()
+        prod_cdr3_counter = dict()
+        for l in self.loci:
+
+            #all_cdr3_counter[l] = dict()
+            prod_cdr3_counter[l] = dict()
+
+        for cell_name, cell in six.iteritems(cells):
+            for l in self.loci:
+                prod_lengths = cell.get_prod_cdr3_lengths(self.receptor_name, l)
+
+                for length in prod_lengths:
+                    if not length in prod_cdr3_counter[l]:
+                        prod_cdr3_counter[l][length] = 1
+                    else:
+                        prod_cdr3_counter[l][length] += 1
+
+        #print (all_cdr3_counter)
+        print (prod_cdr3_counter)"""
+
+    def plot_cdr3_length_distributions(self):
+        pass
+
+        """# plot cdr3 distributions
+
+        dictionary = prod_cdr3_counter
+        for l in self.loci:
+            D = dictionary[l]
+            lengths = []
+            counts = []
+
+
+            for length, count in six.iteritems(D):
+                lengths.append(length)
+                counts.append(count)
+                shortest = min(lengths)
+                longest = max(lengths)
+
+            if len(lengths) > 1:
+                plt.figure()
+                w = 0.85
+                plt.bar(range(shortest, longest), D.values(), width=w, color='black', align='center')
+                plt.xticks(range(len(D)), 1)
+                plt.xlabel("CDR3 length (aa)")
+                plt.ylabel("Frequency")
+                plt.savefig("{}/{}cdr3_distribution.pdf".format(outdir, locus))
+        # plot cdr3 distributions
+
+        lengths = defaultdict(list)
+        for cell in cells.values():
+            for l in self.loci:
+                print(cell)
+                print(cell.get_prod_cdr3_lengths(self.receptor_name, l))
+                lengths[l].extend(cell.get_prod_cdr3_lengths(self.receptor_name, l))"""
 
     def changeo_alignments(self):
         pass
