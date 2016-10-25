@@ -24,8 +24,6 @@ class Cell(object):
         self.isotype = self.determine_isotype(loci, receptor, self.recombinants)
         self.bgcolor = self.assign_bgcolor(species, self.isotype)
         self.changeodict = self.get_changeo_db_for_locus(self.recombinants, receptor, loci)
-        for l in loci:
-            print(self.changeodict[l])
         #self.cdr3_comparisons = {'A': None, 'B': None, 'mean_both': None}
         #invariant_types = []
         #if invariant_cells is not None:

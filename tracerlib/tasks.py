@@ -743,43 +743,18 @@ class Summariser(TracerTask):
 
 
             # Read ChangeO result files and define clone groups for each locus
-            clones = dict()
-            cell_clones = dict()
-            cell_dict = dict()
-            cell_list = []
-            
-            for l in self.loci:
-                clones[l] = dict()
-                cell_clones[l] = dict()
-                changeo_result = "{}/changeo_input_{}_clone-pass.tab".format(outdir, l)
-                clone_column = False
-                with open(changeo_result, 'r') as input_file:
-                    for line in input_file:
-                        if not line.startswith("SEQUENCE_ID"):
-                            fields = line.split("\t")
-                            clone = fields[len(fields)-1].rstrip()
-                            cell = fields[0].split("_")[0]
-                            cell_clones[l][cell] = clone
-                            if not clone in clones[l].keys():
-                                clones[l][clone] = []
-                            clones[l][clone].append(cell)
-                            if not cell in cell_list:
-                                cell_list.append(cell)
+            (clones, cell_clones) = self.read_changeo_results(self.loci, outdir)
+          
 
-
-            # Filter out clone groups consisting of a single cell
-
+            # Filter out H clone groups consisting of a single cell
             paired_clone_groups = dict()
-            counter = 0
             multiple_clones_H = dict()
-            #only_paired = True
             for clone, cell_list in six.iteritems(clones["H"]):
                 if len(cell_list) > 1:
-                    print(clone,cell_list)
                     multiple_clones_H[clone] = cell_list
-            for clone, cell_list in six.iteritems(multiple_clones_H):
 
-                counter = len(paired_clone_groups.keys())
+            # Get groups of clones sharing heavy and light chain
+            for clone, cell_list in six.iteritems(multiple_clones_H):
                    
                 for i in range(len(cell_list)):
                     current_cell = cell_list[i]
@@ -790,7 +765,6 @@ class Summariser(TracerTask):
                                 cell_clones[l][comparison_cell] = None
                             elif not current_cell in cell_clones[l].keys():
                                 cell_clones[l][current_cell] = None
-
              
                         clone = False
                         if ((cell_clones["K"][comparison_cell] is None) or (cell_clones["K"][current_cell] is None)) and ((cell_clones["L"][comparison_cell] is None) or (cell_clones["L"][current_cell] is None)):
@@ -806,17 +780,14 @@ class Summariser(TracerTask):
                         else:
                             clone = False
 
-                    
                         if clone == True:
                             found = False
                             clones_so_far = len(paired_clone_groups.keys())
                             if clones_so_far == 0:
-        
                                 paired_clone_groups[1] = [current_cell, comparison_cell]
                             else:
                                 for i in range(1, clones_so_far+1):
                                     if (current_cell or comparison_cell) in paired_clone_groups[i]:
-                                            
                                         found = True
                                         if not current_cell in paired_clone_groups[i]:
                                             paired_clone_groups[i].append(current_cell)
@@ -826,7 +797,7 @@ class Summariser(TracerTask):
                                 if not found == True:
                                     paired_clone_groups[clones_so_far + 1] = [current_cell, comparison_cell]
             
-
+            # Print output of clonal grouping
             outstring = "\n\n###CLONES###\n\n"
             clonal_cells = []
             for clone, cell_list in six.iteritems(paired_clone_groups):
@@ -838,9 +809,64 @@ class Summariser(TracerTask):
             outfile.write(outstring)
             print(clonal_cells)
 
+            """# Make list of cells to be aligned
+            clonal_cells = []
+            for clone, cell_list in six.iteritems(paired_clone_groups):
+                #print(clone, cell_list)
+                for cell in cell_list:
+                    clonal_cells.append (cell)
+
+                # check if sequences in clonal groups are of equal length
+                length = dict()
+                seqs = dict()
+                for locus in self.loci:
+                    #maxmin = None
+                    length[locus] = dict()
+                    seqs[locus] = dict()
+                    
+                    for cell in cell_list:
+                        for cell_name, cell_info in six.iteritems(cells):
+                            if cell == cell_name:
+                                string = cell_info.changeodict[locus]
+                                print(string)
+                                seq = string.split("\t")[4]
+                                seq_length = len(seq)
+                                length[locus][cell] = seq_length
+                                seqs[locus][cell] = seq
+                    max_len = max(list(length[locus].values()))  
+                    min_len = min(list(length[locus].values()))
+                    
+                    if max_len - min_len == 0 or max_len - min_len > 10:
+                        trim = False
+                    else:
+                        trim = True
+                    if trim == True:
+                        for cell in cell_list:
+                            seq = seqs[locus][cell]
+                            if not length[locus][cell] == min_len:
+                                seq = seq[max_len - min_len :]
+                            print(seq)
+
+                            for cell_name, cell_info in six.iteritems(cells):
+                        
+                                if cell == cell_name:
+
+                                    string = cell_info.changeodict[locus]
+                                    seq = string.split("\t")[4]
+                                    seq_length = len(seq)
+
+                                    if not seq_length == min_len:
+                                        seq = seq[max_len - min_lenmax_len - min_len :]
+                                    print(seq)"""
+                       
+                            
+                    
+                       
+            
+            #print(clonal_cells)
 
 
-            # Align full sequences within clonal groups using ChangeO
+            """# Align full sequences within clonal groups using ChangeO
         
             for locus in self.loci:
                 self.make_changeo_clonal_alignment_input(outdir, locus, self.receptor_name, cells, clonal_cells)
@@ -868,7 +894,7 @@ class Summariser(TracerTask):
                                 cell_name = line.split("_")[0]
                                 print(clonal_cells)
                                 if cell_name in clonal_cells:
-                                    output.write(line)
+                                    output.write(line)"""
 
                         
             
@@ -1369,6 +1395,29 @@ class Summariser(TracerTask):
                     output.write(cell.changeodict[locus])
 
 
+    def read_changeo_results(self, loci, outdir):
+        """Reads ChangeO result files and defines clone groups for each locus"""
+        clones = dict()
+        cell_clones = dict()
+        cell_list = []
+
+        for l in loci:
+            clones[l] = dict()
+            cell_clones[l] = dict()
+            changeo_result = "{}/changeo_input_{}_clone-pass.tab".format(outdir, l)
+            with open(changeo_result, 'r') as input_file:
+                for line in input_file:
+                    if not line.startswith("SEQUENCE_ID"):
+                        fields = line.split("\t")
+                        clone = fields[len(fields)-1].rstrip()
+                        cell = fields[0].split("_")[0]
+                        cell_clones[l][cell] = clone
+                        if not clone in clones[l].keys():
+                            clones[l][clone] = []
+                        clones[l][clone].append(cell)
+                        if not cell in cell_list:
+                            cell_list.append(cell)
+        return (clones, cell_clones)
 
 
     def make_changeo_clonal_alignment_input(self, outdir, locus, receptor, cells, clonal_cells):
