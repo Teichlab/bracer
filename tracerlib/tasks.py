@@ -689,7 +689,6 @@ class Summariser(TracerTask):
             outfile.write("\n\n#Cells with more than two recombinants for a locus#\n")
             found_multi = False
             for cell in cells.values():
-                #if cell.count_total_recombinants('A') > 2 or cell.count_total_recombinants('B') > 2:
                 if cell.has_excess_recombinants(2):
                     outfile.write("###{}###\n".format(cell.name))
                     for l in self.loci:
@@ -699,103 +698,34 @@ class Summariser(TracerTask):
                     found_multi = True
             if not found_multi:
                 outfile.write("None\n\n")
-
-
-        # Count all full length sequences and productive full length sequences
-        full_length_counter = dict()
-        full_length_prod_counter = dict()
-        productive_counter = dict()
-        total_counter = dict()
-
-        for l in self.loci:
-            full_length_counter[l] = 0
-            full_length_prod_counter[l] = 0
-            productive_counter[l] = 0
-            total_counter[l] = 0
-   
-        for cell_name, cell in six.iteritems(cells):
-            for l in self.loci:
-                full_length_count = cell.count_full_length_recombinants(self.receptor_name, l)
-                full_length_prod_count = cell.count_productive_full_length_recombinants(self.receptor_name, l)
-                productive = cell.count_productive_recombinants(self.receptor_name, l)
-                total = cell.count_total_recombinants(self.receptor_name, l)
-                if full_length_count > 0:
-                    full_length_counter[l] += full_length_count
-                if full_length_prod_count > 0:
-                    full_length_prod_counter[l] +=full_length_prod_count
-                if productive > 0:
-                    productive_counter[l] += productive
-                if total > 0:
-                    total_counter[l] += total
-                
-        # Make initial clonal assignments for B cells
+      
+        # Make full length statistics table
+        (full_length_counter, full_length_prod_counter, productive_counter, total_counter) = self.count_full_length_sequences(self.loci, cells, self.receptor_name)
+        (full_length_statistics_table, all_dict, prod_dict) = self.make_full_length_statistics_table(self.loci, total_counter, productive_counter, full_length_counter, full_length_prod_counter)
+        outfile.write(full_length_statistics_table)
+        outfile.write("\n")
+               
+        # Make initial clonal assignments for B cells using ChangeO DefineClones bygroup
         if self.receptor_name == "BCR":
             for locus in self.loci:
                 self.make_changeo_input(outdir, locus, self.receptor_name, cells)
-                
-                # Run ChangeO DefineCloses bygroup for each locus
                 changeo = self.get_binary('changeo')
                 tracer_func.run_changeo(changeo, locus, outdir, self.species)
                 print()
-
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
 
-
             # Read ChangeO result files and define clone groups for each locus
             (clones, cell_clones) = self.read_changeo_results(self.loci, outdir)
-          
 
             # Filter out H clone groups consisting of a single cell
-            paired_clone_groups = dict()
             multiple_clones_H = dict()
             for clone, cell_list in six.iteritems(clones["H"]):
                 if len(cell_list) > 1:
                     multiple_clones_H[clone] = cell_list
 
             # Get groups of clones sharing heavy and light chain
-            for clone, cell_list in six.iteritems(multiple_clones_H):
-                   
-                for i in range(len(cell_list)):
-                    current_cell = cell_list[i]
-                    comparison_cells = cell_list[i + 1:]
-                    for comparison_cell in comparison_cells:
-                        for l in self.loci:
-                            if not comparison_cell in cell_clones[l].keys():
-                                cell_clones[l][comparison_cell] = None
-                            elif not current_cell in cell_clones[l].keys():
-                                cell_clones[l][current_cell] = None
-             
-                        clone = False
-                        if ((cell_clones["K"][comparison_cell] is None) or (cell_clones["K"][current_cell] is None)) and ((cell_clones["L"][comparison_cell] is None) or (cell_clones["L"][current_cell] is None)):
-                            clone = False
-                        elif (cell_clones["L"][comparison_cell] is None) or (cell_clones["L"][current_cell] is None):
-                            if cell_clones["K"][comparison_cell] == cell_clones["K"][current_cell]:
-                                clone = True
-                        elif (cell_clones["K"][comparison_cell] is None) or (cell_clones["K"][current_cell] is None):
-                            if cell_clones["L"][comparison_cell] == cell_clones["L"][current_cell]:
-                                clone = True
-                        elif (cell_clones["K"][comparison_cell] == cell_clones["K"][current_cell]) and (cell_clones["L"][comparison_cell] == cell_clones["L"][current_cell]):
-                            clone = True
-                        else:
-                            clone = False
-
-                        if clone == True:
-                            found = False
-                            clones_so_far = len(paired_clone_groups.keys())
-                            if clones_so_far == 0:
-                                paired_clone_groups[1] = [current_cell, comparison_cell]
-                            else:
-                                for i in range(1, clones_so_far+1):
-                                    if (current_cell or comparison_cell) in paired_clone_groups[i]:
-                                        found = True
-                                        if not current_cell in paired_clone_groups[i]:
-                                            paired_clone_groups[i].append(current_cell)
-                                        elif not comparison_cell in paired_clone_groups[i]:
-                                            paired_clone_groups[i].append(comparison_cell)
-                                        break
-                                if not found == True:
-                                    paired_clone_groups[clones_so_far + 1] = [current_cell, comparison_cell]
+            paired_clone_groups = self.get_initial_clone_groups(self.loci, multiple_clones_H, cell_clones)
             
             # Print output of clonal grouping
             outstring = "\n\n###CLONES###\n\n"
@@ -808,164 +738,12 @@ class Summariser(TracerTask):
                     clonal_cells.append(cell)
             outfile.write(outstring)
             print(clonal_cells)
-
-            """# Make list of cells to be aligned
-            clonal_cells = []
-            for clone, cell_list in six.iteritems(paired_clone_groups):
-                #print(clone, cell_list)
-                for cell in cell_list:
-                    clonal_cells.append (cell)
-
-                # check if sequences in clonal groups are of equal length
-                length = dict()
-                seqs = dict()
-                for locus in self.loci:
-                    #maxmin = None
-                    length[locus] = dict()
-                    seqs[locus] = dict()
-                    
-                    for cell in cell_list:
-                        for cell_name, cell_info in six.iteritems(cells):
-                            if cell == cell_name:
-                                string = cell_info.changeodict[locus]
-                                print(string)
-                                seq = string.split("\t")[4]
-                                seq_length = len(seq)
-                                length[locus][cell] = seq_length
-                                seqs[locus][cell] = seq
-                    max_len = max(list(length[locus].values()))  
-                    min_len = min(list(length[locus].values()))
-                    
-                    if max_len - min_len == 0 or max_len - min_len > 10:
-                        trim = False
-                    else:
-                        trim = True
-                    if trim == True:
-                        for cell in cell_list:
-                            seq = seqs[locus][cell]
-                            if not length[locus][cell] == min_len:
-                                seq = seq[max_len - min_len :]
-                            print(seq)
-
-                            for cell_name, cell_info in six.iteritems(cells):
-                        
-                                if cell == cell_name:
-
-                                    string = cell_info.changeodict[locus]
-                                    seq = string.split("\t")[4]
-                                    seq_length = len(seq)
-
-                                    if not seq_length == min_len:
-                                        seq = seq[max_len - min_lenmax_len - min_len :]
-                                    print(seq)"""
-                       
-                            
-                    
-                       
-            
-            #print(clonal_cells)
-
-
-            """# Align full sequences within clonal groups using ChangeO
         
-            for locus in self.loci:
-                self.make_changeo_clonal_alignment_input(outdir, locus, self.receptor_name, cells, clonal_cells)
-
-                # Run ChangeO DefineCloses bygroup for each locus
-                changeo = self.get_binary('changeo')
-                tracer_func.run_changeo_clonal_alignment(changeo, locus, outdir, self.species)
-                print()
-
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-
-            
-            # Make input file for sequence alignment of clonal sequences
-            for l in self.loci:
-                changeo_output = "{}/changeo_input_{}_clone-pass.tab".format(outdir, l)
-                changeo_string = "SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\tJUNCTION_LENGTH\tJUNCTION\tCLONE_GROUP\n"
-
-                changeo_clonal_alignment_input = "{}/changeo_clonal_alignment_input_{}.tab".format(outdir, l)
-                with open(changeo_output, 'r') as input:
-                    with open(changeo_clonal_alignment_input, 'w') as output:
-                        output.write(changeo_string)
-                        for line in input:
-                            if not line.startswith("SEQUENCE_ID"):
-                                cell_name = line.split("_")[0]
-                                print(clonal_cells)
-                                if cell_name in clonal_cells:
-                                    output.write(line)"""
-
-                        
-            
-            
-
-            
-        
-        # Make full length statistics table
-        
-        header = "##Proportion of full-length sequences of all recovered sequences##\n\n\t"
-        for l in self.loci:
-            header = header + "{}\t".format(l)
-
-        all_outstring = "all\t"
-        prod_outstring = "prod\t"
-        all_dict = dict()
-        prod_dict = dict()
-        for l in self.loci:
-            all_seqs = total_counter[l]
-            prod_seqs = productive_counter[l]
-            full_length_seqs = full_length_counter[l]
-            prod_full_length_seqs = full_length_prod_counter[l]
-            if prod_seqs > 0:
-                prod_percent = float(prod_full_length_seqs)/int(prod_seqs)*100
-                prod_percent = format(prod_percent, '.0f')
-                prod_dict[l] = prod_percent
-            else:
-                prod_percent = "N/A"
-                prod_dict[l] = "0"
-            if all_seqs > 0:
-                all_percent = float(full_length_seqs)/int(all_seqs)*100
-                all_percent = format(all_percent, '.0f')
-                all_dict[l] = all_percent
-            else:
-                all_percent = "N/A"
-                all_dict[l] = "0"
-            
-            all_string = "{}/{} ({}%)\t".format(full_length_seqs, all_seqs, all_percent)
-            prod_string = "{}/{} ({}%)\t".format(prod_full_length_seqs, prod_seqs, prod_percent)
-            all_outstring += all_string
-            prod_outstring += prod_string
-                
-        outstring = "{header}\n{all_outstring}\n{prod_outstring}\n".format(header=header, all_outstring=all_outstring, prod_outstring=prod_outstring)
-        outfile.write(outstring)
-        outfile.write("\n")
-
-        #count isotype usage and make isotype usage table
+        # Make isotype usage table for B cells
         if self.receptor_name == "BCR":
-            prod_counters = defaultdict(Counter)
-            cell_isotypes = []
-            isotype_counter = dict()
+            isotype_counter = self.count_isotype_usage(cells)
 
-            for cell_name, cell in six.iteritems(cells):
-                for l in ["H"]:
-                    productive = cell.count_productive_recombinants(self.receptor_name, l)
-                    prod_counters[l].update({productive: 1})
-                    isotype = cell.isotype
-                    if isotype == None:
-                        isotype = "None"
-                    if productive > 0:
-                        cell_isotypes.append(isotype)
-            for isotype in cell_isotypes: 
-                if not isotype in isotype_counter:
-                    isotype_counter[isotype] = 1
-                else:
-                    isotype_counter[isotype] += 1
-                       
-
-        #make isotype usage table
             prod_H = cell_recovery_count["H"]
-            counter = counter_set[isotype]
             header = "##Isotype of cells with productive heavy chain##\n\nIsotype\tcells\t% of cells\n"
             outstring = ""
             for isotype, number in six.iteritems(isotype_counter):
@@ -1419,6 +1197,55 @@ class Summariser(TracerTask):
                             cell_list.append(cell)
         return (clones, cell_clones)
 
+    def get_initial_clone_groups(self, loci, multiple_clones_H, cell_clones):
+        """Get groups of B cell clones sharing clonally related heavy and light chains (from changeo output)"""
+        paired_clone_groups = dict()
+        for clone, cell_list in six.iteritems(multiple_clones_H):
+
+            for i in range(len(cell_list)):
+                current_cell = cell_list[i]
+                comparison_cells = cell_list[i + 1:]
+                for comparison_cell in comparison_cells:
+                    for l in self.loci:
+                        if not comparison_cell in cell_clones[l].keys():
+                            cell_clones[l][comparison_cell] = None
+                        elif not current_cell in cell_clones[l].keys():
+                            cell_clones[l][current_cell] = None
+
+                    clone = False
+                    if ((cell_clones["K"][comparison_cell] is None) or (cell_clones["K"][current_cell] is None)) and ((cell_clones["L"][comparison_cell] is None) or (cell_clones["L"][current_cell] is None)):
+                        clone = False
+                    elif (cell_clones["L"][comparison_cell] is None) or (cell_clones["L"][current_cell] is None):
+                        if cell_clones["K"][comparison_cell] == cell_clones["K"][current_cell]:
+                            clone = True
+                    elif (cell_clones["K"][comparison_cell] is None) or (cell_clones["K"][current_cell] is None):
+                        if cell_clones["L"][comparison_cell] == cell_clones["L"][current_cell]:
+                            clone = True
+                    elif (cell_clones["K"][comparison_cell] == cell_clones["K"][current_cell]) and (cell_clones["L"][comparison_cell] == cell_clones["L"][current_cell]):
+                        clone = True
+                    else:
+                        clone = False
+
+                    if clone == True:
+                        found = False
+                        clones_so_far = len(paired_clone_groups.keys())
+                        if clones_so_far == 0:
+                            paired_clone_groups[1] = [current_cell, comparison_cell]
+                        else:
+                            for i in range(1, clones_so_far+1):
+                                if (current_cell or comparison_cell) in paired_clone_groups[i]:
+                                    found = True
+                                    if not current_cell in paired_clone_groups[i]:
+                                        paired_clone_groups[i].append(current_cell)
+                                    elif not comparison_cell in paired_clone_groups[i]:
+                                        paired_clone_groups[i].append(comparison_cell)
+                                        break
+                            if not found == True:
+                                paired_clone_groups[clones_so_far + 1] = [current_cell, comparison_cell]
+
+        return (paired_clone_groups)
+
+
 
     def make_changeo_clonal_alignment_input(self, outdir, locus, receptor, cells, clonal_cells):
         """Creates input file for each locus only containing sequences from cells belonging to clonal groups"""
@@ -1436,6 +1263,179 @@ class Summariser(TracerTask):
                         if cell_name in clonal_cells:
                             output.write(line)
 
+    def count_full_length_sequences(self, loci, cells, receptor):
+        """Count all full length sequences and productive full length sequences"""
+        full_length_counter = dict()
+        full_length_prod_counter = dict()
+        productive_counter = dict()
+        total_counter = dict()
+        
+      
+        for l in self.loci:
+            (full_length_counter[l], full_length_prod_counter[l], productive_counter[l], total_counter[l]) = (0, 0, 0, 0)
+
+        for cell_name, cell in six.iteritems(cells):
+            for l in self.loci:
+                full_length_count = cell.count_full_length_recombinants(self.receptor_name, l)
+                full_length_prod_count = cell.count_productive_full_length_recombinants(self.receptor_name, l)
+                productive = cell.count_productive_recombinants(self.receptor_name, l)
+                total = cell.count_total_recombinants(self.receptor_name, l)
+                if full_length_count > 0:
+                    full_length_counter[l] += full_length_count
+                if full_length_prod_count > 0:
+                    full_length_prod_counter[l] +=full_length_prod_count
+                if productive > 0:
+                    productive_counter[l] += productive
+                if total > 0:
+                    total_counter[l] += total
+        return (full_length_counter, full_length_prod_counter, productive_counter, total_counter)
+
+    def make_full_length_statistics_table(self, loci, total_counter, productive_counter, full_length_counter, full_length_prod_counter):
+        """ Make full length statistics table"""
+
+        header = "##Proportion of full-length sequences of all recovered sequences##\n\n\t"
+        all_outstring = "all\t"
+        prod_outstring = "prod\t"
+        all_dict = dict()
+        prod_dict = dict()
+        for l in self.loci:
+            header = header + "{}\t".format(l)
+            all_seqs = total_counter[l]
+            prod_seqs = productive_counter[l]
+            full_length_seqs = full_length_counter[l]
+            prod_full_length_seqs = full_length_prod_counter[l]
+            if prod_seqs > 0:
+                prod_percent = float(prod_full_length_seqs)/int(prod_seqs)*100
+                prod_percent = format(prod_percent, '.0f')
+                prod_dict[l] = prod_percent
+            else:
+                prod_percent = "N/A"
+                prod_dict[l] = "0"
+            if all_seqs > 0:
+                all_percent = float(full_length_seqs)/int(all_seqs)*100
+                all_percent = format(all_percent, '.0f')
+                all_dict[l] = all_percent
+            else:
+                all_percent = "N/A"
+                all_dict[l] = "0"
+
+            all_string = "{}/{} ({}%)\t".format(full_length_seqs, all_seqs, all_percent)
+            prod_string = "{}/{} ({}%)\t".format(prod_full_length_seqs, prod_seqs, prod_percent)
+            all_outstring += all_string
+            prod_outstring += prod_string
+
+        outstring = "{header}\n{all_outstring}\n{prod_outstring}\n".format(header=header, all_outstring=all_outstring, prod_outstring=prod_outstring)
+        full_length_statistics_table = outstring
+        return (full_length_statistics_table, all_dict, prod_dict)
+
+
+    def count_isotype_usage(self, cells):
+        """Counts isotype usage of cells"""
+
+        prod_counters = defaultdict(Counter)
+        cell_isotypes = []
+        isotype_counter = dict()
+
+        for cell_name, cell in six.iteritems(cells):
+            l = "H"
+            productive = cell.count_productive_recombinants(self.receptor_name, l)
+            prod_counters[l].update({productive: 1})
+            isotype = cell.isotype
+            if isotype == None:
+                isotype = "None"
+            if productive > 0:
+                cell_isotypes.append(isotype)
+        for isotype in cell_isotypes:
+            if not isotype in isotype_counter:
+                isotype_counter[isotype] = 1
+            else:
+                isotype_counter[isotype] += 1
+        return (isotype_counter)
+
+
+
+    def changeo_alignments(self):
+        pass
+        """# Make list of cells to be aligned
+            clonal_cells = []
+            for clone, cell_list in six.iteritems(paired_clone_groups):
+                #print(clone, cell_list)
+                for cell in cell_list:
+                    clonal_cells.append (cell)
+
+                # check if sequences in clonal groups are of equal length
+                length = dict()
+                seqs = dict()
+                for locus in self.loci:
+                    #maxmin = None
+                    length[locus] = dict()
+                    seqs[locus] = dict()
+
+                    for cell in cell_list:
+                        for cell_name, cell_info in six.iteritems(cells):
+                            if cell == cell_name:
+                                string = cell_info.changeodict[locus]
+                                print(string)
+                                seq = string.split("\t")[4]
+                                seq_length = len(seq)
+                                length[locus][cell] = seq_length
+                                seqs[locus][cell] = seq
+                    max_len = max(list(length[locus].values()))
+                    min_len = min(list(length[locus].values()))
+
+                    if max_len - min_len == 0 or max_len - min_len > 10:
+                        trim = False
+                    else:
+                        trim = True
+                    if trim == True:
+                        for cell in cell_list:
+                            seq = seqs[locus][cell]
+                            if not length[locus][cell] == min_len:
+                                seq = seq[max_len - min_len :]
+                            print(seq)
+
+                            for cell_name, cell_info in six.iteritems(cells):
+
+                                if cell == cell_name:
+
+                                    string = cell_info.changeodict[locus]
+                                    seq = string.split("\t")[4]
+                                    seq_length = len(seq)
+
+                                    if not seq_length == min_len:
+                                        seq = seq[max_len - min_lenmax_len - min_len :]
+                                    print(seq)"""
+
+
+        """# Align full sequences within clonal groups using ChangeO
+
+        for locus in self.loci:
+            self.make_changeo_clonal_alignment_input(outdir, locus, self.receptor_name, cells, clonal_cells)
+
+            # Run ChangeO DefineCloses bygroup for each locus
+            changeo = self.get_binary('changeo')
+            tracer_func.run_changeo_clonal_alignment(changeo, locus, outdir, self.species)
+            print()
+
+            with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+
+
+        # Make input file for sequence alignment of clonal sequences
+        for l in self.loci:
+            changeo_output = "{}/changeo_input_{}_clone-pass.tab".format(outdir, l)
+            changeo_string = "SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\tJUNCTION_LENGTH\tJUNCTION\tCLONE_GROUP\n"
+
+            changeo_clonal_alignment_input = "{}/changeo_clonal_alignment_input_{}.tab".format(outdir, l)
+            with open(changeo_output, 'r') as input:
+                with open(changeo_clonal_alignment_input, 'w') as output:
+                    output.write(changeo_string)
+                    for line in input:
+                        if not line.startswith("SEQUENCE_ID"):
+                            cell_name = line.split("_")[0]
+                            print(clonal_cells)
+                            if cell_name in clonal_cells:
+                                output.write(line)"""
 
 
 class Tester(TracerTask):
