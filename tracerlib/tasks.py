@@ -740,6 +740,64 @@ class Summariser(TracerTask):
 
             # Get groups of clones sharing heavy and light chain
             paired_clone_groups = self.get_initial_clone_groups(self.loci, multiple_clones_H, cell_clones)
+
+            # Get sequences for each locus for cells in same clone groups
+
+            # Align sequences in potential clonal groups with Muscle
+            muscle = self.get_binary('muscle')
+            locus = "H"
+            tracer_func.run_muscle(muscle, locus, outdir, self.species)
+            
+            # Identify polymorphic sites in sequence alignments
+            muscle_result_file = "{}/test.html".format(outdir)
+            alignment_string = dict()
+            alignment_summary_string = ""
+            with open(muscle_result_file, 'r') as infile:
+                for line in infile:
+                    if line.startswith("<SPAN STYLE="):
+                        cell_name = line.split(">")[1]
+                        cell_name = cell_name.split("_")[0]
+                        print(cell_name)                
+
+                """#count = 0
+                #counted = False
+                #stars_line_length = dict()
+                #query_line_length = dict()
+                for line in infile:
+                    line = line.lstrip()
+                    #if line.startswith("*"):
+                        #stars_line_length[count] = len(line) - 1
+                        #counted = False
+                    else:
+                        if counted == False:
+                            count += 1
+                            lines = line.split()
+                            print(lines)
+                            #line = lines[1]
+                            #query_line_length[count] = len(line)
+                            #counted = True     
+
+               # print(query_line_length)  
+                #print(stars_line_length)"""
+
+                
+                    
+                """words = line.split("_")
+                length = len(words)
+                seq = words[length-1]
+                splits = seq.split()
+                length = len(splits)
+                line = splits[1:]
+
+                print(line)"""
+                     
+
+            # Get distances between sequences in potential clonal groups
+            
+            
+
+        
+
             
             # Print output of initial clonal grouping
             outstring = "\n\n###Initial clonal groups determined by ChangeO###\n\n"

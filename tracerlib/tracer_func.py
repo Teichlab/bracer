@@ -1520,3 +1520,34 @@ def run_changeo_clonal_alignment(changeo, locus, outdir, species):
             #with open(changeo_result, 'w') as out:
                 # print(" ").join(pipes.quote(s) for s in command)
         subprocess.check_call(command)
+
+
+def run_muscle(muscle, locus, outdir, species):
+
+    # Set model to Hamming distance if species is not Mmus or Hsap
+    if species == "Mmus":
+        model = "m1n"
+        dist = "0.02"
+        matrix = "/nfs/users/nfs_i/il5/software/bracer/M1N.txt"
+    elif species == "Hsap":
+        model = "hs5f"
+        dist = "0.02"
+    else:
+        model = "ham"
+        dist = "0.02"
+
+    muscle_input =  "{}/test.fa".format(outdir)
+    muscle_fasta_out = "{}/test.afa".format(outdir)
+    muscle_clw_out = "{}/test.aln".format(outdir)
+    muscle_html_out = "{}/test.html".format(outdir)
+    #changeo_input = "{}/changeo_input_{}.tab".format(outdir, locus)
+    if os.path.isfile(muscle_input):
+        # seqtype must be protein to allow for substitution matrix!
+        command = [muscle, "-in", muscle_input, '-fastaout', muscle_fasta_out, '-clwout', muscle_clw_out, '-htmlout', muscle_html_out] 
+        #'-matrix', matrix, '-seqtype', 'protein'
+
+            #changeo_out = "{}/changeo_input_{}_clone-pass.tab".format(outdir, locus)
+            #with open(changeo_result, 'w') as out:
+                # print(" ").join(pipes.quote(s) for s in command)
+        subprocess.check_call(command)
+
