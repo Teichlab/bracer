@@ -741,6 +741,7 @@ def collapse_close_sequences(recombinants, locus):
                     else:
                         uncollapsible_contigs.append("{}_vs_{}".format(base_name, comp_name))
                         attempt_collapse = False
+
                     if attempt_collapse and (
                         duplicate_pattern.search(base_V_segment) or duplicate_pattern.search(comp_V_segment)):
                         base_segment = get_segment_name(base_V_segment, segment_pattern)
@@ -1522,28 +1523,15 @@ def run_changeo_clonal_alignment(changeo, locus, outdir, species):
         subprocess.check_call(command)
 
 
-def run_muscle(muscle, locus, outdir, species):
-
-    # Set model to Hamming distance if species is not Mmus or Hsap
-    if species == "Mmus":
-        model = "m1n"
-        dist = "0.02"
-        matrix = "/nfs/users/nfs_i/il5/software/bracer/M1N.txt"
-    elif species == "Hsap":
-        model = "hs5f"
-        dist = "0.02"
-    else:
-        model = "ham"
-        dist = "0.02"
-
-    muscle_input =  "{}/test.fa".format(outdir)
-    muscle_fasta_out = "{}/test.afa".format(outdir)
-    muscle_clw_out = "{}/test.aln".format(outdir)
-    muscle_html_out = "{}/test.html".format(outdir)
+def run_muscle(muscle, locus, outdir, species, group):
+    muscle_input = "{}/muscle_input_{}_{}.fa".format(outdir, locus, group)
+    muscle_fasta_out = "{}/muscle_out_{}_{}.afa".format(outdir, locus, group)
+    muscle_clw_out = "{}/muscle_out_{}_{}.aln".format(outdir, locus, group)
+    
     #changeo_input = "{}/changeo_input_{}.tab".format(outdir, locus)
-    if os.path.isfile(muscle_input):
+    if os.path.isfile(muscle_input) and os.path.getsize(muscle_input)>0:
         # seqtype must be protein to allow for substitution matrix!
-        command = [muscle, "-in", muscle_input, '-fastaout', muscle_fasta_out, '-clwout', muscle_clw_out, '-htmlout', muscle_html_out] 
+        command = [muscle, "-in", muscle_input, '-fastaout', muscle_fasta_out, '-clwout', muscle_clw_out, '-quiet'] 
         #'-matrix', matrix, '-seqtype', 'protein'
 
             #changeo_out = "{}/changeo_input_{}_clone-pass.tab".format(outdir, locus)

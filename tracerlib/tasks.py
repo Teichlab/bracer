@@ -740,16 +740,23 @@ class Summariser(TracerTask):
 
             # Get groups of clones sharing heavy and light chain
             paired_clone_groups = self.get_initial_clone_groups(self.loci, multiple_clones_H, cell_clones)
+            print(paired_clone_groups)
+            clonal_cells = []
+            for clone, cell_list in six.iteritems(paired_clone_groups):
+                for cell in cell_list:
+                    clonal_cells.append(cell)
 
             # Get sequences for each locus for cells in same clone groups
+            for l in self.loci:
+                self.make_muscle_clonal_alignment_input(outdir, l, self.receptor_name, cells, clonal_cells, paired_clone_groups)
 
             # Align sequences in potential clonal groups with Muscle
             muscle = self.get_binary('muscle')
-            locus = "H"
-            tracer_func.run_muscle(muscle, locus, outdir, self.species)
+            for locus in self.loci:
+                for clone, cell_list in six.iteritems(paired_clone_groups):
+                    tracer_func.run_muscle(muscle, locus, outdir, self.species, clone)
             
             # Create dictionary for sequence alignments for each clonal group
-
             muscle_result_file = "{}/test.aln".format(outdir)
             alignment_string = dict()
             alignment_summary_string = ""
@@ -832,9 +839,6 @@ class Summariser(TracerTask):
                 pass
                 # Calculate Hamming distance?
 
-            distance = matrix["C"]["T"]
-            print(distance)
-        
             #def get_edit_distance(self, matrix):
             #del alignment_string["summary"]
             cell_list = list(seq_differences.keys())
@@ -842,22 +846,22 @@ class Summariser(TracerTask):
             print(cell_list)
             #loci = ["H"]
         
-            for cell_name, differences in six.iteritems(seq_differences):
-                for i in range(0, len(cell_list)):
-                    current_cell = cell_list[i]
-                    edit_distances[current_cell] = dict()
-                    comparison_cells = cell_list[i + 1:]
-                    print(current_cell, comparison_cells)
-                    for comparison_cell in comparison_cells:
+            for i in range(len(cell_list)- 1):
+                current_cell = cell_list[i]
+                edit_distances[current_cell] = dict()
+                comparison_cells = cell_list[i + 1:]
+                print(current_cell, comparison_cells)
+                for comparison_cell in comparison_cells:
+                    distance = 0
+                    if seq_differences[current_cell] == seq_differences[comparison_cell]:
                         distance = 0
-                        if seq_differences[current_cell] == seq_differences[comparison_cell]:
-                            distance = 0
-                        else:
-                            for n in range(len(alignment)):
-                                nt1 = seq_differences[current_cell][n]
-                                nt2 = seq_differences[comparison_cell][n]
-                                if nt1 != nt2:
-                                    distance = float(distance) + float(matrix[nt1][nt2])
+                    else:
+                        print(range(len(seq_differences[current_cell])))
+                        for n in range(len(seq_differences[current_cell])):
+                            nt1 = seq_differences[current_cell][n]
+                            nt2 = seq_differences[comparison_cell][n]
+                            if nt1 != nt2:
+                                distance = float(distance) + float(matrix[nt1][nt2])
                     print(current_cell, comparison_cell)
                     print("Distance: ", distance)
                     edit_distances[current_cell][comparison_cell] = distance
@@ -1199,28 +1203,23 @@ class Summariser(TracerTask):
 
 
 
-    def make_changeo_clonal_alignment_input(self, outdir, locus, receptor, cells, clonal_cells):
-        """Creates input file for each locus only containing sequences from cells belonging to clonal groups"""
+    def make_muscle_clonal_alignment_input(self, outdir, locus, receptor, cells, clonal_cells, paired_clone_groups):
+        """Creates input file for each locus only containing sequences from cells belonging to paired clonal groups"""
 
         changeo_output = "{}/changeo_input_{}_clone-pass.tab".format(outdir, locus)
-        changeo_string = "SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\tJUNCTION_LENGTH\tJUNCTION\tCLONE_GROUP\n"
-
-        changeo_clonal_alignment_input = "{}/changeo_clonal_alignment_input_{}.tab".format(outdir, locus)
-        with open(changeo_output, 'r') as input:
-            with open(changeo_clonal_alignment_input, 'w') as output:
-                output.write(changeo_string)
-                for line in input:
-                    if not line.startswith("SEQUENCE_ID"):
-                        cell_name = line.split("_")[0]
-                        if cell_name in clonal_cells:
-                            output.write(line)
-
-
-
-
-
-
-
+       
+        for clone, cell_list in six.iteritems(paired_clone_groups):
+            muscle_input = "{}/muscle_input_{}_{}.fa".format(outdir, locus, clone)
+            with open(muscle_input, 'w') as output:
+                with open(changeo_output, 'r') as input:
+                    for line in input:
+                        if not line.startswith("SEQUENCE_ID"):
+                            cell_name = line.split("_")[0]
+                            if cell_name in cell_list:
+                                sequence = line.split()[4] + "\n"
+                                fasta_header = ">" + line.split()[0] + "\n"
+                                output.write(fasta_header)
+                                output.write(sequence)
 
     def load_distance_matrix(self, species):
 
