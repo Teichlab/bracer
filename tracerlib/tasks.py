@@ -780,9 +780,18 @@ class Summariser(TracerTask):
                 difference = len(alignment_string[first_cell][i]) - len(alignment_string["summary"][i])
                 for cell_name, alignment in six.iteritems(alignment_string):
                     if cell_name is not "summary":
-                        alignment[i] = alignment[i][difference:len(alignment[i]) -1]
+                        if i == 0:
+                            alignment[i] = alignment[i][difference:len(alignment[i]) -1]
+                        else:
+                            alignment[i] = alignment[i][:len(alignment[i]) -1]
                     else:
-                        alignment[i] = alignment[i][:len(alignment[i])-1]
+                        if i == 0:
+                            alignment[i] = alignment[i][:len(alignment[i])-1]
+                        else:
+                            if difference > 0:
+                                alignment[i] = difference*" " +  alignment[i][:len(alignment[i])-1]
+                            else:
+                                alignment[i] = alignment[i][:len(alignment[i])-1]
                     if i == 0:
                         new_alignment = alignment[i]
                     else:
@@ -805,6 +814,7 @@ class Summariser(TracerTask):
             print(polymorphic)
        
             seq_differences = dict()
+            del alignment_string["summary"]
             for i in range(0, len(polymorphic)):
                 for cell_name, alignment in six.iteritems(alignment_string):
                     if i == 0:
@@ -812,16 +822,48 @@ class Summariser(TracerTask):
                     else:
                         seq_differences[cell_name].append(alignment[polymorphic[i]])
             print(seq_differences)
-                
-                    
-
-                     
+                        
 
             # Get distances between sequences in potential clonal groups
-            
-            
+            matrix = self.load_distance_matrix(self.species)
+            if matrix is not None:
+                pass
+            else:
+                pass
+                # Calculate Hamming distance?
 
+            distance = matrix["C"]["T"]
+            print(distance)
         
+            #def get_edit_distance(self, matrix):
+            #del alignment_string["summary"]
+            cell_list = list(seq_differences.keys())
+            edit_distances = dict()
+            print(cell_list)
+            #loci = ["H"]
+        
+            for cell_name, differences in six.iteritems(seq_differences):
+                for i in range(0, len(cell_list)):
+                    current_cell = cell_list[i]
+                    edit_distances[current_cell] = dict()
+                    comparison_cells = cell_list[i + 1:]
+                    print(current_cell, comparison_cells)
+                    for comparison_cell in comparison_cells:
+                        distance = 0
+                        if seq_differences[current_cell] == seq_differences[comparison_cell]:
+                            distance = 0
+                        else:
+                            for n in range(len(alignment)):
+                                nt1 = seq_differences[current_cell][n]
+                                nt2 = seq_differences[comparison_cell][n]
+                                if nt1 != nt2:
+                                    distance = float(distance) + float(matrix[nt1][nt2])
+                    print(current_cell, comparison_cell)
+                    print("Distance: ", distance)
+                    edit_distances[current_cell][comparison_cell] = distance
+
+            print(edit_distances)
+                            
 
             
             # Print output of initial clonal grouping
@@ -1172,6 +1214,33 @@ class Summariser(TracerTask):
                         cell_name = line.split("_")[0]
                         if cell_name in clonal_cells:
                             output.write(line)
+
+
+
+
+
+
+
+
+    def load_distance_matrix(self, species):
+
+        matrix = dict()
+        if self.species == "Mmus":
+            # Use M1N substitution distance model (from ChangeO)
+                matrix["A"] = {"A":0, "C":2.86, "G":1, "T":"2.14", "N":0, "-":0}
+                matrix["C"] = {"A":2.86, "C":0, "G":2.14, "T":1, "N":0, "-":0}
+                matrix["G"] = {"A":1, "C":2.14, "G":0, "T":2.86, "N":0, "-":0}
+                matrix["T"] = {"A":2.14, "C":1, "G":2.86, "T":0, "N":0, "-":0}
+                matrix["N"] = {"A":0, "C":0, "G":0, "T":0, "N":0, "-":0}
+                matrix["-"] = {"A":0, "C":0, "G":0, "T":0, "N":0, "-":0}
+        elif species == "Hsap":
+            matrix = None
+            # Use HS1F substitution distance model (from ChangeO). FILL IN!!!
+        else:
+            matrix = None
+            # Use Hamming distance instead of SHM distance model
+
+        return(matrix)
 
     def count_full_length_sequences(self, loci, cells, receptor):
         """Count all full length sequences and productive full length sequences"""
