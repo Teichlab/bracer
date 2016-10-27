@@ -749,7 +749,79 @@ class Summariser(TracerTask):
             tracer_func.run_muscle(muscle, locus, outdir, self.species)
             
             # Identify polymorphic sites in sequence alignments
-            muscle_result_file = "{}/test.html".format(outdir)
+
+            muscle_result_file = "{}/test.aln".format(outdir)
+            alignment_string = dict()
+            alignment_summary_string = ""
+            first_cell = False
+            with open(muscle_result_file, 'r') as infile:
+                for line in infile:
+                    line = line.lstrip()
+                    if line.startswith("MUSCLE") or line.startswith("\n") or len(line) == 0:
+                        continue
+                    elif line.startswith("*"):
+                        cell_name = "summary"
+                        line = line.lstrip()
+                    else:
+                        cell_name = line.split("_")[0]
+                        start = line.find("  ")
+                        line = line[start:].lstrip()
+
+                        if first_cell == False:
+                            first_cell = cell_name                            
+                            
+                    if not cell_name in alignment_string.keys():
+                        alignment_string[cell_name] = [line]
+                    else:
+                        alignment_string[cell_name].append(line)
+                            
+            #print(alignment_string)
+            # Trim sequences to exclude initial gaps
+            num_lines = len(alignment_string["summary"])
+            print(num_lines)
+
+            for i in range(0, num_lines-1):
+                difference = len(alignment_string[first_cell][i]) - len(alignment_string["summary"][i])
+                print(difference)
+                for cell_name, alignment in six.iteritems(alignment_string):
+                    if cell_name is not "summary":
+                        alignment[i] = alignment[i][difference:len(alignment[i]) -1 ]
+                        #print(cell_name)
+                        #print(alignment[i])
+                    else:
+                        alignment[i] = alignment[i][:len(alignment[i])-1]
+                        #print(cell_name)
+                        #print(alignment[i])
+                    if i == 0:
+                        new_alignment = alignment[i]
+                    else:
+                        new_alignment += alignment[i]
+                        #print(cell_name)
+                        #print(alignment)
+
+            
+            for cell_name, new_alignment in six.iteritems(alignment_string):
+                new_alignment = "".join(str(e) for e in new_alignment)
+
+                alignment_string[cell_name] = new_alignment
+
+                """alignment = "".join(alignment)
+                alignment_string[cell_name] = alignment"""
+                print(cell_name)
+                print(alignment_string[cell_name])
+                print(len(alignment_string[cell_name]))
+            #print(alignment_string)
+
+
+            # Identify polymorphic sites in sequence alignments
+                
+ 
+            """for cell_name, alignment in six.iteritems(alignment_string):
+                num_lines = len(alignment)"""
+                
+
+            
+            """muscle_result_file = "{}/test.html".format(outdir)
             alignment_string = dict()
             alignment_summary_string = ""
             with open(muscle_result_file, 'r') as infile:
@@ -757,9 +829,30 @@ class Summariser(TracerTask):
                     if line.startswith("<SPAN STYLE="):
                         cell_name = line.split(">")[1]
                         cell_name = cell_name.split("_")[0]
-                        print(cell_name)                
+                        #print(cell_name)
+                        initial = line.split("</SPAN>")[0]
+                        start_pos = len(initial) + 7
+                        line = line[start_pos:]
+                        #print(line)
+                        if not cell_name in alignment_string.keys():
+                            alignment_string[cell_name] = line
+                        else:
+                            line = alignment_string[cell_name] + line
+                            alignment_string[cell_name] = line
+                #print(alignment_string)
 
-                """#count = 0
+            for cell_name, alignment in six.iteritems(alignment_string):
+                print(cell_name)
+                print(alignment)
+                if alignment.find("-</SPAN>") > -1:
+                    print("found")
+                    gap_pos =  alignment.find("-</SPAN>")
+                    gap_pos_end = alignment.find("-</SPAN>") + 8
+                    to_remove = len("<SPAN STYLE=background-color:FFFFFF>") + 3
+                    alignment = alignment[to_remove:gap_pos] + alignment[gap_pos+1: gap_pos + 40] + alignment[gap_pos:gap_pos_end -7] + alignment[gap_pos_end:]
+                    print(alignment)""" 
+
+            """#count = 0
                 #counted = False
                 #stars_line_length = dict()
                 #query_line_length = dict()
@@ -782,7 +875,7 @@ class Summariser(TracerTask):
 
                 
                     
-                """words = line.split("_")
+            """words = line.split("_")
                 length = len(words)
                 seq = words[length-1]
                 splits = seq.split()
