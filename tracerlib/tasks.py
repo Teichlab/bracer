@@ -1264,10 +1264,12 @@ class Summariser(TracerTask):
             edit_distances[clone] = dict()
             for l in list(alignment_dict[clone].keys()):
                 print(l)
-                
-                cell_list = list(differences_dict[clone][l].keys())
+                equal = False
+                cell_list = list(alignment_dict[clone][l].keys())
                 edit_distances[clone][l] = dict()
                 print(cell_list)
+                if differences_dict[clone][l] == {}:
+                    equal = True
 
                 for i in range(len(cell_list)- 1):
                     current_cell = cell_list[i]
@@ -1277,7 +1279,12 @@ class Summariser(TracerTask):
                     for comparison_cell in comparison_cells:
                         seq_differences = differences_dict[clone][l]
                         distance = 0
-                        if seq_differences[current_cell] == seq_differences[comparison_cell]:
+                        if equal == True:
+                            distance = 0
+                        
+                        elif seq_differences[current_cell] == seq_differences[comparison_cell]:
+                            distance = 0
+                        elif not (current_cell) in seq_differences.keys():
                             distance = 0
                         else:
                             print(range(len(seq_differences[current_cell])))
