@@ -889,6 +889,81 @@ def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, 
 
     return (G, drawing_tool, component_groups)
 
+def make_cell_network_from_dna_sum_normalised(cells, keep_unlinked, shape, dot, neato, receptor, loci,
+                               network_colours, s_normalised_edit_distances):
+    G = nx.MultiGraph()
+
+    # initialise all cells as nodes
+
+    if shape == 'circle':
+        for cell in cells:
+            G.add_node(cell, shape=shape, label=cell.html_style_label_for_circles(receptor, loci, network_colours),
+                        sep=0.4, fontname="helvetica neue")
+            #print(cell.bgcolor)
+            if cell.bgcolor is not None:
+                G.node[cell]['style'] = 'filled'
+
+                G.node[cell]['fillcolor'] = cell.bgcolor
+            #print(cell.bgcolor)
+            #print(cell.name, cell.isotype, cell.bgcolor)
+
+    else:
+        for cell in cells:
+            G.add_node(cell, shape=shape, label=cell.html_style_label_dna(receptor, loci, network_colours),
+                        fontname="helvetica neue")
+            if cell.bgcolor is not None:
+                G.node[cell]['style'] = 'filled'
+
+                G.node[cell]['fillcolor'] = cell.bgcolor
+    # make edges:
+    
+    for clone, data in six.iteritems(s_normalised_edit_distances):
+        for current_cell, c_data in six.iteritems(s_normalised_edit_distances[clone]):
+            for comparison_cell, distance in six.iteritems(s_normalised_edit_distances[clone][current_cell]):
+                for cell in cells:
+                    if comparison_cell == cell.name:
+                        comparison_cell = cell
+                    elif current_cell == cell.name:
+                        current_cell = cell
+                G.add_edge(current_cell, comparison_cell, distance, color="#000000",
+                       weight=distance)
+
+
+    deg = G.degree()
+
+    to_remove = [n for n in deg if deg[n] == 0]
+
+    if len(to_remove) < len(G.nodes()):
+        if not shape == 'circle':
+            G.remove_nodes_from(to_remove)
+            drawing_tool = [dot, '-Gsplines=true', '-Goverlap=false', '-Gsep=0.4']
+
+        else:
+            drawing_tool = [dot, '-Gsplines=true', '-Goverlap=false']
+    else:
+        drawing_tool = [neato, '-Gsplines=true', '-Goverlap=false']
+
+
+    component_counter = 0
+    component_groups = list()
+    j = 0
+    components = nx.connected_components(G)
+
+    for component in components:
+        members = list()
+        if len(component) > 1:
+            for cell in component:
+                members.append(cell.name)
+
+
+        component_groups.append(members)
+
+    return (G, drawing_tool, component_groups)
+
+
+
+
+
 def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato, receptor, loci, 
                                network_colours):
     G = nx.MultiGraph()
@@ -967,14 +1042,14 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato, receptor
     return (G, drawing_tool, component_groups)
 
 
-def draw_network_from_cells(cells, output_dir, output_format, dot, neato, draw_graphs, receptor, loci, network_colours):
+def draw_network_from_cells(cells, output_dir, output_format, dot, neato, draw_graphs, receptor, loci, network_colours, sum_normalised_edit_distances):
     cells = list(cells.values())
     if not receptor == "BCR":
         network, draw_tool, component_groups = make_cell_network_from_dna(cells, False, "box", dot,
                                                                       neato, receptor, loci, network_colours)
     else:
-        network, draw_tool, component_groups = make_cell_network_from_dna_B_cells(cells, False, "box", dot,
-                                                                      neato, receptor, loci, network_colours)
+        network, draw_tool, component_groups = make_cell_network_from_dna_sum_normalised(cells, False, "box", dot,
+                                                                      neato, receptor, loci, network_colours, sum_normalised_edit_distances)
     network_file = "{}/clonotype_network_with_identifiers.dot".format(output_dir)
     try:
         nx.write_dot(network, network_file)
@@ -989,8 +1064,8 @@ def draw_network_from_cells(cells, output_dir, output_format, dot, neato, draw_g
         network, draw_tool, cgx = make_cell_network_from_dna(cells, False, "circle", dot, 
                                                          neato, receptor, loci, network_colours)
     else:
-        network, draw_tool, cgx = make_cell_network_from_dna_B_cells(cells, False, "circle", dot,
-                                                         neato, receptor, loci, network_colours)
+        network, draw_tool, cgx = make_cell_network_from_dna_sum_normalised(cells, False, "circle", dot,
+                                                         neato, receptor, loci, network_colours, sum_normalised_edit_distances)
 
     network_file = "{}/clonotype_network_without_identifiers.dot".format(output_dir)
     try:

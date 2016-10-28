@@ -758,23 +758,9 @@ class Summariser(TracerTask):
                     tracer_func.run_muscle(muscle, locus, outdir, self.species, clone)
             
             # Create dictionary for sequence alignments for each clonal group
-            #print("Variables before running create_alignment_dic")
-            #print("Paired clone groups: ", paired_clone_groups)
-            #print(self.loci)
-            #print(outdir)
-
             (alignment_dict, first_cell_dict, differences_dict) = self.create_alignment_dict(paired_clone_groups, self.loci, outdir)
-            print("Alignment dict: ", alignment_dict)
-            print("Differences dict: ", differences_dict)
-            print("First cell dict: ", first_cell_dict)
-
             (alignment_dict, differences_dict) = self.modify_alignment_dict(paired_clone_groups, self.loci, outdir, alignment_dict, first_cell_dict, differences_dict)
-            print("Alignment dict: ", alignment_dict)
-            print("Differences dict: ", differences_dict)
             
-
-
-
             # Get distances between sequences in potential clonal groups
             matrix = self.load_distance_matrix(self.species)
             if matrix is not None:
@@ -782,13 +768,15 @@ class Summariser(TracerTask):
             else:
                 pass
                 # Calculate Hamming distance?
-            print("Matrix: ", matrix)
             edit_distances = self.get_edit_distance(matrix, alignment_dict, differences_dict)
             print("Edit distances: ", edit_distances)
             # Normalise edit distances to sequence length
             n_edit_distances = self.get_normalised_edit_distance(edit_distances, alignment_dict)
             print("Normalised distances: ", n_edit_distances)
             
+            # Get sum of normalised distances for all loci for each cell pair in each clone group
+            s_edit_distances = self.get_sum_normalised_edit_distance(n_edit_distances)
+            print("Sum normalised distances: ", s_edit_distances)
             # Print output of initial clonal grouping
             outstring = "\n\n###Initial clonal groups determined by ChangeO###\n\n"
             clonal_cells = []
@@ -800,7 +788,6 @@ class Summariser(TracerTask):
                     clonal_cells.append(cell)
             outfile.write(outstring)
             outfile.write("\n")
-            #print(clonal_cells)
         
             # Make isotype usage table and plot isotype distributions
             isotype_counter = self.count_isotype_usage(cells)
@@ -936,20 +923,21 @@ class Summariser(TracerTask):
                 
         # make clonotype networks
         network_colours = io.read_colour_file(os.path.join(self.species_dir, "colours.csv"))
-        component_groups = tracer_func.draw_network_from_cells(cells, outdir, self.graph_format, dot, neato,
+        if self.receptor_name == "BCR":
+            component_groups = tracer_func.draw_network_from_cells(cells, outdir, self.graph_format, dot, neato,
                                                                self.draw_graphs, self.receptor_name, self.loci,
-                                                               network_colours)
+                                                               network_colours, s_edit_distances)
         
         # Print component groups to the summary#
         outfile.write(
             "\n#Clonotype groups#\n"
             "This is a text representation of the groups shown in clonotype_network_with_identifiers.pdf.\n"
             "It does not exclude cells that only share beta and not alpha.\n\n")
-        for g in component_groups:
-            outfile.write(", ".join(g))
-            outfile.write("\n\n")
+        #for g in component_groups:
+            #outfile.write(", ".join(g))
+            #outfile.write("\n\n")
         
-        # plot clonotype sizes
+        """# plot clonotype sizes
         plt.figure()
         clonotype_sizes = tracer_func.get_component_groups_sizes(cells, self.receptor_name, self.loci)
         w = 0.85
@@ -967,7 +955,7 @@ class Summariser(TracerTask):
             for t in data:
                 f.write("{}\t{}\n".format(t[0], t[1]))
 
-        outfile.close()
+        outfile.close()"""
     
     def get_quartiles(self, receptor, locus):
         
@@ -1259,11 +1247,9 @@ class Summariser(TracerTask):
         for clone, clone_data in six.iteritems(alignment_dict):
             edit_distances[clone] = dict()
             for l in list(alignment_dict[clone].keys()):
-                print(l)
                 equal = False
                 cell_list = list(alignment_dict[clone][l].keys())
                 edit_distances[clone][l] = dict()
-                #print(cell_list)
                 if differences_dict[clone][l] == {}:
                     equal = True
 
@@ -1271,7 +1257,6 @@ class Summariser(TracerTask):
                     current_cell = cell_list[i]
                     edit_distances[clone][l][current_cell] = dict()
                     comparison_cells = cell_list[i + 1:]
-                    print(current_cell, comparison_cells)
                     for comparison_cell in comparison_cells:
                         seq_differences = differences_dict[clone][l]
                         distance = 0
@@ -1283,14 +1268,11 @@ class Summariser(TracerTask):
                         elif not (current_cell) in seq_differences.keys():
                             distance = 0
                         else:
-                            print(range(len(seq_differences[current_cell])))
                             for n in range(len(seq_differences[current_cell])):
                                 nt1 = seq_differences[current_cell][n]
                                 nt2 = seq_differences[comparison_cell][n]
                                 if nt1 != nt2:
                                     distance = float(distance) + float(matrix[nt1][nt2])
-                        print(current_cell, comparison_cell)
-                        print("Distance: ", distance)
                         edit_distances[clone][l][current_cell][comparison_cell] = distance
         return(edit_distances)
 
@@ -1308,7 +1290,20 @@ class Summariser(TracerTask):
                         n_edit_distance[clone][l][current_cell][comparison_cell] = n_distance
         return(n_edit_distance)
 
-            
+    def get_sum_normalised_edit_distance(self, n_edit_distances):
+        s_edit_distance = dict()
+        for clone, data in six.iteritems(n_edit_distances):
+            s_edit_distance[clone] = dict()
+            for l, l_data in six.iteritems(n_edit_distances[clone]):
+                for current_cell, c_data in six.iteritems(n_edit_distances[clone][l]):
+                    s_edit_distance[clone][current_cell] = dict()
+                    for comparison_cell, distance in six.iteritems(n_edit_distances[clone][l][current_cell]):
+                        if not comparison_cell in s_edit_distance[clone][current_cell].keys():
+                            s_edit_distance[clone][current_cell][comparison_cell] = distance
+                        else:
+                            s_edit_distance[clone][current_cell][comparison_cell] += distance
+                        
+        return(s_edit_distance)
 
 
     def count_full_length_sequences(self, loci, cells, receptor):
