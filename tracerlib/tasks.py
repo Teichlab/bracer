@@ -740,11 +740,12 @@ class Summariser(TracerTask):
 
             # Get groups of clones sharing heavy and light chain
             paired_clone_groups = self.get_initial_clone_groups(self.loci, multiple_clones_H, cell_clones)
-            print(paired_clone_groups)
+            #print("Paired clone groups: ", paired_clone_groups)
             clonal_cells = []
             for clone, cell_list in six.iteritems(paired_clone_groups):
                 for cell in cell_list:
                     clonal_cells.append(cell)
+            #print("Clonal cells: ", clonal_cells)
 
             # Get sequences for each locus for cells in same clone groups
             for l in self.loci:
@@ -757,79 +758,22 @@ class Summariser(TracerTask):
                     tracer_func.run_muscle(muscle, locus, outdir, self.species, clone)
             
             # Create dictionary for sequence alignments for each clonal group
-            muscle_result_file = "{}/test.aln".format(outdir)
-            alignment_string = dict()
-            alignment_summary_string = ""
-            first_cell = False
-            with open(muscle_result_file, 'r') as infile:
-                for line in infile:
-                    line = line.lstrip()
-                    if line.startswith("MUSCLE") or line.startswith("\n") or len(line) == 0:
-                        continue
-                    elif line.startswith("*"):
-                        cell_name = "summary"
-                        line = line.lstrip()
-                    else:
-                        cell_name = line.split("_")[0]
-                        start = line.find("  ")
-                        line = line[start:].lstrip()
-                        if first_cell == False:
-                            first_cell = cell_name                            
-                    if not cell_name in alignment_string.keys():
-                        alignment_string[cell_name] = [line]
-                    else:
-                        alignment_string[cell_name].append(line)
-                            
-            # Trim sequences in dictionary to exclude initial gaps
-            num_lines = len(alignment_string["summary"])
+            #print("Variables before running create_alignment_dic")
+            #print("Paired clone groups: ", paired_clone_groups)
+            #print(self.loci)
+            #print(outdir)
 
-            for i in range(0, num_lines-1):
-                difference = len(alignment_string[first_cell][i]) - len(alignment_string["summary"][i])
-                for cell_name, alignment in six.iteritems(alignment_string):
-                    if cell_name is not "summary":
-                        if i == 0:
-                            alignment[i] = alignment[i][difference:len(alignment[i]) -1]
-                        else:
-                            alignment[i] = alignment[i][:len(alignment[i]) -1]
-                    else:
-                        if i == 0:
-                            alignment[i] = alignment[i][:len(alignment[i])-1]
-                        else:
-                            if difference > 0:
-                                alignment[i] = difference*" " +  alignment[i][:len(alignment[i])-1]
-                            else:
-                                alignment[i] = alignment[i][:len(alignment[i])-1]
-                    if i == 0:
-                        new_alignment = alignment[i]
-                    else:
-                        new_alignment += alignment[i]
+            (alignment_dict, first_cell_dict, differences_dict) = self.create_alignment_dict(paired_clone_groups, self.loci, outdir)
+            print("Alignment dict: ", alignment_dict)
+            print("Differences dict: ", differences_dict)
+            print("First cell dict: ", first_cell_dict)
 
-            for cell_name, new_alignment in six.iteritems(alignment_string):
-                new_alignment = "".join(str(e) for e in new_alignment)
-                alignment_string[cell_name] = new_alignment
-                print(cell_name)
-                print(alignment_string[cell_name])
-                print(len(alignment_string[cell_name]))
+            (alignment_dict, differences_dict) = self.modify_alignment_dict(paired_clone_groups, self.loci, outdir, alignment_dict, first_cell_dict, differences_dict)
+            print("Alignment dict: ", alignment_dict)
+            print("Differences dict: ", differences_dict)
+            
 
 
-            # Identify polymorphic sites in sequence alignments
-            length = len(alignment_string["summary"])
-            polymorphic = []
-            for i in range(0, length -1):
-                if alignment_string["summary"][i] is not "*":
-                    polymorphic.append(i)
-            print(polymorphic)
-       
-            seq_differences = dict()
-            del alignment_string["summary"]
-            for i in range(0, len(polymorphic)):
-                for cell_name, alignment in six.iteritems(alignment_string):
-                    if i == 0:
-                        seq_differences[cell_name] = [alignment[polymorphic[0]]]
-                    else:
-                        seq_differences[cell_name].append(alignment[polymorphic[i]])
-            print(seq_differences)
-                        
 
             # Get distances between sequences in potential clonal groups
             matrix = self.load_distance_matrix(self.species)
@@ -838,36 +782,9 @@ class Summariser(TracerTask):
             else:
                 pass
                 # Calculate Hamming distance?
-
-            #def get_edit_distance(self, matrix):
-            #del alignment_string["summary"]
-            cell_list = list(seq_differences.keys())
-            edit_distances = dict()
-            print(cell_list)
-            #loci = ["H"]
-        
-            for i in range(len(cell_list)- 1):
-                current_cell = cell_list[i]
-                edit_distances[current_cell] = dict()
-                comparison_cells = cell_list[i + 1:]
-                print(current_cell, comparison_cells)
-                for comparison_cell in comparison_cells:
-                    distance = 0
-                    if seq_differences[current_cell] == seq_differences[comparison_cell]:
-                        distance = 0
-                    else:
-                        print(range(len(seq_differences[current_cell])))
-                        for n in range(len(seq_differences[current_cell])):
-                            nt1 = seq_differences[current_cell][n]
-                            nt2 = seq_differences[comparison_cell][n]
-                            if nt1 != nt2:
-                                distance = float(distance) + float(matrix[nt1][nt2])
-                    print(current_cell, comparison_cell)
-                    print("Distance: ", distance)
-                    edit_distances[current_cell][comparison_cell] = distance
-
-            print(edit_distances)
-                            
+            print("Matrix: ", matrix)
+            edit_distances = self.get_edit_distance(matrix, alignment_dict, differences_dict)
+            print("Edit distances: ", edit_distances)
 
             
             # Print output of initial clonal grouping
@@ -1221,6 +1138,104 @@ class Summariser(TracerTask):
                                 output.write(fasta_header)
                                 output.write(sequence)
 
+
+
+    def create_alignment_dict(self, paired_clone_groups, loci, outdir):
+        alignment_dict = dict()
+        differences_dict = dict()
+        new_align_dict = dict()
+        first_cell_dict = dict()
+        for clone, cell_list in six.iteritems(paired_clone_groups):
+            alignment_dict[clone] = dict()
+            differences_dict[clone] = dict()
+            new_align_dict[clone] = dict()
+            first_cell_dict[clone] = dict()
+            for l in loci:
+                muscle_result_file = "{}/muscle_out_{}_{}.aln".format(outdir, l, clone)
+                if not os.path.exists(muscle_result_file):
+                    continue
+                alignment_dict[clone][l] = dict()
+                differences_dict[clone][l] = dict()
+                new_align_dict[clone][l] = dict()
+                first_cell = False
+                with open(muscle_result_file, 'r') as infile:
+                    for line in infile:
+                        line = line.lstrip()
+                        if line.startswith("MUSCLE") or line.startswith("\n") or len(line) == 0:
+                            continue
+                        elif line.startswith("*"):
+                            cell_name = "summary"
+                            line = line.lstrip()
+                        else:
+                            cell_name = line.split("_")[0]
+                            start = line.find("  ")
+                            line = line[start:].lstrip()
+                            if first_cell == False:
+                                first_cell = cell_name
+                                first_cell_dict[clone][l] = first_cell
+                        if not cell_name in alignment_dict[clone][l].keys():
+                            alignment_dict[clone][l][cell_name] = [line]
+                        else:
+                            alignment_dict[clone][l][cell_name].append(line)
+
+        return (alignment_dict, first_cell_dict, differences_dict)
+
+    def modify_alignment_dict(self, paired_clone_groups, loci, outdir, alignment_dict, first_cell_dict, differences_dict):
+        for clone, data in six.iteritems(alignment_dict):
+            for l, l_data in six.iteritems(alignment_dict[clone]):
+                alignment_string = alignment_dict[clone][l]
+                num_lines = len(alignment_string["summary"])
+                first_cell = first_cell_dict[clone][l]
+                for cell_name, alignment in six.iteritems(alignment_string):
+                    # Trim sequences in dictionary to exclude initial gaps
+                    for i in range(0, num_lines-1):
+                        difference = len(alignment_string[first_cell][i]) - len(alignment_string["summary"][i])
+                    
+                        if cell_name is not "summary":
+                            if i == 0:
+                                alignment[i] = alignment[i][difference:len(alignment[i]) -1]
+                            else:
+                                alignment[i] = alignment[i][:len(alignment[i]) -1]
+                        else:
+                            if i == 0:
+                                alignment[i] = alignment[i][:len(alignment[i])-1]
+                            else:
+                                if difference > 0:
+                                    alignment[i] = difference*" " +  alignment[i][:len(alignment[i])-1]
+                                else:
+                                    alignment[i] = alignment[i][:len(alignment[i])-1]
+                        if i == 0:
+                            new_alignment = alignment[i]
+                        else:
+                            new_alignment += alignment[i]
+
+               
+                    new_alignment = "".join(str(e) for e in new_alignment)
+                    alignment_dict[clone][l][cell_name] = new_alignment
+                    #new_align_dict[clone][l][cell_name] = new_alignment
+                    #new_alignment_string = new_align_dict[clone][l]
+
+                    # Identify polymorphic sites in sequence alignments
+                    length = len(alignment_string["summary"])
+                    polymorphic = []
+                    for i in range(0, length -1):
+                        if alignment_string["summary"][i] is not "*":
+                            polymorphic.append(i)
+                #print(polymorphic)
+
+                    seq_differences = differences_dict[clone][l]
+                del alignment_string["summary"]
+                for i in range(0, len(polymorphic)):
+                    for cell_name, alignment in six.iteritems(alignment_string):
+                        if i == 0:
+                            seq_differences[cell_name] = [alignment[polymorphic[0]]]
+                        else:
+                            seq_differences[cell_name].append(alignment[polymorphic[i]])
+
+        return(alignment_dict, differences_dict)
+
+
+
     def load_distance_matrix(self, species):
 
         matrix = dict()
@@ -1240,6 +1255,44 @@ class Summariser(TracerTask):
             # Use Hamming distance instead of SHM distance model
 
         return(matrix)
+
+
+
+    def get_edit_distance(self, matrix, alignment_dict, differences_dict):
+        edit_distances = dict()
+        for clone, clone_data in six.iteritems(alignment_dict):
+            edit_distances[clone] = dict()
+            for l in list(alignment_dict[clone].keys()):
+                print(l)
+                
+                cell_list = list(differences_dict[clone][l].keys())
+                edit_distances[clone][l] = dict()
+                print(cell_list)
+
+                for i in range(len(cell_list)- 1):
+                    current_cell = cell_list[i]
+                    edit_distances[clone][l][current_cell] = dict()
+                    comparison_cells = cell_list[i + 1:]
+                    print(current_cell, comparison_cells)
+                    for comparison_cell in comparison_cells:
+                        seq_differences = differences_dict[clone][l]
+                        distance = 0
+                        if seq_differences[current_cell] == seq_differences[comparison_cell]:
+                            distance = 0
+                        else:
+                            print(range(len(seq_differences[current_cell])))
+                            for n in range(len(seq_differences[current_cell])):
+                                nt1 = seq_differences[current_cell][n]
+                                nt2 = seq_differences[comparison_cell][n]
+                                if nt1 != nt2:
+                                    distance = float(distance) + float(matrix[nt1][nt2])
+                        print(current_cell, comparison_cell)
+                        print("Distance: ", distance)
+                        edit_distances[clone][l][current_cell][comparison_cell] = distance
+        return(edit_distances)
+
+
+
 
     def count_full_length_sequences(self, loci, cells, receptor):
         """Count all full length sequences and productive full length sequences"""
