@@ -785,7 +785,9 @@ class Summariser(TracerTask):
             print("Matrix: ", matrix)
             edit_distances = self.get_edit_distance(matrix, alignment_dict, differences_dict)
             print("Edit distances: ", edit_distances)
-
+            # Normalise edit distances to sequence length
+            n_edit_distances = self.get_normalised_edit_distance(edit_distances, alignment_dict)
+            print("Normalised distances: ", n_edit_distances)
             
             # Print output of initial clonal grouping
             outstring = "\n\n###Initial clonal groups determined by ChangeO###\n\n"
@@ -1143,12 +1145,10 @@ class Summariser(TracerTask):
     def create_alignment_dict(self, paired_clone_groups, loci, outdir):
         alignment_dict = dict()
         differences_dict = dict()
-        new_align_dict = dict()
         first_cell_dict = dict()
         for clone, cell_list in six.iteritems(paired_clone_groups):
             alignment_dict[clone] = dict()
             differences_dict[clone] = dict()
-            new_align_dict[clone] = dict()
             first_cell_dict[clone] = dict()
             for l in loci:
                 muscle_result_file = "{}/muscle_out_{}_{}.aln".format(outdir, l, clone)
@@ -1156,7 +1156,6 @@ class Summariser(TracerTask):
                     continue
                 alignment_dict[clone][l] = dict()
                 differences_dict[clone][l] = dict()
-                new_align_dict[clone][l] = dict()
                 first_cell = False
                 with open(muscle_result_file, 'r') as infile:
                     for line in infile:
@@ -1212,8 +1211,6 @@ class Summariser(TracerTask):
                
                     new_alignment = "".join(str(e) for e in new_alignment)
                     alignment_dict[clone][l][cell_name] = new_alignment
-                    #new_align_dict[clone][l][cell_name] = new_alignment
-                    #new_alignment_string = new_align_dict[clone][l]
 
                     # Identify polymorphic sites in sequence alignments
                     length = len(alignment_string["summary"])
@@ -1221,7 +1218,6 @@ class Summariser(TracerTask):
                     for i in range(0, length -1):
                         if alignment_string["summary"][i] is not "*":
                             polymorphic.append(i)
-                #print(polymorphic)
 
                     seq_differences = differences_dict[clone][l]
                 del alignment_string["summary"]
@@ -1267,7 +1263,7 @@ class Summariser(TracerTask):
                 equal = False
                 cell_list = list(alignment_dict[clone][l].keys())
                 edit_distances[clone][l] = dict()
-                print(cell_list)
+                #print(cell_list)
                 if differences_dict[clone][l] == {}:
                     equal = True
 
@@ -1298,7 +1294,21 @@ class Summariser(TracerTask):
                         edit_distances[clone][l][current_cell][comparison_cell] = distance
         return(edit_distances)
 
+    def get_normalised_edit_distance(self, edit_distances, alignment_dict):
+        n_edit_distance = dict()
+        for clone, data in six.iteritems(edit_distances):
+            n_edit_distance[clone] = dict()
+            for l, l_data in six.iteritems(edit_distances[clone]):
+                n_edit_distance[clone][l] = dict()
+                for current_cell, c_data in six.iteritems(edit_distances[clone][l]):
+                    n_edit_distance[clone][l][current_cell] = dict()
+                    for comparison_cell, distance in six.iteritems(edit_distances[clone][l][current_cell]):
+                        seq_length = len(alignment_dict[clone][l][current_cell])
+                        n_distance = distance / seq_length * 100
+                        n_edit_distance[clone][l][current_cell][comparison_cell] = n_distance
+        return(n_edit_distance)
 
+            
 
 
     def count_full_length_sequences(self, loci, cells, receptor):
@@ -1572,89 +1582,6 @@ class Summariser(TracerTask):
                 print(cell)
                 print(cell.get_prod_cdr3_lengths(self.receptor_name, l))
                 lengths[l].extend(cell.get_prod_cdr3_lengths(self.receptor_name, l))"""
-
-    def changeo_alignments(self):
-        pass
-        """# Make list of cells to be aligned
-            clonal_cells = []
-            for clone, cell_list in six.iteritems(paired_clone_groups):
-                #print(clone, cell_list)
-                for cell in cell_list:
-                    clonal_cells.append (cell)
-
-                # check if sequences in clonal groups are of equal length
-                length = dict()
-                seqs = dict()
-                for locus in self.loci:
-                    #maxmin = None
-                    length[locus] = dict()
-                    seqs[locus] = dict()
-
-                    for cell in cell_list:
-                        for cell_name, cell_info in six.iteritems(cells):
-                            if cell == cell_name:
-                                string = cell_info.changeodict[locus]
-                                print(string)
-                                seq = string.split("\t")[4]
-                                seq_length = len(seq)
-                                length[locus][cell] = seq_length
-                                seqs[locus][cell] = seq
-                    max_len = max(list(length[locus].values()))
-                    min_len = min(list(length[locus].values()))
-
-                    if max_len - min_len == 0 or max_len - min_len > 10:
-                        trim = False
-                    else:
-                        trim = True
-                    if trim == True:
-                        for cell in cell_list:
-                            seq = seqs[locus][cell]
-                            if not length[locus][cell] == min_len:
-                                seq = seq[max_len - min_len :]
-                            print(seq)
-
-                            for cell_name, cell_info in six.iteritems(cells):
-
-                                if cell == cell_name:
-
-                                    string = cell_info.changeodict[locus]
-                                    seq = string.split("\t")[4]
-                                    seq_length = len(seq)
-
-                                    if not seq_length == min_len:
-                                        seq = seq[max_len - min_lenmax_len - min_len :]
-                                    print(seq)"""
-
-
-        """# Align full sequences within clonal groups using ChangeO
-
-        for locus in self.loci:
-            self.make_changeo_clonal_alignment_input(outdir, locus, self.receptor_name, cells, clonal_cells)
-
-            # Run ChangeO DefineCloses bygroup for each locus
-            changeo = self.get_binary('changeo')
-            tracer_func.run_changeo_clonal_alignment(changeo, locus, outdir, self.species)
-            print()
-
-            with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-
-
-        # Make input file for sequence alignment of clonal sequences
-        for l in self.loci:
-            changeo_output = "{}/changeo_input_{}_clone-pass.tab".format(outdir, l)
-            changeo_string = "SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\tJUNCTION_LENGTH\tJUNCTION\tCLONE_GROUP\n"
-
-            changeo_clonal_alignment_input = "{}/changeo_clonal_alignment_input_{}.tab".format(outdir, l)
-            with open(changeo_output, 'r') as input:
-                with open(changeo_clonal_alignment_input, 'w') as output:
-                    output.write(changeo_string)
-                    for line in input:
-                        if not line.startswith("SEQUENCE_ID"):
-                            cell_name = line.split("_")[0]
-                            print(clonal_cells)
-                            if cell_name in clonal_cells:
-                                output.write(line)"""
 
 
 class Tester(TracerTask):
