@@ -889,6 +889,27 @@ def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, 
 
     return (G, drawing_tool, component_groups)
 
+def make_dict_cells_distance_zero(cells, s_normalised_edit_distances):
+
+    zero_distance = dict()
+    for clone, data in six.iteritems(s_normalised_edit_distances):
+        zero_distance[clone] = dict()
+        for current_cell, c_data in six.iteritems(s_normalised_edit_distances[clone]):
+            cell_list = []
+            for comparison_cell, distance in six.iteritems(s_normalised_edit_distances[clone][current_cell]):
+
+                for cell in cells:
+                    if comparison_cell == cell.name:
+                        comparison_cell = cell
+                    elif current_cell == cell.name:
+                        current_cell = cell
+
+                if distance == 0:
+                    cell_list.append(comparison_cell)
+            zero_distance[clone][current_cell] = cell_list
+    print(zero_distance)
+    return(zero_distance)
+
 def make_cell_network_from_dna_sum_normalised(cells, keep_unlinked, shape, dot, neato, receptor, loci,
                                network_colours, s_normalised_edit_distances):
     G = nx.MultiGraph()
@@ -915,18 +936,26 @@ def make_cell_network_from_dna_sum_normalised(cells, keep_unlinked, shape, dot, 
                 G.node[cell]['style'] = 'filled'
 
                 G.node[cell]['fillcolor'] = cell.bgcolor
-    # make edges:
-    
-    for clone, data in six.iteritems(s_normalised_edit_distances):
-        for current_cell, c_data in six.iteritems(s_normalised_edit_distances[clone]):
-            for comparison_cell, distance in six.iteritems(s_normalised_edit_distances[clone][current_cell]):
-                for cell in cells:
-                    if comparison_cell == cell.name:
-                        comparison_cell = cell
-                    elif current_cell == cell.name:
-                        current_cell = cell
-                G.add_edge(current_cell, comparison_cell, distance, color="#000000",
-                       weight=distance)
+
+    zero_distance = make_dict_cells_distance_zero(cells, s_normalised_edit_distances)
+    print(zero_distance)
+
+    # make edges between cells with distance 0:
+
+    #G.add_edge(current_cell, comparison_cell, distance, color="#000000",
+                        #weight=distance)
+     
+    for clone, data in six.iteritems(zero_distance): 
+        edges = []
+        for current_cell, comparison_cells in six.iteritems(zero_distance[clone]):
+            for comparison_cell in comparison_cells:
+                if not G.has_edge(current_cell, comparison_cell):
+                    edge = (current_cell, comparison_cell, 100)
+                    edges.append(edge)
+        G.add_weighted_edges_from(edges)            
+        #G.add_edge(current_cell, comparison_cell, weight="100")
+
+        
 
 
     deg = G.degree()
