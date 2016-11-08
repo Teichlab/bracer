@@ -1255,9 +1255,10 @@ class Summariser(TracerTask):
 
                 for i in range(len(cell_list)- 1):
                     current_cell = cell_list[i]
-                    edit_distances[clone][l][current_cell] = dict()
+                    
                     comparison_cells = cell_list[i + 1:]
                     for comparison_cell in comparison_cells:
+                        pair = (current_cell, comparison_cell)
                         seq_differences = differences_dict[clone][l]
                         distance = 0
                         if equal == True:
@@ -1273,7 +1274,7 @@ class Summariser(TracerTask):
                                 nt2 = seq_differences[comparison_cell][n]
                                 if nt1 != nt2:
                                     distance = float(distance) + float(matrix[nt1][nt2])
-                        edit_distances[clone][l][current_cell][comparison_cell] = distance
+                        edit_distances[clone][l][pair] = distance
         return(edit_distances)
 
     def get_normalised_edit_distance(self, edit_distances, alignment_dict):
@@ -1282,12 +1283,13 @@ class Summariser(TracerTask):
             n_edit_distance[clone] = dict()
             for l, l_data in six.iteritems(edit_distances[clone]):
                 n_edit_distance[clone][l] = dict()
-                for current_cell, c_data in six.iteritems(edit_distances[clone][l]):
-                    n_edit_distance[clone][l][current_cell] = dict()
-                    for comparison_cell, distance in six.iteritems(edit_distances[clone][l][current_cell]):
-                        seq_length = len(alignment_dict[clone][l][current_cell])
-                        n_distance = distance / seq_length * 100
-                        n_edit_distance[clone][l][current_cell][comparison_cell] = n_distance
+                for (current_cell, comparison_cell), distance in six.iteritems(edit_distances[clone][l]):
+                    pair = (current_cell, comparison_cell)
+                    
+                    
+                    seq_length = len(alignment_dict[clone][l][current_cell])
+                    n_distance = distance / seq_length * 100
+                    n_edit_distance[clone][l][pair] = n_distance
         return(n_edit_distance)
 
     def get_sum_normalised_edit_distance(self, n_edit_distances):
@@ -1295,13 +1297,18 @@ class Summariser(TracerTask):
         for clone, data in six.iteritems(n_edit_distances):
             s_edit_distance[clone] = dict()
             for l, l_data in six.iteritems(n_edit_distances[clone]):
-                for current_cell, c_data in six.iteritems(n_edit_distances[clone][l]):
-                    s_edit_distance[clone][current_cell] = dict()
-                    for comparison_cell, distance in six.iteritems(n_edit_distances[clone][l][current_cell]):
-                        if not comparison_cell in s_edit_distance[clone][current_cell].keys():
-                            s_edit_distance[clone][current_cell][comparison_cell] = distance
+                for (current_cell, comparison_cell), distance in six.iteritems(n_edit_distances[clone][l]):
+                   
+                    
+                    pair1 = (current_cell, comparison_cell)
+                    pair2 = (comparison_cell, current_cell)
+                    if not pair1 in s_edit_distance[clone].keys():
+                        if not pair2 in s_edit_distance[clone].keys():
+                            s_edit_distance[clone][pair1] = distance
                         else:
-                            s_edit_distance[clone][current_cell][comparison_cell] += distance
+                            s_edit_distance[clone][pair2] += distance
+                    else:
+                        s_edit_distance[clone][pair1] += distance
                         
         return(s_edit_distance)
 

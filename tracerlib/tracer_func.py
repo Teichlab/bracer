@@ -892,9 +892,13 @@ def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, 
 def make_dict_cells_distance_zero(cells, s_normalised_edit_distances):
 
     zero_distance = dict()
+    zero_distance_names = dict()
     for clone, data in six.iteritems(s_normalised_edit_distances):
         zero_distance[clone] = dict()
-        for current_cell, c_data in six.iteritems(s_normalised_edit_distances[clone]):
+        zero_distance_names[clone] = dict()
+        cell_list = []
+        cell_list_names = []
+        """for current_cell, c_data in six.iteritems(s_normalised_edit_distances[clone]):
             cell_list = []
             for comparison_cell, distance in six.iteritems(s_normalised_edit_distances[clone][current_cell]):
 
@@ -906,8 +910,23 @@ def make_dict_cells_distance_zero(cells, s_normalised_edit_distances):
 
                 if distance == 0:
                     cell_list.append(comparison_cell)
-            zero_distance[clone][current_cell] = cell_list
-    print(zero_distance)
+            zero_distance[clone][current_cell] = cell_list"""
+        for (cell1, cell2), distance in  six.iteritems(s_normalised_edit_distances[clone]):
+            
+            if distance == 0:
+                for cell in cells:
+                    if cell1 == cell.name:
+                        cella = cell 
+                    elif cell2 == cell.name:
+                        cellb = cell
+                cells_append = (cella, cellb) 
+                cell_list.append(cells_append)
+                names = (cell1, cell2)
+                cell_list_names.append(names)
+        zero_distance[clone] = cell_list
+        zero_distance_names[clone] = cell_list_names
+                    
+    print(zero_distance_names)
     return(zero_distance)
 
 
@@ -941,7 +960,7 @@ def make_cell_network_from_dna_sum_normalised(cells, keep_unlinked, shape, dot, 
                 G.node[cell]['fillcolor'] = cell.bgcolor
 
     zero_distance = make_dict_cells_distance_zero(cells, s_normalised_edit_distances)
-    print(zero_distance)
+    #print(zero_distance)
 
     # make edges between cells with distance 0:
 
@@ -950,14 +969,13 @@ def make_cell_network_from_dna_sum_normalised(cells, keep_unlinked, shape, dot, 
      
     for clone, data in six.iteritems(zero_distance): 
         edges = []
-        for current_cell, comparison_cells in six.iteritems(zero_distance[clone]):
-            for comparison_cell in comparison_cells:
-                if not G.has_edge(current_cell, comparison_cell):
-                    edge = (current_cell, comparison_cell, 3)
-                    edges.append(edge)
+        for (cell1, cell2) in data:
+             
+            edge = (cell1, cell2, 3)
+            edges.append(edge)
         G.add_weighted_edges_from(edges)            
         #G.add_edge(current_cell, comparison_cell, weight="100")
-        print(edges)
+        #print(edges)
         
 
 
