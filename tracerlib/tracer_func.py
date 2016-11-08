@@ -910,9 +910,12 @@ def make_dict_cells_distance_zero(cells, s_normalised_edit_distances):
     print(zero_distance)
     return(zero_distance)
 
+
+
 def make_cell_network_from_dna_sum_normalised(cells, keep_unlinked, shape, dot, neato, receptor, loci,
                                network_colours, s_normalised_edit_distances):
-    G = nx.MultiGraph()
+    G = nx.Graph()
+    
 
     # initialise all cells as nodes
 
@@ -950,11 +953,11 @@ def make_cell_network_from_dna_sum_normalised(cells, keep_unlinked, shape, dot, 
         for current_cell, comparison_cells in six.iteritems(zero_distance[clone]):
             for comparison_cell in comparison_cells:
                 if not G.has_edge(current_cell, comparison_cell):
-                    edge = (current_cell, comparison_cell, 100)
+                    edge = (current_cell, comparison_cell, 3)
                     edges.append(edge)
         G.add_weighted_edges_from(edges)            
         #G.add_edge(current_cell, comparison_cell, weight="100")
-
+        print(edges)
         
 
 
@@ -962,6 +965,7 @@ def make_cell_network_from_dna_sum_normalised(cells, keep_unlinked, shape, dot, 
 
     to_remove = [n for n in deg if deg[n] == 0]
 
+    
     if len(to_remove) < len(G.nodes()):
         if not shape == 'circle':
             G.remove_nodes_from(to_remove)
@@ -977,6 +981,10 @@ def make_cell_network_from_dna_sum_normalised(cells, keep_unlinked, shape, dot, 
     component_groups = list()
     j = 0
     components = nx.connected_components(G)
+    #H = nx.Graph()
+    #for group in component_groups:
+        #subgraph = G.subgraph(group)
+        #H.add_node(subgraph)
 
     for component in components:
         members = list()
@@ -987,6 +995,8 @@ def make_cell_network_from_dna_sum_normalised(cells, keep_unlinked, shape, dot, 
 
         component_groups.append(members)
 
+
+  
     return (G, drawing_tool, component_groups)
 
 
