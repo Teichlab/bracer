@@ -767,8 +767,6 @@ class Summariser(TracerTask):
 
             # Get groups of clones sharing heavy and light chain
             paired_clone_groups = self.get_initial_clone_groups(self.loci, multiple_clones_H, cell_clones)
-            print("Paired clone groups")
-            
             print("Paired clone groups: ", paired_clone_groups)
             clonal_cells = []
             for clone, cell_list in six.iteritems(paired_clone_groups):
@@ -788,8 +786,15 @@ class Summariser(TracerTask):
             
             # Create dictionary for sequence alignments for each clonal group
             (alignment_dict, first_cell_dict, differences_dict) = self.create_alignment_dict(paired_clone_groups, self.loci, outdir)
+            print("initial alignment dict", alignment_dict)
+            print("first cell dict", first_cell_dict)
+            print("differences_dict", differences_dict)
+
+     
             (alignment_dict, differences_dict) = self.modify_alignment_dict(paired_clone_groups, self.loci, outdir, alignment_dict, first_cell_dict, differences_dict)
-            
+            print("modified alignment dict", alignment_dict)
+            print("differences_dict", differences_dict) 
+      
             # Get distances between sequences in potential clonal groups
             matrix = self.load_distance_matrix(self.species)
             if matrix is not None:
@@ -1092,7 +1097,7 @@ class Summariser(TracerTask):
                         if not line.startswith("SEQUENCE_ID"):
                             fields = line.split("\t")
                             clone = fields[len(fields)-1].rstrip()
-                            cell = fields[0].split("_")[0]
+                            cell = fields[0].split("_TRINITY")[0]
                             cell_clones[l][cell] = clone
                             if not clone in clones[l].keys():
                                 clones[l][clone] = []
@@ -1161,7 +1166,7 @@ class Summariser(TracerTask):
                     with open(changeo_output, 'r') as input:
                         for line in input:
                             if not line.startswith("SEQUENCE_ID"):
-                                cell_name = line.split("_")[0]
+                                cell_name = line.split("_TRINITY")[0]
                                 if cell_name in cell_list:
                                     sequence = line.split()[4] + "\n"
                                     fasta_header = ">" + line.split()[0] + "\n"
@@ -1194,7 +1199,7 @@ class Summariser(TracerTask):
                             cell_name = "summary"
                             line = line.lstrip()
                         else:
-                            cell_name = line.split("_")[0]
+                            cell_name = line.split("_TRINITY")[0]
                             start = line.find("  ")
                             line = line[start:].lstrip()
                             if first_cell == False:
