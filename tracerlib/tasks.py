@@ -277,19 +277,20 @@ class Assembler(TracerTask):
 
         io.makeOutputDir(self.output_dir)
 
-        data_dirs = ['aligned_reads', 'Trinity_output', 'IgBLAST_output', 'BLAST_output',
+        data_dirs = ['aligned_reads', 'Trinity_output', 'Oases_output', 'IgBLAST_output', 'BLAST_output',
                      'unfiltered_{receptor}_seqs'.format(receptor=self.receptor_name),'expression_quantification', 
                      'filtered_{receptor}_seqs'.format(receptor=self.receptor_name)]
         for d in data_dirs:
             io.makeOutputDir("{}/{}".format(self.output_dir, d))
 
         # Perform TraCeR's core functions
-        #self.align()
-        #self.de_novo_assemble()
+        self.align()
+        #self.oases_assemble()
+        self.de_novo_assemble()
         self.blast()
         cell = self.ig_blast()
         #self.blast()
-        #self.quantify(cell)
+        self.quantify(cell)
         
         fasta_filename = "{output_dir}/unfiltered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
                                                                                         cell_name=self.cell_name,
@@ -371,6 +372,26 @@ class Assembler(TracerTask):
         if len(successful_files) == 0:
             print("No successful Trinity assemblies")
             self.die_with_empty_cell(self.cell_name, self.output_dir, self.species)
+
+        print()
+
+    def oases_assemble(self):
+        velveth = self.get_binary('velveth')
+        velvetg = self.get_binary('velvetg') 
+        oases = self.get_binary('oases')
+        print(velveth)
+        print(oases)
+        # Make oases input files
+        """tracer_func.get_oases_input(self.receptor_name, self.loci, self.output_dir, self.cell_name, self.ncores,
+            self.resume_with_existing_files, self.single_end, self.species)"""       
+
+        # De novo assembly with oases
+        tracer_func.assemble_with_oases(velveth, velvetg, oases, self.receptor_name, self.loci, self.output_dir, self.cell_name, self.ncores, 
+            self.resume_with_existing_files, self.single_end, self.species)
+            
+        #if len(successful_files) == 0:
+            #print("No successful Oases assemblies")
+            #self.die_with_empty_cell(self.cell_name, self.output_dir, self.species)
 
         print()
 
@@ -731,21 +752,29 @@ class Summariser(TracerTask):
 
             # Read ChangeO result files and define clone groups for each locus
             (clones, cell_clones) = self.read_changeo_results(self.loci, outdir)
+            print("Changeo results Clones")
+            print(clones)
+            print("Cell_clones")
+            print(cell_clones)
 
             # Filter out H clone groups consisting of a single cell
             multiple_clones_H = dict()
             for clone, cell_list in six.iteritems(clones["H"]):
                 if len(cell_list) > 1:
                     multiple_clones_H[clone] = cell_list
+            print("Multiple_clones_H")
+            print(multiple_clones_H)
 
             # Get groups of clones sharing heavy and light chain
             paired_clone_groups = self.get_initial_clone_groups(self.loci, multiple_clones_H, cell_clones)
-            #print("Paired clone groups: ", paired_clone_groups)
+            print("Paired clone groups")
+            
+            print("Paired clone groups: ", paired_clone_groups)
             clonal_cells = []
             for clone, cell_list in six.iteritems(paired_clone_groups):
                 for cell in cell_list:
                     clonal_cells.append(cell)
-            #print("Clonal cells: ", clonal_cells)
+            print("Clonal cells: ", clonal_cells)
 
             # Get sequences for each locus for cells in same clone groups
             for l in self.loci:
@@ -933,9 +962,9 @@ class Summariser(TracerTask):
             "\n#Clonotype groups#\n"
             "This is a text representation of the groups shown in clonotype_network_with_identifiers.pdf.\n"
             "It does not exclude cells that only share beta and not alpha.\n\n")
-        #for g in component_groups:
-            #outfile.write(", ".join(g))
-            #outfile.write("\n\n")
+        for g in component_groups:
+            outfile.write(", ".join(g))
+            outfile.write("\n\n")
         
         """# plot clonotype sizes
         plt.figure()
@@ -1029,14 +1058,18 @@ class Summariser(TracerTask):
         changeo_string = "SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\tJUNCTION_LENGTH\tJUNCTION\n"
         changeo_input = "{}/changeo_input_{}.tab".format(outdir, locus)
         with open(changeo_input, 'w') as output:
-            output.write(changeo_string)
+            empty = True
+            #output.write(changeo_string)
             for cell_name, cell in six.iteritems(cells):
 
                 productive = cell.count_productive_recombinants(receptor, locus)
 
                 if productive > 0:
+                    if empty == True:
+                        output.write(changeo_string)
+                        empty = False
                     output.write(cell.changeodict[locus])
-
+        
 
     def read_changeo_results(self, loci, outdir):
         """Reads ChangeO result files and defines clone groups for each locus"""
@@ -1045,21 +1078,27 @@ class Summariser(TracerTask):
         cell_list = []
 
         for l in loci:
+            
             clones[l] = dict()
             cell_clones[l] = dict()
             changeo_result = "{}/changeo_input_{}_clone-pass.tab".format(outdir, l)
-            with open(changeo_result, 'r') as input_file:
-                for line in input_file:
-                    if not line.startswith("SEQUENCE_ID"):
-                        fields = line.split("\t")
-                        clone = fields[len(fields)-1].rstrip()
-                        cell = fields[0].split("_")[0]
-                        cell_clones[l][cell] = clone
-                        if not clone in clones[l].keys():
-                            clones[l][clone] = []
-                        clones[l][clone].append(cell)
-                        if not cell in cell_list:
-                            cell_list.append(cell)
+            if not os.path.exists(changeo_result):
+                continue
+            elif not os.path.getsize(changeo_result) > 0:
+                continue
+            else:
+                with open(changeo_result, 'r') as input_file:
+                    for line in input_file:
+                        if not line.startswith("SEQUENCE_ID"):
+                            fields = line.split("\t")
+                            clone = fields[len(fields)-1].rstrip()
+                            cell = fields[0].split("_")[0]
+                            cell_clones[l][cell] = clone
+                            if not clone in clones[l].keys():
+                                clones[l][clone] = []
+                            clones[l][clone].append(cell)
+                            if not cell in cell_list:
+                                cell_list.append(cell)
         return (clones, cell_clones)
 
     def get_initial_clone_groups(self, loci, multiple_clones_H, cell_clones):
@@ -1114,19 +1153,20 @@ class Summariser(TracerTask):
         """Creates input file for each locus only containing sequences from cells belonging to paired clonal groups"""
 
         changeo_output = "{}/changeo_input_{}_clone-pass.tab".format(outdir, locus)
+        if os.path.exists(changeo_output):
        
-        for clone, cell_list in six.iteritems(paired_clone_groups):
-            muscle_input = "{}/muscle_input_{}_{}.fa".format(outdir, locus, clone)
-            with open(muscle_input, 'w') as output:
-                with open(changeo_output, 'r') as input:
-                    for line in input:
-                        if not line.startswith("SEQUENCE_ID"):
-                            cell_name = line.split("_")[0]
-                            if cell_name in cell_list:
-                                sequence = line.split()[4] + "\n"
-                                fasta_header = ">" + line.split()[0] + "\n"
-                                output.write(fasta_header)
-                                output.write(sequence)
+            for clone, cell_list in six.iteritems(paired_clone_groups):
+                muscle_input = "{}/muscle_input_{}_{}.fa".format(outdir, locus, clone)
+                with open(muscle_input, 'w') as output:
+                    with open(changeo_output, 'r') as input:
+                        for line in input:
+                            if not line.startswith("SEQUENCE_ID"):
+                                cell_name = line.split("_")[0]
+                                if cell_name in cell_list:
+                                    sequence = line.split()[4] + "\n"
+                                    fasta_header = ">" + line.split()[0] + "\n"
+                                    output.write(fasta_header)
+                                    output.write(sequence)
 
 
 

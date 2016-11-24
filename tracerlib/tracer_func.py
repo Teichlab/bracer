@@ -1435,6 +1435,121 @@ def assemble_with_trinity(trinity, receptor, loci, output_dir, cell_name, ncores
     return successful_files
 
 
+def get_oases_input(receptor, loci, output_dir, cell_name, ncores, should_resume, single_end, species):
+    velveth = "/nfs/users/nfs_i/il5/software/velvet/velveth"
+    base_command = [velveth, 'shuffleSequences_fastq.pl']
+    locus_names = ["_".join([receptor,x]) for x in loci]
+    input_files = dict()
+
+    for locus in locus_names:
+        
+        print("##{}##".format(locus))
+        oases_input = "{}/Oases_input/{}_{}".format(output_dir, cell_name, locus)
+        aligned_read_path = "{}/aligned_reads/{}_{}".format(output_dir, cell_name, locus)
+        if not single_end:
+            file1 = "{}_1.fastq".format(aligned_read_path)
+            file2 = "{}_2.fastq".format(aligned_read_path)
+            command = base_command + [file1, file2, oases_input]
+            input_files[locus] = oases_input
+            #["--output", '{}/Oases_output/Oases_{}_{}'.format(output_dir, cell_name, locus)]
+        try:
+            subprocess.check_call(command)
+            """shutil.move('{}/Oases_output/Oases_{}_{}.Oases.fasta'.format(output_dir, cell_name, locus),
+                        '{}/Oases_output/{}_{}.Oases.fasta'.format(output_dir, cell_name, locus))"""
+        except (subprocess.CalledProcessError, IOError):
+            print("Shuffle failed for locus")
+    return(input_files)
+
+def assemble_with_oases(velveth, velvetg, oases, receptor, loci, output_dir, cell_name, ncores, should_resume, single_end, species):
+    #velvet = "/nfs/users/nfs_i/il5/software/velvet"
+    #velvetg = "/nfs/users/nfs_i/il5/software/velvet/velvetg"
+    #velveth = "/nfs/users/nfs_i/il5/software/velvet/velveth"
+    oases_script = oases[:-5] + "scripts/oases_pipeline.py"
+   
+    base_command = [oases_script, '-m 17', '-M 39']
+
+    locus_names = ["_".join([receptor,x]) for x in loci]
+    #print(velveth)
+    #print(oases)   
+    
+    for locus in locus_names:
+        print("##{}##".format(locus))
+        oases_output = "{}/Oases_output/{}_{}".format(output_dir, cell_name, locus)
+        aligned_read_path = "{}/aligned_reads/{}_{}".format(output_dir, cell_name, locus)
+        if not single_end:
+            file1 = "{}_1.fastq".format(aligned_read_path)
+            file2 = "{}_2.fastq".format(aligned_read_path)
+            command = base_command + ['-o', 'pairedEnd', '-d \" -shortPaired -separate', file1, file2, '\"', '-p \" -ins_length 300 \"']
+            print(command) 
+            #["--output", '{}/Oases_output/Oases_{}_{}'.format(output_dir, cell_name, locus)]
+        #else:
+            #file = "{}.fastq".format(aligned_read_path)
+            #command = base_command + ["--single", file, "--output",
+                                 #'{}/Oases_output/Oases_{}_{}'.format(output_dir, cell_name, locus)]
+        try:
+            subprocess.check_call(command)
+            """shutil.move('{}/Oases_output/pairedEnd*'.format(output_dir, cell_name, locus),
+                        '{}/Oases_output/{}_{}.Oases.fasta'.format(output_dir, cell_name, locus))"""
+        except (subprocess.CalledProcessError, IOError):
+            print("Oases failed for locus")
+
+    # clean up unsuccessful assemblies
+    sleep(10)  # this gives the cluster filesystem time to catch up and stops weird things happening
+    """successful_files = glob.glob("{}/Oases_output/*.fasta".format(output_dir))
+    unsuccessful_directories = next(os.walk("{}/Oases_output".format(output_dir)))[1]
+    for directory in unsuccessful_directories:
+        shutil.rmtree("{}/Oases_output/{}".format(output_dir, directory))
+    successful_file_summary = "{}/Oases_output/successful_oases_assemblies.txt".format(output_dir)
+    unsuccessful_file_summary = "{}/Oases_output/unsuccessful_oases_assemblies.txt".format(output_dir)
+
+    successful_files = tracerlib.io.clean_file_list(successful_files)
+    unsuccessful_directories = tracerlib.io.clean_file_list(unsuccessful_directories)
+
+    success_out = open(successful_file_summary, "w")
+    fail_out = open(unsuccessful_file_summary, "w")
+
+    successful = defaultdict(list)
+    unsuccessful = defaultdict(list)
+
+    successful_ordered_files = set()
+    unsuccessful_ordered_files = set()
+
+    for filename in successful_files:
+        # success_out.write("{}\n".format(filename))
+        parsed_name = tracerlib.io.get_filename_and_locus(filename)
+        successful[parsed_name[0]].append(parsed_name[1])
+        successful_ordered_files.add(parsed_name[0])
+    successful_ordered_files = sorted(list(successful_ordered_files))
+
+    for filename in unsuccessful_directories:
+        # fail_out.write("{}\n".format(filename))
+        parsed_name = tracerlib.io.get_filename_and_locus(filename)
+        unsuccessful[parsed_name[0]].append(parsed_name[1])
+        unsuccessful_ordered_files.add(parsed_name[0])
+    unsuccessful_ordered_files = sorted(list(unsuccessful_ordered_files))
+
+    successful = tracerlib.io.sort_locus_names(successful)
+    unsuccessful = tracerlib.io.sort_locus_names(unsuccessful)
+
+    for file in successful_ordered_files:
+        success_out.write("{}\t{}\n".format(file, successful[file]))
+
+    for file in unsuccessful_ordered_files:
+        fail_out.write("{}\t{}\n".format(file, unsuccessful[file]))
+
+    success_out.close()
+    fail_out.close()
+
+    # remove pointless .readcount files
+    readcount_files = glob.glob("{}/aligned_reads/*.readcount".format(output_dir))
+    for f in readcount_files:
+        os.remove(f)
+
+    # if len(unsuccessful_directories) == 2:
+
+    return successful_files"""
+
+
 def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, ig_seqtype, species,
                 should_resume):
     print("##Running IgBLAST##")
@@ -1620,7 +1735,7 @@ def run_changeo(changeo, locus, outdir, species):
 
     
     changeo_input = "{}/changeo_input_{}.tab".format(outdir, locus)
-    if os.path.isfile(changeo_input):
+    if os.path.isfile(changeo_input) and os.path.getsize(changeo_input) > 0:
         command = [changeo, "bygroup", '-d', changeo_input, '--mode', 'gene', '--act', 'set', 
                         '--model', model, '--dist', dist, '--sf', "JUNCTION", '--norm', 'len']
 
