@@ -791,7 +791,7 @@ def load_kallisto_counts(tsv_file):
 
 
 
-def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, receptor, loci,
+"""def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, receptor, loci,
                                network_colours):
     G = nx.MultiGraph()
 
@@ -887,6 +887,101 @@ def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, 
 
         component_groups.append(members)
 
+    return (G, drawing_tool, component_groups)"""
+
+
+def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, receptor, loci,
+                               network_colours, n_edit_distance):
+    G = nx.MultiGraph()
+
+    #H_clonal_groups = define_potential_H_clonal_groups(cells, receptor)
+    # initialise all cells as nodes
+
+    if shape == 'circle':
+        for cell in cells:
+            G.add_node(cell, shape=shape, label=cell.html_style_label_for_circles(receptor, loci, network_colours),
+                        sep=0.4, fontname="helvetica neue")
+            
+            if cell.bgcolor is not None:
+                G.node[cell]['style'] = 'filled'
+
+                G.node[cell]['fillcolor'] = cell.bgcolor
+            #print(cell.name, cell.isotype, cell.bgcolor)
+
+    else:
+        for cell in cells:
+            G.add_node(cell, shape=shape, label=cell.html_style_label_dna(receptor, loci, network_colours),
+                        fontname="helvetica neue")
+            if cell.bgcolor is not None:
+                G.node[cell]['style'] = 'filled'
+
+                G.node[cell]['fillcolor'] = cell.bgcolor
+    # make edges:
+
+    for clone, clone_data in six.iteritems(n_edit_distance):
+        for locus, locus_data in six.iteritems(clone_data):
+            col = network_colours[receptor][locus][0]
+            shared_identifiers = 0
+            for (cell1, cell2), distance in six.iteritems(locus_data):
+            
+                for cell in cells:
+                    if cell1 == cell.name:
+                        cell1 = cell
+                    elif cell2 == cell.name:
+                        cell2 = cell
+                if (cell1, cell2, locus) in G.edges():
+                    width = 4
+                    G.add_edge(cell1, cell2, locus, penwidth=width, color=col)
+                else:
+                    shared_identifiers = 1
+
+                if len(cell1.recombinants[receptor][locus]) > 1 and len(cell2.recombinants[receptor][locus]) > 1:
+                    for current_recombinant in cell1.recombinants[receptor][locus]:
+                        if not current_recombinant.productive:
+                            current_id_set = current_recombinant.all_poss_identifiers
+                         
+                            for comparison_recombinant in cell2.recombinants[receptor][locus]:
+                                if not comparison_recombinant.productive:
+                                    comparison_id_set = comparison_recombinant.all_poss_identifiers
+                                    if len(current_id_set.intersection(comparison_id_set)) > 0:
+                                        shared_identifiers += 1
+                if not (cell1, cell2, locus) in G.edges():
+                    width = shared_identifiers * 2
+                    distance = float(distance)
+                    G.add_edge(cell1, cell2, locus, penwidth=width, color=col,
+                               dist=distance)
+            
+
+    deg = G.degree()
+
+    to_remove = [n for n in deg if deg[n] == 0]
+
+    if len(to_remove) < len(G.nodes()):
+        if not shape == 'circle':
+            G.remove_nodes_from(to_remove)
+            drawing_tool = [dot, '-Gsplines=true', '-Goverlap=false', '-Gsep=0.4']
+
+        else:
+            drawing_tool = [dot, '-Gsplines=true', '-Goverlap=false']
+    else:
+        drawing_tool = [neato, '-Gsplines=true', '-Goverlap=false']
+
+
+
+    component_counter = 0
+    component_groups = list()
+    j = 0
+    components = nx.connected_components(G)
+
+    for component in components:
+        members = list()
+        if len(component) > 1:
+            for cell in component:
+                members.append(cell.name)
+
+
+        component_groups.append(members)
+
     return (G, drawing_tool, component_groups)
 
 def make_dict_cells_distance_zero(cells, s_normalised_edit_distances):
@@ -898,19 +993,8 @@ def make_dict_cells_distance_zero(cells, s_normalised_edit_distances):
         zero_distance_names[clone] = dict()
         cell_list = []
         cell_list_names = []
-        """for current_cell, c_data in six.iteritems(s_normalised_edit_distances[clone]):
-            cell_list = []
-            for comparison_cell, distance in six.iteritems(s_normalised_edit_distances[clone][current_cell]):
-
-                for cell in cells:
-                    if comparison_cell == cell.name:
-                        comparison_cell = cell
-                    elif current_cell == cell.name:
-                        current_cell = cell
-
-                if distance == 0:
-                    cell_list.append(comparison_cell)
-            zero_distance[clone][current_cell] = cell_list"""
+        counter = 0
+        
         for (cell1, cell2), distance in  six.iteritems(s_normalised_edit_distances[clone]):
             
             if distance == 0:
@@ -919,6 +1003,15 @@ def make_dict_cells_distance_zero(cells, s_normalised_edit_distances):
                         cella = cell 
                     elif cell2 == cell.name:
                         cellb = cell
+                if counter == 0:
+                    zero_distance[clone][counter] = [cell1, cell2]
+                else:
+                    for i in range(counter):
+                        if (cell1 or cell2) in zero_distance[clone][i]:
+                            if not cell1 in zero_distance[clone][i]:
+                                zero_distance[clone][i].append(cell1)
+                            elif not cell2 in zero_distance[clone][i]:
+                                zero_distance[clone][i].append(cell2)
                 cells_append = (cella, cellb) 
                 cell_list.append(cells_append)
                 names = (cell1, cell2)
@@ -930,8 +1023,139 @@ def make_dict_cells_distance_zero(cells, s_normalised_edit_distances):
     return(zero_distance)
 
 
+def create_nodes_of_zero_distance_clones(cells, receptor, loci, network_colours, s_normalised_edit_distances):
+    H = nx.Graph()
+    # Initialise all zero distance cells as nodes
+    zero_distance = make_dict_cells_distance_zero(cells, s_normalised_edit_distances)
+    if shape == 'circle':
+        for cell in cells:
+            
+            G.add_node(cell, shape=shape, label=cell.html_style_label_for_circles(receptor, loci, network_colours),
+                        sep=0.4, fontname="helvetica neue")
+            
+            if cell.bgcolor is not None:
+                G.node[cell]['style'] = 'filled'
 
-def make_cell_network_from_dna_sum_normalised(cells, keep_unlinked, shape, dot, neato, receptor, loci,
+                G.node[cell]['fillcolor'] = cell.bgcolor
+
+
+    else:
+        for cell in cells:
+            G.add_node(cell, shape=shape, label=cell.html_style_label_dna(receptor, loci, network_colours),
+                        fontname="helvetica neue")
+            if cell.bgcolor is not None:
+                G.node[cell]['style'] = 'filled'
+
+                G.node[cell]['fillcolor'] = cell.bgcolor
+    zero_distance = make_dict_cells_distance_zero(cells, s_normalised_edit_distances)
+
+    for clone, data in six.iteritems(zero_distance):
+        edges = []
+
+        for (cell1, cell2) in data:
+
+            edge = (cell1, cell2)
+            edges.append(edge)
+        G.add_edges_from(edges)
+        #G.add_edge(current_cell, comparison_cell, weight="100")
+        #print(edges)
+
+"""def make_cell_network_from_dna_sum_normalised(cells, keep_unlinked, shape, dot, neato, receptor, loci,
+                               network_colours, s_normalised_edit_distances):
+    G = nx.Graph()
+
+
+    # initialise all cells as nodes
+
+    if shape == 'circle':
+        for cell in cells:
+            G.add_node(cell, shape=shape, label=cell.html_style_label_for_circles(receptor, loci, network_colours),
+                        sep=0.4, fontname="helvetica neue")
+            #print(cell.bgcolor)
+            if cell.bgcolor is not None:
+                G.node[cell]['style'] = 'filled'
+
+                G.node[cell]['fillcolor'] = cell.bgcolor
+            #print(cell.bgcolor)
+            #print(cell.name, cell.isotype, cell.bgcolor)
+
+    else:
+        for cell in cells:
+            G.add_node(cell, shape=shape, label=cell.html_style_label_dna(receptor, loci, network_colours),
+                        fontname="helvetica neue")
+            if cell.bgcolor is not None:
+                G.node[cell]['style'] = 'filled'
+
+                G.node[cell]['fillcolor'] = cell.bgcolor
+
+    zero_distance = make_dict_cells_distance_zero(cells, s_normalised_edit_distances)
+    print("Zero distance: ")
+    print(zero_distance)
+
+    # make edges between cells with distance 0:
+
+    #G.add_edge(current_cell, comparison_cell, distance, color="#000000",
+                        #weight=distance)
+
+    H = nx.Graph()
+    for clone, data in six.iteritems(zero_distance):
+        edges = []
+        #print("data")
+        #print(data)
+        for groups, cells_in_group in six.iteritems(zero_distance[clone]):
+             H = nx.Graph(G.subgraph(cells_in_group))
+             H.nodes()
+             G.add_node(H)   
+            #edge = (cell1, cell2)
+            #edges.append(edge)
+        #G.add_edges_from(edges)
+        #G.add_edge(current_cell, comparison_cell, weight="100")
+        #print(edges)
+
+
+
+    deg = G.degree()
+
+    to_remove = [n for n in deg if deg[n] == 0]
+
+
+    if len(to_remove) < len(G.nodes()):
+        if not shape == 'circle':
+            G.remove_nodes_from(to_remove)
+            drawing_tool = [dot, '-Gsplines=true', '-Goverlap=false', '-Gsep=0.4']
+
+        else:
+            drawing_tool = [dot, '-Gsplines=true', '-Goverlap=false']
+    else:
+        drawing_tool = [neato, '-Gsplines=true', '-Goverlap=false']
+
+
+    component_counter = 0
+    component_groups = list()
+    j = 0
+    components = nx.connected_components(G)
+    #H = nx.Graph()
+    #for group in component_groups:
+        #subgraph = G.subgraph(group)
+        #H.add_node(subgraph)
+
+    for component in components:
+        members = list()
+        if len(component) > 1:
+            for cell in component:
+                members.append(cell.name)
+
+
+        component_groups.append(members)
+
+
+
+    return (G, drawing_tool, component_groups)"""
+
+
+
+
+"""def make_cell_network_from_dna_sum_normalised(cells, keep_unlinked, shape, dot, neato, receptor, loci,
                                network_colours, s_normalised_edit_distances):
     G = nx.Graph()
     
@@ -1015,7 +1239,7 @@ def make_cell_network_from_dna_sum_normalised(cells, keep_unlinked, shape, dot, 
 
 
   
-    return (G, drawing_tool, component_groups)
+    return (G, drawing_tool, component_groups)"""
 
 
 
@@ -1099,14 +1323,14 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato, receptor
     return (G, drawing_tool, component_groups)
 
 
-def draw_network_from_cells(cells, output_dir, output_format, dot, neato, draw_graphs, receptor, loci, network_colours, sum_normalised_edit_distances):
+def draw_network_from_cells(cells, output_dir, output_format, dot, neato, draw_graphs, receptor, loci, network_colours, n_edit_distance):
     cells = list(cells.values())
     if not receptor == "BCR":
         network, draw_tool, component_groups = make_cell_network_from_dna(cells, False, "box", dot,
                                                                       neato, receptor, loci, network_colours)
     else:
-        network, draw_tool, component_groups = make_cell_network_from_dna_sum_normalised(cells, False, "box", dot,
-                                                                      neato, receptor, loci, network_colours, sum_normalised_edit_distances)
+        network, draw_tool, component_groups = make_cell_network_from_dna_B_cells(cells, False, "box", dot,
+                                                                      neato, receptor, loci, network_colours, n_edit_distance)
     network_file = "{}/clonotype_network_with_identifiers.dot".format(output_dir)
     try:
         nx.write_dot(network, network_file)
@@ -1121,8 +1345,8 @@ def draw_network_from_cells(cells, output_dir, output_format, dot, neato, draw_g
         network, draw_tool, cgx = make_cell_network_from_dna(cells, False, "circle", dot, 
                                                          neato, receptor, loci, network_colours)
     else:
-        network, draw_tool, cgx = make_cell_network_from_dna_sum_normalised(cells, False, "circle", dot,
-                                                         neato, receptor, loci, network_colours, sum_normalised_edit_distances)
+        network, draw_tool, cgx = make_cell_network_from_dna_B_cells(cells, False, "circle", dot,
+                                                         neato, receptor, loci, network_colours, n_edit_distance)
 
     network_file = "{}/clonotype_network_without_identifiers.dot".format(output_dir)
     try:

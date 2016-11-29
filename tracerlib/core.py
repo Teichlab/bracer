@@ -94,7 +94,9 @@ class Cell(object):
     def assign_bgcolor(self, species, isotype):
         """Assigns bgcolor for cell according to isotype (B cells)"""
         
-        isotype_bgcolors = {"IGHM":'#99e699', "IGHD":'#66a3ff', "IGHA":'#b366ff', "IGHE":'#ffff66', "IGHG1":'#b30000', "IGHG2A":'#e60000', "IGHG2B":'#ff3333', "IGHG2C":'#ff6666', "IGHG3":'#ffb3b3'}
+        """isotype_bgcolors = {"IGHM":'#99e699', "IGHD":'#66a3ff', "IGHA":'#b366ff', "IGHE":'#ffff66', "IGHG1":'#b30000', "IGHG2A":'#e60000', "IGHG2B":'#ff3333', "IGHG2C":'#ff6666', "IGHG3":'#ffb3b3'}"""
+        isotype_bgcolors = {"IGHD":'#c1f0c1', "IGHM":'#b3d1ff', "IGHA":'#e6ccff', "IGHE":'#ffffb3', "IGHG1":'#b30000', "IGHG2A":'#e60000', "IGHG2B":'#ff3333', "IGHG2C":'#ff6666', "IGHG3":'#ffb3b3'}
+
 
         if isotype is None:
             bgcolor = None

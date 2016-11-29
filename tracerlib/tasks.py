@@ -310,6 +310,7 @@ class Assembler(TracerTask):
                                                                             cell_name=cell.name, 
                                                                             receptor=self.receptor_name), 'wb') as pf:
             pickle.dump(cell, pf, protocol=0)
+        
         print("##Filtering by read count##")
         cell.filter_recombinants()
         fasta_filename = "{output_dir}/filtered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
@@ -328,7 +329,7 @@ class Assembler(TracerTask):
                                                                           cell_name=cell.name,
                                                                           receptor=self.receptor_name), 'wb') as pf:
             pickle.dump(cell, pf, protocol=0)
-
+        
     def get_index_location(self, name):
         location = os.path.join(base_dir, 'resources', self.species, name)
 
@@ -960,7 +961,7 @@ class Summariser(TracerTask):
         if self.receptor_name == "BCR":
             component_groups = tracer_func.draw_network_from_cells(cells, outdir, self.graph_format, dot, neato,
                                                                self.draw_graphs, self.receptor_name, self.loci,
-                                                               network_colours, s_edit_distances)
+                                                               network_colours, n_edit_distances)
         
         # Print component groups to the summary#
         outfile.write(
