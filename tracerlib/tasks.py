@@ -284,7 +284,7 @@ class Assembler(TracerTask):
             io.makeOutputDir("{}/{}".format(self.output_dir, d))
 
         # Perform TraCeR's core functions
-        self.align()
+        #self.align()
         #self.oases_assemble()
         self.de_novo_assemble()
         self.blast()
@@ -304,15 +304,28 @@ class Assembler(TracerTask):
                                                                         output_dir=self.output_dir,
                                                                         receptor=self.receptor_name),
                                                                         self.receptor_name, self.loci)
-        
+        #print(cell.cdr3_dict)
         # Save cell in a pickle
         with open("{output_dir}/unfiltered_{receptor}_seqs/{cell_name}.pkl".format(output_dir=self.output_dir,
                                                                             cell_name=cell.name, 
                                                                             receptor=self.receptor_name), 'wb') as pf:
             pickle.dump(cell, pf, protocol=0)
         
+
+
+        print("##Ranking recombinants by read counts##")
+        print(cell.rank_recs)
+        print("##Two most common chains for each locus##")
+        print(cell.two_most_common)
+        print("##Three most common chains for each locus##")
+        print(cell.three_most_common)
+ 
+        print("##Asserting if top 2 chains have identical cdr3##")
+        print(cell.identical)
         print("##Filtering by read count##")
         cell.filter_recombinants()
+        print("##Four most common chains for each locus##")
+        print(cell.four_most_common)
         fasta_filename = "{output_dir}/filtered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
                                                                                         cell_name=self.cell_name,
                                                                                         receptor=self.receptor_name)
@@ -324,7 +337,7 @@ class Assembler(TracerTask):
                                                                             output_dir=self.output_dir,
                                                                             receptor=self.receptor_name),
                                                                             self.receptor_name, self.loci)
-                                                                            
+        print(cell.cdr3_dict)                                                                    
         with open("{output_dir}/filtered_{receptor}_seqs/{cell_name}.pkl".format(output_dir=self.output_dir,
                                                                           cell_name=cell.name,
                                                                           receptor=self.receptor_name), 'wb') as pf:
