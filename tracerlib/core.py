@@ -35,7 +35,7 @@ class Cell(object):
         self.four_most_common = self.find_n_most_common(4)
         self.replacement_dict = self.assert_third_most_common()
         #self.detailed_identifier_dict = self.create_detailed_identifier_dict()
-        #self.tpm_dict = self.create_tpm_dict()
+        self.tpm_dict = self.create_tpm_dict(self.recombinants, loci)
         #print(self.cdr3_dict)
         #print(self.rank_recs)
 
@@ -591,7 +591,7 @@ class Cell(object):
 
         return (detailed_identifier_dict)
 
-    def create_tpm_dict(self):
+    def create_tpm_dict(self, recombinants, loci):
         tpm_dict = dict()
         for receptor, locus_dict in six.iteritems(self.recombinants):
             for locus, recombinants in six.iteritems(locus_dict):

@@ -284,9 +284,9 @@ class Assembler(TracerTask):
             io.makeOutputDir("{}/{}".format(self.output_dir, d))
 
         # Perform TraCeR's core functions
-        self.align()
+        #self.align()
         #self.oases_assemble()
-        self.de_novo_assemble()
+        #self.de_novo_assemble()
         self.blast()
         cell = self.ig_blast()
         #self.blast()
@@ -295,11 +295,11 @@ class Assembler(TracerTask):
         fasta_filename = "{output_dir}/unfiltered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
                                                                                         cell_name=self.cell_name,
                                                                                         receptor=self.receptor_name)
-        """print("PRINTING REC INFO")
+        print("PRINTING REC INFO")
         self.print_rec_info(cell)
         print("DONE PRINTING REC INFO")
-        #print(cell.tpm_dict)
-        #print(cell.C_gene_dict)"""     
+        print(cell.tpm_dict)
+        #print(cell.C_gene_dict)     
         fasta_file = open(fasta_filename, 'w')
         fasta_file.write(cell.get_fasta_string())
         fasta_file.close()
@@ -342,7 +342,7 @@ class Assembler(TracerTask):
             pickle.dump(cell, pf, protocol=0)
         
 
-        #print("##Ranking recombinants by read counts##")
+        """#print("##Ranking recombinants by read counts##")
         #print(cell.rank_recs)
         print("##Two most common chains for each locus##")
         print(cell.two_most_common)
@@ -366,7 +366,7 @@ class Assembler(TracerTask):
         print("PRINTING REC INFO")
         self.print_rec_info(cell)
         print("DONE PRINTING REC INFO")
-        #print(cell.cdr3_dict)
+        #print(cell.cdr3_dict)"""
         """print("##Ranking recombinants by read counts##")
         print(cell.rank_recs)
         print("##Two most common chains for each locus##")
@@ -383,7 +383,7 @@ class Assembler(TracerTask):
         print("##Print recombinant info##")
         print(cell.print_dict)"""
 
-        """fasta_filename = "{output_dir}/filtered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
+        fasta_filename = "{output_dir}/filtered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
                                                                                         cell_name=self.cell_name,
                                                                                         receptor=self.receptor_name)
         fasta_file = open(fasta_filename, 'w')
@@ -398,7 +398,26 @@ class Assembler(TracerTask):
         with open("{output_dir}/filtered_{receptor}_seqs/{cell_name}.pkl".format(output_dir=self.output_dir,
                                                                           cell_name=cell.name,
                                                                           receptor=self.receptor_name), 'wb') as pf:
-            pickle.dump(cell, pf, protocol=0)"""
+            pickle.dump(cell, pf, protocol=0)
+        #print("##Ranking recombinants by read counts##")
+        #print(cell.rank_recs)
+        print("##Two most common chains for each locus##")
+        print(cell.two_most_common)
+        print("##Three most common chains for each locus##")
+        print(cell.three_most_common)
+        print("##Replacement dict##")
+        #print(cell.replacement_dict)
+
+        print("##Asserting if top 2 chains have identical cdr3##")
+        print(cell.identical)
+        #print("##Filtering by read count##")
+        #cell.filter_recombinants()
+        print("##Four most common chains for each locus##")
+        print(cell.four_most_common)
+        #print("##Print recombinant info##")
+        #print(cell.print_dict)
+        #print("##Filtering by read count##")
+        #cell.filter_recombinants()
         
     def get_index_location(self, name):
         location = os.path.join(base_dir, 'resources', self.species, name)
