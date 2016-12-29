@@ -285,21 +285,21 @@ class Assembler(TracerTask):
 
         # Perform TraCeR's core functions
         #self.align()
-        #self.oases_assemble()
+        self.oases_assemble()
         #self.de_novo_assemble()
         self.blast()
         cell = self.ig_blast()
         #self.blast()
-        self.quantify(cell)
+        #self.quantify(cell)
         
         fasta_filename = "{output_dir}/unfiltered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
                                                                                         cell_name=self.cell_name,
                                                                                         receptor=self.receptor_name)
-        print("PRINTING REC INFO")
+        """print("PRINTING REC INFO")
         self.print_rec_info(cell)
         print("DONE PRINTING REC INFO")
         print(cell.tpm_dict)
-        #print(cell.C_gene_dict)     
+        #print(cell.C_gene_dict)"""    
         fasta_file = open(fasta_filename, 'w')
         fasta_file.write(cell.get_fasta_string())
         fasta_file.close()
@@ -394,12 +394,12 @@ class Assembler(TracerTask):
                                                                             output_dir=self.output_dir,
                                                                             receptor=self.receptor_name),
                                                                             self.receptor_name, self.loci)
-        print(cell.cdr3_dict)                                                                    
+        #print(cell.cdr3_dict)                                                                    
         with open("{output_dir}/filtered_{receptor}_seqs/{cell_name}.pkl".format(output_dir=self.output_dir,
                                                                           cell_name=cell.name,
                                                                           receptor=self.receptor_name), 'wb') as pf:
             pickle.dump(cell, pf, protocol=0)
-        #print("##Ranking recombinants by read counts##")
+        """#print("##Ranking recombinants by read counts##")
         #print(cell.rank_recs)
         print("##Two most common chains for each locus##")
         print(cell.two_most_common)
@@ -417,7 +417,7 @@ class Assembler(TracerTask):
         #print("##Print recombinant info##")
         #print(cell.print_dict)
         #print("##Filtering by read count##")
-        #cell.filter_recombinants()
+        #cell.filter_recombinants()"""
         
     def get_index_location(self, name):
         location = os.path.join(base_dir, 'resources', self.species, name)
@@ -471,13 +471,17 @@ class Assembler(TracerTask):
         oases = self.get_binary('oases')
         print(velveth)
         print(oases)
+        # Run velveth
+        tracer_func.run_velvet_h(velveth, self.receptor_name, self.loci, self.output_dir, self.cell_name, self.ncores, self.resume_with_existing_files, self.single_end, self.species)
+
         # Make oases input files
-        """tracer_func.get_oases_input(self.receptor_name, self.loci, self.output_dir, self.cell_name, self.ncores,
-            self.resume_with_existing_files, self.single_end, self.species)"""       
+        #input_files = tracer_func.get_oases_input(self.receptor_name, self.loci, self.output_dir, self.cell_name, self.ncores,
+            #self.resume_with_existing_files, self.single_end, self.species)
+        #print("INPUT FILES")
+        #print(input_files)       
 
         # De novo assembly with oases
-        tracer_func.assemble_with_oases(velveth, velvetg, oases, self.receptor_name, self.loci, self.output_dir, self.cell_name, self.ncores, 
-            self.resume_with_existing_files, self.single_end, self.species)
+        #tracer_func.assemble_with_oases(velveth, velvetg, oases, self.receptor_name, self.loci, self.output_dir, self.cell_name, self.ncores, self.resume_with_existing_files, self.single_end, self.species)
             
         #if len(successful_files) == 0:
             #print("No successful Oases assemblies")

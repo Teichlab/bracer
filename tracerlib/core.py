@@ -421,15 +421,15 @@ class Cell(object):
                     keep_one_rec[locus] = False
                     if len(recombinants) > 1:
                         two_most_common = two_most_common_dict[locus]
-                        print("PRINTING TWO MOST COMMON DICT")
-                        print(locus)
-                        print(two_most_common)
+                        #print("PRINTING TWO MOST COMMON DICT")
+                        #print(locus)
+                        #print(two_most_common)
                         
                         rec1 = None
                         rec2 = None
-                        print("Should be None")
-                        print(rec1)
-                        print(rec2)
+                        #print("Should be None")
+                        #print(rec1)
+                        #print(rec2)
                         
                         for rec in recombinants:
                             if rec.contig_name in two_most_common:
@@ -449,9 +449,9 @@ class Cell(object):
                                     #two_most_common[i] = rec
                         #rec1 = two_most_common[0]
                         #rec2 = two_most_common[1]
-                        print("Should be two most common recs for locus")
-                        print(rec1)
-                        print(rec2)
+                        #print("Should be two most common recs for locus")
+                        #print(rec1)
+                        #print(rec2)
                         if detailed_identifier_dict[locus][rec1].split("*")[0] == detailed_identifier_dict[locus][rec2].split("*")[0]:
                             two_identical[locus] = True
                             isotype_rec1 = detailed_identifier_dict[locus][rec1].split("*")[1].split("_")[0]
@@ -472,8 +472,8 @@ class Cell(object):
                                 elif (isotype_rec1 and isotype_rec2) in ["IGHD", "IGHM"]:
                                     keep_isotype = "IGHDM"
                             keep_one_rec[locus] = (keep_rec, keep_isotype)
-        print("KEEP ONE REC")
-        print(keep_one_rec)
+        #print("KEEP ONE REC")
+        #print(keep_one_rec)
         return (keep_one_rec) 
  
                                

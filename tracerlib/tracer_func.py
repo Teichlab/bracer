@@ -1684,18 +1684,88 @@ def get_oases_input(receptor, loci, output_dir, cell_name, ncores, should_resume
             print("Shuffle failed for locus")
     return(input_files)
 
+def run_velvet_h(velveth, receptor, loci, output_dir, cell_name, ncores, should_resume, single_end, species):
+    locus_names = ["_".join([receptor,x]) for x in loci]    
+    
+    # Set hash lengths and velveth output paths
+    oases_output_path = "{}/Oases_output".format(output_dir)
+    hash_lengths = ["21", "23"]
+    hash_length_paths = []
+    for hash_length in hash_lengths:
+        path = "{}/{}_dir".format(oases_output_path, hash_length)
+        hash_length_paths.append(path)
+
+    # Run velveth
+    for locus in locus_names:
+        print("##{}##".format(locus))
+        oases_output = "{}/Oases_output/{}_{}".format(output_dir, cell_name, locus)
+        aligned_read_path = "{}/aligned_reads/{}_{}".format(output_dir, cell_name, locus)
+        commands = []
+        if not single_end:
+            file1 = "{}_1.fastq".format(aligned_read_path)
+            file2 = "{}_2.fastq".format(aligned_read_path)
+            for i in range(len(hash_lengths)):
+                path = hash_length_paths[i]
+                hash_length = hash_lengths[i]
+                velveth_command = [velveth, path, hash_length, '-fastq', '-shortPaired', '-separate', file1, file2]
+                print(velveth_command)
+                commands.append(velveth_command)
+            #else:
+                #file = "{}.fastq".format(aligned_read_path)
+                #command = base_command + ["--single", file, "--output",
+                                 #'{}/Oases_output/Oases_{}_{}'.format(output_dir, cell_name, locus)]
+        for command in commands:
+            try:
+                subprocess.check_call(command)
+                """shutil.move('{}/Oases_output/pairedEnd*'.format(output_dir, cell_name, locus),
+                        '{}/Oases_output/{}_{}.Oases.fasta'.format(output_dir, cell_name, locus))"""
+            except (subprocess.CalledProcessError, IOError):
+                print("Velveth failed for locus")
+
+
 def assemble_with_oases(velveth, velvetg, oases, receptor, loci, output_dir, cell_name, ncores, should_resume, single_end, species):
     #velvet = "/nfs/users/nfs_i/il5/software/velvet"
     #velvetg = "/nfs/users/nfs_i/il5/software/velvet/velvetg"
     #velveth = "/nfs/users/nfs_i/il5/software/velvet/velveth"
-    oases_script = oases[:-5] + "scripts/oases_pipeline.py"
+    #oases_script = oases[:-5] + "scripts/oases_pipeline.py"
    
-    base_command = [oases_script, '-m 17', '-M 39']
+    #base_command = [oases_script, '-m 17', '-M 39']
 
     locus_names = ["_".join([receptor,x]) for x in loci]
+
+    # Get input files
+    aligned_read_path = "{}/aligned_reads/{}_{}".format(output_dir, cell_name, locus)
+    if not single_end:
+        file1 = "{}_1.fastq".format(aligned_read_path)
+        file2 = "{}_2.fastq".format(aligned_read_path)
+    oases_output_path = "{}/Oases_output".format(output_dir)
+    hash_lengths = ["21", "23"]
+    hash_length_paths = []
+    for hash_length in hash_lengths:
+        path = "{}/{}_dir".format(oases_output_path, hash_length)
+        hash_length_paths.append(path)
+    #21_dir_path = "{}/21_dir".format(oases_output_path)
+    #23_dir_path = "{}/23_dir".format(oases_output_path)
     #print(velveth)
     #print(oases)   
     
+    #COMMANDS
+    #Command for velveth
+    for i in range(len(hash_lengths)):
+        path = hash_length_paths[i]
+        hash_length = hash_lengths[i]
+        velveth_command = [velveth, path, hash_length, '-fastq', '-shortPaired', '-separate', file1, file2]
+        print(velveth_command)
+    # velveth directory 21,23 data/reads.fa
+    #velvetg directory_21 -read_trkg yes
+    # oases directory_21
+    # ls directory_21
+    # velvetg directory_23 -read_trkg yes
+    # oases directory_23
+    # velveth mergedAssembly 23 -long directory*/transcripts.fa
+    # velvetg mergedAssembly -read_trkg yes -conserveLong yes
+    # oases mergedAssembly -merge
+
     for locus in locus_names:
         print("##{}##".format(locus))
         oases_output = "{}/Oases_output/{}_{}".format(output_dir, cell_name, locus)
