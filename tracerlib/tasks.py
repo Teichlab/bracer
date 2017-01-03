@@ -287,7 +287,7 @@ class Assembler(TracerTask):
         #self.align()
         self.oases_assemble()
         #self.de_novo_assemble()
-        self.blast()
+        #self.blast()
         cell = self.ig_blast()
         #self.blast()
         #self.quantify(cell)
@@ -472,7 +472,7 @@ class Assembler(TracerTask):
         print(velveth)
         print(oases)
         # Run velveth
-        tracer_func.run_velvet_h(velveth, self.receptor_name, self.loci, self.output_dir, self.cell_name, self.ncores, self.resume_with_existing_files, self.single_end, self.species)
+        tracer_func.run_velvet_h(velveth, velvetg, oases, self.receptor_name, self.loci, self.output_dir, self.cell_name, self.ncores, self.resume_with_existing_files, self.single_end, self.species)
 
         # Make oases input files
         #input_files = tracer_func.get_oases_input(self.receptor_name, self.loci, self.output_dir, self.cell_name, self.ncores,

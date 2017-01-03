@@ -1659,7 +1659,7 @@ def assemble_with_trinity(trinity, receptor, loci, output_dir, cell_name, ncores
     return successful_files
 
 
-def get_oases_input(receptor, loci, output_dir, cell_name, ncores, should_resume, single_end, species):
+"""def get_oases_input(receptor, loci, output_dir, cell_name, ncores, should_resume, single_end, species):
     velveth = "/nfs/users/nfs_i/il5/software/velvet/velveth"
     base_command = [velveth, 'shuffleSequences_fastq.pl']
     locus_names = ["_".join([receptor,x]) for x in loci]
@@ -1678,50 +1678,130 @@ def get_oases_input(receptor, loci, output_dir, cell_name, ncores, should_resume
             #["--output", '{}/Oases_output/Oases_{}_{}'.format(output_dir, cell_name, locus)]
         try:
             subprocess.check_call(command)
-            """shutil.move('{}/Oases_output/Oases_{}_{}.Oases.fasta'.format(output_dir, cell_name, locus),
-                        '{}/Oases_output/{}_{}.Oases.fasta'.format(output_dir, cell_name, locus))"""
+            shutil.move('{}/Oases_output/Oases_{}_{}.Oases.fasta'.format(output_dir, cell_name, locus),
+                        '{}/Oases_output/{}_{}.Oases.fasta'.format(output_dir, cell_name, locus))
         except (subprocess.CalledProcessError, IOError):
             print("Shuffle failed for locus")
-    return(input_files)
+    return(input_files)"""
 
-def run_velvet_h(velveth, receptor, loci, output_dir, cell_name, ncores, should_resume, single_end, species):
+def run_velvet_h(velveth, velvetg, oases, receptor, loci, output_dir, cell_name, ncores, should_resume, single_end, species):
     locus_names = ["_".join([receptor,x]) for x in loci]    
     
-    # Set hash lengths and velveth output paths
-    oases_output_path = "{}/Oases_output".format(output_dir)
+    # Set hash lengths and output paths
+    """oases_output_path = "{}/Oases_output".format(output_dir)
     hash_lengths = ["21", "23"]
     hash_length_paths = []
     for hash_length in hash_lengths:
         path = "{}/{}_dir".format(oases_output_path, hash_length)
-        hash_length_paths.append(path)
+        hash_length_paths.append(path)"""
 
-    # Run velveth
+    # Create single-k assemblies
+    #for locus in locus_names:
     for locus in locus_names:
         print("##{}##".format(locus))
-        oases_output = "{}/Oases_output/{}_{}".format(output_dir, cell_name, locus)
-        aligned_read_path = "{}/aligned_reads/{}_{}".format(output_dir, cell_name, locus)
-        commands = []
+        #Set hash lengths and output paths
+        oases_output_path = "{}/Oases_output/{}".format(output_dir, locus)
+        tracerlib.io.makeOutputDir(oases_output_path)
+        hash_lengths = ["19", "21", "23", "25", "27"]
+        hash_length_paths = []
+        for hash_length in hash_lengths:
+            path = "{}/directory{}".format(oases_output_path, hash_length)
+            hash_length_paths.append(path)
+            #oases_output = "{}/Oases_output/{}_{}".format(output_dir, cell_name, locus)
+            aligned_read_path = "{}/aligned_reads/{}_{}".format(output_dir, cell_name, locus)
+            velveth_commands = []
+            velvetg_commands = []
+            oases_commands = []
         if not single_end:
             file1 = "{}_1.fastq".format(aligned_read_path)
             file2 = "{}_2.fastq".format(aligned_read_path)
+            # Create velveth, velvetg and oases commands
+            print("##### Creating velveth, velvetg and oases commands#####")
             for i in range(len(hash_lengths)):
-                path = hash_length_paths[i]
+                path = hash_length_paths[i]  
+                #print(path)
                 hash_length = hash_lengths[i]
                 velveth_command = [velveth, path, hash_length, '-fastq', '-shortPaired', '-separate', file1, file2]
-                print(velveth_command)
-                commands.append(velveth_command)
-            #else:
-                #file = "{}.fastq".format(aligned_read_path)
-                #command = base_command + ["--single", file, "--output",
+                #print(velveth_command)
+                velveth_commands.append(velveth_command) 
+                velvetg_command = [velvetg, path, '-read_trkg', 'yes', '-min_contig_lgth', '150', '-cov_cutoff', 'auto']
+                velvetg_commands.append(velvetg_command)
+                #print(velvetg_command)
+                oases_command = [oases, path, '-min_trans_lgth', '400']
+                oases_commands.append(oases_command)
+                #print(oases_command)
+            
+                
+                #else:
+                    #file = "{}.fastq".format(aligned_read_path)
+                    #command = base_command + ["--single", file, "--output",
                                  #'{}/Oases_output/Oases_{}_{}'.format(output_dir, cell_name, locus)]
+
+        for command_list in [velveth_commands, velvetg_commands, oases_commands]:
+            for command in command_list:
+                if command_list == velveth_commands:
+                    program = "velveth"
+                elif command_list == velvetg_commands:
+                    program = "velvetg"
+                elif command_list == oases_commands:
+                    program = "oases"
+                try:    
+                    subprocess.check_call(command)
+                    """shutil.move('{}/Oases_output/pairedEnd*'.format(output_dir, cell_name, locus),
+                        '{}/Oases_output/{}_{}.Oases.fasta'.format(output_dir, cell_name, locus))"""
+                    print("Single k-mer assembly successful for locus when running {}".format(program))
+                except (subprocess.CalledProcessError, IOError):
+                    print("Single k-mer assembly failed for locus when running {}".format(program))
+
+    # Merge assemblies
+    #for locus in locus_names:
+    for locus in ["BCR_H"]:
+        print("Merging assemblies for ##{}##".format(locus))
+        #oases_output = "{}/Oases_output/{}_{}".format(output_dir, cell_name, locus)
+        oases_output_path = "{}/Oases_output/{}/MergedAssembly".format(output_dir, locus)
+        #print("\n\n\n\n\n\n")
+        #print("oases output path")
+        #print(oases_output_path)
+        #print("locus transcript path")
+        #print(locus_transcript_path)
+        locus_transcript_path = []
+        for length in hash_lengths:
+            #if len(locus_transcript_path) == 0:
+                #locus_transcript_path = "{}/Oases_output/{}/directory{}/transcripts.fa".format(output_dir, locus, length)
+            to_append = "{}/Oases_output/{}/directory{}/transcripts.fa".format(output_dir, locus, length)
+            locus_transcript_path.append(to_append) 
+        
+        #locus_transcript_path = "{}/Oases_output/{}/directory*/transcripts.fa".format(output_dir, locus)
+        #print(locus_transcript_path)
+        commands = []
+        if not single_end:
+            
+            velveth_command = [velveth, oases_output_path, '27', '-long']
+            for i in range(len(locus_transcript_path)):
+                to_append = locus_transcript_path[i]
+                velveth_command.append(to_append)
+            #print(velveth_command)
+                
+            velvetg_command = [velvetg, oases_output_path, '-read_trkg', 'yes', '-conserveLong', 'yes']
+            oases_command = [oases, oases_output_path, '-merge', 'yes']
+            commands.append(velveth_command)
+            commands.append(velvetg_command)
+            commands.append(oases_command)
+
         for command in commands:
+            if command == velveth_command:
+                program = "velveth"
+            elif command == velvetg_command:
+                program = "velvetg"
+            elif command == oases_command:
+                program = "oases"
+            print("Running {}".format(program))
             try:
                 subprocess.check_call(command)
                 """shutil.move('{}/Oases_output/pairedEnd*'.format(output_dir, cell_name, locus),
                         '{}/Oases_output/{}_{}.Oases.fasta'.format(output_dir, cell_name, locus))"""
             except (subprocess.CalledProcessError, IOError):
-                print("Velveth failed for locus")
-
+                print("Merging of assemblies failed for locus when running {}".format(program))   
 
 def assemble_with_oases(velveth, velvetg, oases, receptor, loci, output_dir, cell_name, ncores, should_resume, single_end, species):
     #velvet = "/nfs/users/nfs_i/il5/software/velvet"
