@@ -162,9 +162,13 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                         all_V_names = [remove_allele_stars(x) for x in rearrangement_summary[0].split(',')]
 
 
-                    # get original sequence from Trinity file - needed for summary of reconstructed lengths.
+                    # get original sequence from Trinity file/Oases file - needed for summary of reconstructed lengths.
                     # Only use the VDJ portion found by IgBLAST
-                    trinity_file = "{output_dir}/Trinity_output/{cell_name}_{locus}.Trinity.fasta".format(
+                    oases_file = "{}/Oases_output/{}/MergedAssembly/transcripts.fa".format(output_dir, locus)  
+                    if os.path.exists(oases_file):
+                        trinity_file = oases_file
+                    else:
+                        trinity_file = "{output_dir}/Trinity_output/{cell_name}_{locus}.Trinity.fasta".format(
                         locus=locus, output_dir=output_dir, cell_name=cell_name)
                     with open(trinity_file, 'rU') as tf:
                         for record in SeqIO.parse(tf, 'fasta'):
@@ -1755,7 +1759,7 @@ def run_velvet_h(velveth, velvetg, oases, receptor, loci, output_dir, cell_name,
 
     # Merge assemblies
     #for locus in locus_names:
-    for locus in ["BCR_H"]:
+    for locus in locus_names:
         print("Merging assemblies for ##{}##".format(locus))
         #oases_output = "{}/Oases_output/{}_{}".format(output_dir, cell_name, locus)
         oases_output_path = "{}/Oases_output/{}/MergedAssembly".format(output_dir, locus)
@@ -1966,22 +1970,37 @@ def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, 
         num_alignments_V = '5'
         num_alignments_D = '5'
         num_alignments_J = '5'
-
-    for locus in locus_names:
-        print("##{}##".format(locus))
-        trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(output_dir, cell_name, locus)
-        if os.path.isfile(trinity_fasta):
-            command = [igblast, '-germline_db_V', databases['V'], '-germline_db_J', databases['J'], '-germline_db_D', 
+    oases = True
+    if oases != True:
+        for locus in locus_names:
+            print("##{}##".format(locus))
+            trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(output_dir, cell_name, locus)
+            if os.path.isfile(trinity_fasta):
+                command = [igblast, '-germline_db_V', databases['V'], '-germline_db_J', databases['J'], '-germline_db_D', 
                         databases['D'], '-domain_system', 'imgt', '-organism', igblast_species,
                        '-ig_seqtype', ig_seqtype, '-show_translation', '-num_alignments_V', num_alignments_V,
                        '-num_alignments_D', num_alignments_D, '-num_alignments_J', num_alignments_J, '-outfmt', '7', '-query', trinity_fasta]
-            igblast_out = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
+                igblast_out = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
                                                                                               cell_name=cell_name,
                                                                                               locus=locus)
-            with open(igblast_out, 'w') as out:
-                # print(" ").join(pipes.quote(s) for s in command)
-                subprocess.check_call(command, stdout=out, stderr=DEVNULL)
-
+                with open(igblast_out, 'w') as out:
+                    # print(" ").join(pipes.quote(s) for s in command)
+                    subprocess.check_call(command, stdout=out, stderr=DEVNULL)
+    else:
+        for locus in locus_names:
+            print("##{}##".format(locus))
+            oases_fasta = "{}/Oases_output/{}/MergedAssembly/transcripts.fa".format(output_dir, locus)
+            if os.path.isfile(oases_fasta):
+                command = [igblast, '-germline_db_V', databases['V'], '-germline_db_J', databases['J'], '-germline_db_D',
+                        databases['D'], '-domain_system', 'imgt', '-organism', igblast_species,
+                       '-ig_seqtype', ig_seqtype, '-show_translation', '-num_alignments_V', num_alignments_V,
+                       '-num_alignments_D', num_alignments_D, '-num_alignments_J', num_alignments_J, '-outfmt', '7', '-query', oases_fasta]
+                igblast_out = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
+                                                                                              cell_name=cell_name,
+                                                                                              locus=locus)
+                with open(igblast_out, 'w') as out:
+                    # print(" ").join(pipes.quote(s) for s in command)
+                    subprocess.check_call(command, stdout=out, stderr=DEVNULL)
     DEVNULL.close()
 
 

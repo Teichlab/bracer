@@ -287,7 +287,7 @@ class Assembler(TracerTask):
         #self.align()
         self.oases_assemble()
         #self.de_novo_assemble()
-        #self.blast()
+        self.blast()
         cell = self.ig_blast()
         #self.blast()
         #self.quantify(cell)
