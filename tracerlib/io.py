@@ -114,7 +114,7 @@ def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species,
     return (cell)
 
 
-def parse_BLAST(receptor, loci, output_dir, cell_name, species):
+def parse_BLAST(receptor, loci, output_dir, cell_name, species, assembler):
     """Parses BLAST output from output files and writes formatted output to BLAST output summary files"""
 
     locus_names = ["_".join([receptor,x]) for x in loci]    
@@ -135,12 +135,13 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species):
                 for chunk in blast_result_chunks:
                     message = False
                     for line_x in chunk:
+                        print(line_x)
 
                         line_x= line_x.strip()
 
                         if line_x.startswith("<Iteration_query-def>"):
-                            line = line_x.split()[0]
-                            blast_query_name = line.split(">")[1]
+                            line = line_x.split(">")[1]
+                            blast_query_name = line.split("<")[0]
                             
                         elif line_x.startswith("<Hsp_evalue>"):
                             evalue = extract_blast_info(line_x)

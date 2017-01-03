@@ -83,8 +83,12 @@ def process_chunk(chunk):
 
         elif line_x.startswith('# Query'):
             query_name = line_x.split()[2]
-            query_length = line_x.split()[3]
-            return_dict['query_length'] = int(query_length.split("=")[1])
+            try:
+                query_length = query_name.split("Length_")[1]
+                return_dict['query_length'] = int(query_length)
+            except:
+                query_length = line_x.split()[3]
+                return_dict['query_length'] = int(query_length.split("=")[1])
             # return_dict['query_name'] = query_name
 
         elif line_x.startswith('# V-(D)-J rearrangement summary'):
@@ -1691,16 +1695,7 @@ def assemble_with_trinity(trinity, receptor, loci, output_dir, cell_name, ncores
 def run_velvet_h(velveth, velvetg, oases, receptor, loci, output_dir, cell_name, ncores, should_resume, single_end, species):
     locus_names = ["_".join([receptor,x]) for x in loci]    
     
-    # Set hash lengths and output paths
-    """oases_output_path = "{}/Oases_output".format(output_dir)
-    hash_lengths = ["21", "23"]
-    hash_length_paths = []
-    for hash_length in hash_lengths:
-        path = "{}/{}_dir".format(oases_output_path, hash_length)
-        hash_length_paths.append(path)"""
-
     # Create single-k assemblies
-    #for locus in locus_names:
     for locus in locus_names:
         print("##{}##".format(locus))
         #Set hash lengths and output paths
@@ -1723,18 +1718,13 @@ def run_velvet_h(velveth, velvetg, oases, receptor, loci, output_dir, cell_name,
             print("##### Creating velveth, velvetg and oases commands#####")
             for i in range(len(hash_lengths)):
                 path = hash_length_paths[i]  
-                #print(path)
                 hash_length = hash_lengths[i]
                 velveth_command = [velveth, path, hash_length, '-fastq', '-shortPaired', '-separate', file1, file2]
-                #print(velveth_command)
                 velveth_commands.append(velveth_command) 
-                velvetg_command = [velvetg, path, '-read_trkg', 'yes', '-min_contig_lgth', '150', '-cov_cutoff', 'auto']
+                velvetg_command = [velvetg, path, '-read_trkg', 'yes', '-min_contig_lgth', '400', '-exp_cov', 'auto', '-ins_length', '500']
                 velvetg_commands.append(velvetg_command)
-                #print(velvetg_command)
-                oases_command = [oases, path, '-min_trans_lgth', '400']
+                oases_command = [oases, path, '-min_trans_lgth', '400', '-ins_length', '500', '-cov_cutoff', '10']
                 oases_commands.append(oases_command)
-                #print(oases_command)
-            
                 
                 #else:
                     #file = "{}.fastq".format(aligned_read_path)
@@ -1786,7 +1776,7 @@ def run_velvet_h(velveth, velvetg, oases, receptor, loci, output_dir, cell_name,
                 velveth_command.append(to_append)
             #print(velveth_command)
                 
-            velvetg_command = [velvetg, oases_output_path, '-read_trkg', 'yes', '-conserveLong', 'yes']
+            velvetg_command = [velvetg, oases_output_path, '-read_trkg', 'yes', '-conserveLong', 'yes', '-exp_cov', 'auto']
             oases_command = [oases, oases_output_path, '-merge', 'yes']
             commands.append(velveth_command)
             commands.append(velvetg_command)
@@ -2046,18 +2036,37 @@ def run_Blast(blast, receptor, loci, output_dir, cell_name, index_location, spec
     # Taken from http://stackoverflow.com/questions/11269575/how-to-hide-output-of-subprocess-in-python-2-7
     DEVNULL = open(os.devnull, 'wb')
 
-    for locus in locus_names:
-        print("##{}##".format(locus))
-        trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(output_dir, cell_name, locus)
-        if os.path.isfile(trinity_fasta):
-            command = [blast, '-db', database, '-evalue', '0.001',
+    oases = True
+    if oases != True:
+      
+        for locus in locus_names:
+            print("##{}##".format(locus))
+            trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(output_dir, cell_name, locus)
+            if os.path.isfile(trinity_fasta):
+                command = [blast, '-db', database, '-evalue', '0.001',
                         '-num_alignments', '1', '-outfmt', '5', '-query', trinity_fasta]
-            blast_out = "{output_dir}/BLAST_output/{cell_name}_{locus}.xml".format(output_dir=output_dir,
+                blast_out = "{output_dir}/BLAST_output/{cell_name}_{locus}.xml".format(output_dir=output_dir,
                                                                                               cell_name=cell_name,
                                                                                               locus=locus)
-            with open(blast_out, 'w') as out:
-                # print(" ").join(pipes.quote(s) for s in command)
-                subprocess.check_call(command, stdout=out, stderr=DEVNULL)
+                with open(blast_out, 'w') as out:
+                    # print(" ").join(pipes.quote(s) for s in command)
+                    subprocess.check_call(command, stdout=out, stderr=DEVNULL)
+
+
+    else:
+
+        for locus in locus_names:
+            print("##{}##".format(locus))
+            oases_fasta = "{}/Oases_output/{}/MergedAssembly/transcripts.fa".format(output_dir, locus)
+            if os.path.isfile(oases_fasta):
+                command = [blast, '-db', database, '-evalue', '0.001',
+                        '-num_alignments', '1', '-outfmt', '5', '-query', oases_fasta]
+                blast_out = "{output_dir}/BLAST_output/{cell_name}_{locus}.xml".format(output_dir=output_dir,
+                                                                                              cell_name=cell_name,
+                                                                                              locus=locus)
+                with open(blast_out, 'w') as out:
+                    # print(" ").join(pipes.quote(s) for s in command)
+                    subprocess.check_call(command, stdout=out, stderr=DEVNULL)
 
     DEVNULL.close()
 

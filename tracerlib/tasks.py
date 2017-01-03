@@ -221,6 +221,7 @@ class Assembler(TracerTask):
             self.loci = args.loci
             self.max_junc_len = args.max_junc_len
             config_file = args.config_file
+            
 
         else:
             self.cell_name = kwargs.get('cell_name')
@@ -240,6 +241,7 @@ class Assembler(TracerTask):
             config_file = kwargs.get('config_file')
 
         self.config = self.read_config(config_file)
+        self.assembler = "oases"
         #self.locus_names = ["TCRA", "TCRB"]
 
         # Check the fastq config is correct
@@ -290,7 +292,7 @@ class Assembler(TracerTask):
         self.blast()
         cell = self.ig_blast()
         #self.blast()
-        #self.quantify(cell)
+        self.quantify(cell)
         
         fasta_filename = "{output_dir}/unfiltered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
                                                                                         cell_name=self.cell_name,
@@ -534,7 +536,7 @@ class Assembler(TracerTask):
             warnings.simplefilter("ignore")
             #cell = io.parse_IgBLAST(self.receptor_name, self.loci, self.output_dir, self.cell_name, imgt_seq_location,
             #                        self.species, self.seq_method, self.invariant_sequences)
-            isotype = io.parse_BLAST(self.receptor_name, self.loci, self.output_dir, self.cell_name, self.species)
+            isotype = io.parse_BLAST(self.receptor_name, self.loci, self.output_dir, self.cell_name, self.species, self.assembler)
         return isotype
 
 
