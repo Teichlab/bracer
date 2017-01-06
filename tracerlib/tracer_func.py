@@ -1701,7 +1701,7 @@ def run_velvet_h(velveth, velvetg, oases, receptor, loci, output_dir, cell_name,
         #Set hash lengths and output paths
         oases_output_path = "{}/Oases_output/{}".format(output_dir, locus)
         tracerlib.io.makeOutputDir(oases_output_path)
-        hash_lengths = ["19", "21", "23", "25", "27"]
+        hash_lengths = ["17", "19", "21", "23", "25", "27", "29"]
         hash_length_paths = []
         for hash_length in hash_lengths:
             path = "{}/directory{}".format(oases_output_path, hash_length)
@@ -1723,7 +1723,7 @@ def run_velvet_h(velveth, velvetg, oases, receptor, loci, output_dir, cell_name,
                 velveth_commands.append(velveth_command) 
                 velvetg_command = [velvetg, path, '-read_trkg', 'yes', '-min_contig_lgth', '400', '-exp_cov', 'auto', '-ins_length', '500']
                 velvetg_commands.append(velvetg_command)
-                oases_command = [oases, path, '-min_trans_lgth', '400', '-ins_length', '500', '-cov_cutoff', '10']
+                oases_command = [oases, path, '-min_trans_lgth', '400', '-ins_length', '500', '-cov_cutoff', 'auto']
                 oases_commands.append(oases_command)
                 
                 #else:

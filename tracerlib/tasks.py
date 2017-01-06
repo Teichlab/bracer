@@ -292,7 +292,7 @@ class Assembler(TracerTask):
         self.blast()
         cell = self.ig_blast()
         #self.blast()
-        self.quantify(cell)
+        #self.quantify(cell)
         
         fasta_filename = "{output_dir}/unfiltered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
                                                                                         cell_name=self.cell_name,
@@ -361,15 +361,15 @@ class Assembler(TracerTask):
         print(cell.four_most_common)
         #print("##Print recombinant info##")
         #print(cell.print_dict)
-        #print("##Filtering by read count##")
-        #cell.filter_recombinants()
+        #print("##Filtering by read count##")"""
+        cell.filter_recombinants()
 
 
         print("PRINTING REC INFO")
         self.print_rec_info(cell)
         print("DONE PRINTING REC INFO")
-        #print(cell.cdr3_dict)"""
-        """print("##Ranking recombinants by read counts##")
+        """print(cell.cdr3_dict)
+        print("##Ranking recombinants by read counts##")
         print(cell.rank_recs)
         print("##Two most common chains for each locus##")
         print(cell.two_most_common)
@@ -396,7 +396,7 @@ class Assembler(TracerTask):
                                                                             output_dir=self.output_dir,
                                                                             receptor=self.receptor_name),
                                                                             self.receptor_name, self.loci)
-        #print(cell.cdr3_dict)                                                                    
+        print(cell.cdr3_dict)                                                                    
         with open("{output_dir}/filtered_{receptor}_seqs/{cell_name}.pkl".format(output_dir=self.output_dir,
                                                                           cell_name=cell.name,
                                                                           receptor=self.receptor_name), 'wb') as pf:
