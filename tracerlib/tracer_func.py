@@ -181,16 +181,25 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
 
                     if 'reversed' in good_hits[0][1]:
                         trinity_seq = trinity_seq.reverse_complement().seq
+                        print("Reversed sequence")
                     else:
                         trinity_seq = trinity_seq.seq
                     start_coord, end_coord = get_coords(good_hits)
+                    print(trinity_seq)
                     trinity_seq = str(trinity_seq[start_coord:end_coord])
+                    print("Trimmed seq")
+                    print(trinity_seq)
 
                     (imgt_reconstructed_seq, is_productive, bestVJNames) = get_fasta_line_for_contig_imgt(
                         rearrangement_summary, junction_list, good_hits, returned_locus, IMGT_seqs, cell_name,
                         query_name, species, loci_for_segments)
                     del (is_productive)
                     del (bestVJNames)
+
+                    #Assess if rearrangement is full-length (from start of V gene to start of C gene)
+                    full_length = is_rearrangement_full_length(trinity_seq, query_data["hit_table"], query_name, query_data["query_length"])
+                    query_length = query_data["query_length"]
+
 
                     if seq_method == 'imgt':
                         (fasta_line_for_contig, is_productive, bestVJNames) = get_fasta_line_for_contig_imgt(
@@ -204,10 +213,17 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                         (is_productive, bestVJNames, cdr3) = get_fasta_line_for_contig_assembly(trinity_seq, good_hits,
                                                                                           returned_locus, IMGT_seqs,
                                                                                           cell_name, query_name,
-                                                                                          loci_for_segments)
+                                                                                          loci_for_segments, full_length)
+
+                        print("Seq mode is assembly")
+                        print(is_productive, bestVJNames, cdr3)
                     #Assess if rearrangement is full-length (from start of V gene to start of C gene)
-                    full_length = is_rearrangement_full_length(trinity_seq, query_data["hit_table"], query_name, query_data["query_length"])
-                    query_length = query_data["query_length"]
+                    #full_length = is_rearrangement_full_length(trinity_seq, query_data["hit_table"], query_name, query_data["query_length"])
+                    #query_length = query_data["query_length"]
+                    print ("Full length:")
+                    print(full_length)
+                    print("Query_length:")
+                    print(query_length)
                     
                     #Identify the most likely V genes if receptor is BCR
                     
@@ -522,7 +538,7 @@ def get_segment_name(name, pattern):
 
 
 def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs, sample_name, 
-                                        query_name, loci_for_segments):
+                                        query_name, loci_for_segments, full_length):
     found_best_V = False
     found_best_D = False
     found_best_J = False
@@ -565,14 +581,25 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
                 found_J = True
     start_padding = ref_V_start - 1
     ref_J_length = len(ref_J_seq)
-    end_padding = (ref_J_length - ref_J_end)
+    if locus in ["H", "K", "L", "BCR_H", "BCR_K", "BCR_L"] and full_length:
+        end_padding = 0
+    else:
+        end_padding = (ref_J_length - ref_J_end)
     full_effective_length = start_padding + len(
         trinity_seq) + end_padding + 2  # add two because need first two bases of constant region to put in frame.
     if full_effective_length % 3 == 0:
         in_frame = True
     else:
         in_frame = False
-    
+    print("####TESTING PRODUCTIVITY####")
+    print("Full effective length:")
+    print(full_effective_length)
+    print("Startpadding")
+    print(start_padding) 
+    print("Seq len")
+    print(len(trinity_seq))
+    print("Endpadding")
+    print(end_padding)  
     if locus in ["H", "K", "L", "BCR_H", "BCR_K", "BCR_L"]:
         if ref_V_start > 1 and end_padding >= 0:
             full_effective_length = "Unknown"

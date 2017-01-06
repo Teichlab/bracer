@@ -85,7 +85,7 @@ class Cell(object):
     def determine_isotype(self, loci, receptor, recombinants):
         
         H_recombinants = self.recombinants[receptor]["H"]
-        
+        isotype = None
         isotype_list = []
         for recombinant in H_recombinants:
             if recombinant.productive == True:
@@ -106,8 +106,7 @@ class Cell(object):
                 isotype = "IGHDM"
             elif isotype_list[0].split("*")[0] == "IGHD" and isotype_list[1].split("*")[0] == "IGHM":
                 isotype = "IGHDM"
-        else:
-                isotype = None 
+         
         return(isotype)
 
     def assign_bgcolor(self, species, isotype):
