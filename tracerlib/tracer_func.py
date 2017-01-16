@@ -115,7 +115,7 @@ def extract_blast_info(line):
     
 
 def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, output_dir, species, seq_method,
-                             invariant_seqs, loci_for_segments, receptor, loci, max_junc_string_length):
+                             invariant_seqs, loci_for_segments, receptor, loci, max_junc_string_length, assembler):
     alignment_dict = defaultdict(dict)
     recombinants = {}
     for locus in locus_names:
@@ -168,9 +168,9 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
 
                     # get original sequence from Trinity file/Oases file - needed for summary of reconstructed lengths.
                     # Only use the VDJ portion found by IgBLAST
-                    oases_file = "{}/Oases_output/{}/MergedAssembly/transcripts.fa".format(output_dir, locus)  
-                    if os.path.exists(oases_file):
-                        trinity_file = oases_file
+                    if assembler == "oases":
+                        trinity_file = "{}/Oases_output/{}/MergedAssembly/transcripts.fa".format(output_dir, locus)
+                      
                     else:
                         trinity_file = "{output_dir}/Trinity_output/{cell_name}_{locus}.Trinity.fasta".format(
                         locus=locus, output_dir=output_dir, cell_name=cell_name)
@@ -185,10 +185,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                     else:
                         trinity_seq = trinity_seq.seq
                     start_coord, end_coord = get_coords(good_hits)
-                    print(trinity_seq)
                     trinity_seq = str(trinity_seq[start_coord:end_coord])
-                    print("Trimmed seq")
-                    print(trinity_seq)
 
                     (imgt_reconstructed_seq, is_productive, bestVJNames) = get_fasta_line_for_contig_imgt(
                         rearrangement_summary, junction_list, good_hits, returned_locus, IMGT_seqs, cell_name,
@@ -217,13 +214,6 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
 
                         print("Seq mode is assembly")
                         print(is_productive, bestVJNames, cdr3)
-                    #Assess if rearrangement is full-length (from start of V gene to start of C gene)
-                    #full_length = is_rearrangement_full_length(trinity_seq, query_data["hit_table"], query_name, query_data["query_length"])
-                    #query_length = query_data["query_length"]
-                    print ("Full length:")
-                    print(full_length)
-                    print("Query_length:")
-                    print(query_length)
                     
                     #Identify the most likely V genes if receptor is BCR
                     
@@ -591,15 +581,6 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
         in_frame = True
     else:
         in_frame = False
-    print("####TESTING PRODUCTIVITY####")
-    print("Full effective length:")
-    print(full_effective_length)
-    print("Startpadding")
-    print(start_padding) 
-    print("Seq len")
-    print(len(trinity_seq))
-    print("Endpadding")
-    print(end_padding)  
     if locus in ["H", "K", "L", "BCR_H", "BCR_K", "BCR_L"]:
         if ref_V_start > 1 and end_padding >= 0:
             full_effective_length = "Unknown"
@@ -710,6 +691,10 @@ def collapse_close_sequences(recombinants, locus):
     # pdb.set_trace()
     contig_names = [r.contig_name for r in recombinants]
     filtered_contig_names = [r.contig_name for r in recombinants]
+    print("Recs before filtering")
+    for r in filtered_contig_names:
+        print(r)
+    
     uncollapsible_contigs = []
     if len(recombinants) > 1:
         for i in range(len(recombinants) - 1):
@@ -804,6 +789,10 @@ def collapse_close_sequences(recombinants, locus):
             recombinants_to_delete.append(r)
 
     [recombinants.remove(r) for r in recombinants_to_delete]
+    print("Recs after filtering")
+    for r in recombinants:
+        print(r.contig_name)
+        print(r.TPM)
 
     return (recombinants)
 
@@ -1694,31 +1683,6 @@ def assemble_with_trinity(trinity, receptor, loci, output_dir, cell_name, ncores
     return successful_files
 
 
-"""def get_oases_input(receptor, loci, output_dir, cell_name, ncores, should_resume, single_end, species):
-    velveth = "/nfs/users/nfs_i/il5/software/velvet/velveth"
-    base_command = [velveth, 'shuffleSequences_fastq.pl']
-    locus_names = ["_".join([receptor,x]) for x in loci]
-    input_files = dict()
-
-    for locus in locus_names:
-        
-        print("##{}##".format(locus))
-        oases_input = "{}/Oases_input/{}_{}".format(output_dir, cell_name, locus)
-        aligned_read_path = "{}/aligned_reads/{}_{}".format(output_dir, cell_name, locus)
-        if not single_end:
-            file1 = "{}_1.fastq".format(aligned_read_path)
-            file2 = "{}_2.fastq".format(aligned_read_path)
-            command = base_command + [file1, file2, oases_input]
-            input_files[locus] = oases_input
-            #["--output", '{}/Oases_output/Oases_{}_{}'.format(output_dir, cell_name, locus)]
-        try:
-            subprocess.check_call(command)
-            shutil.move('{}/Oases_output/Oases_{}_{}.Oases.fasta'.format(output_dir, cell_name, locus),
-                        '{}/Oases_output/{}_{}.Oases.fasta'.format(output_dir, cell_name, locus))
-        except (subprocess.CalledProcessError, IOError):
-            print("Shuffle failed for locus")
-    return(input_files)"""
-
 def run_velvet_h(velveth, velvetg, oases, receptor, loci, output_dir, cell_name, ncores, should_resume, single_end, species):
     locus_names = ["_".join([receptor,x]) for x in loci]    
     
@@ -1728,7 +1692,7 @@ def run_velvet_h(velveth, velvetg, oases, receptor, loci, output_dir, cell_name,
         #Set hash lengths and output paths
         oases_output_path = "{}/Oases_output/{}".format(output_dir, locus)
         tracerlib.io.makeOutputDir(oases_output_path)
-        hash_lengths = ["17", "19", "21", "23", "25", "27", "29"]
+        hash_lengths = ["21"]
         hash_length_paths = []
         for hash_length in hash_lengths:
             path = "{}/directory{}".format(oases_output_path, hash_length)
@@ -1748,9 +1712,11 @@ def run_velvet_h(velveth, velvetg, oases, receptor, loci, output_dir, cell_name,
                 hash_length = hash_lengths[i]
                 velveth_command = [velveth, path, hash_length, '-fastq', '-shortPaired', '-separate', file1, file2]
                 velveth_commands.append(velveth_command) 
-                velvetg_command = [velvetg, path, '-read_trkg', 'yes', '-min_contig_lgth', '400', '-exp_cov', 'auto', '-ins_length', '500']
+                velvetg_command = [velvetg, path, '-read_trkg', 'yes', '-min_contig_lgth', '400']
+                #'-exp_aov', 'auto', '-ins_length', '500'
                 velvetg_commands.append(velvetg_command)
-                oases_command = [oases, path, '-min_trans_lgth', '400', '-ins_length', '500', '-cov_cutoff', 'auto']
+                oases_command = [oases, path, '-min_trans_lgth', '400'] 
+                #'-cov_cutoff', 'auto'
                 oases_commands.append(oases_command)
                 
                 #else:

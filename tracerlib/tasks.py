@@ -241,6 +241,7 @@ class Assembler(TracerTask):
             config_file = kwargs.get('config_file')
 
         self.config = self.read_config(config_file)
+        #self.assembler = "trinity"
         self.assembler = "oases"
         #self.locus_names = ["TCRA", "TCRB"]
 
@@ -287,8 +288,10 @@ class Assembler(TracerTask):
 
         # Perform TraCeR's core functions
         #self.align()
-        #self.oases_assemble()
-        #self.de_novo_assemble()
+        if self.assembler == "oases":
+            self.oases_assemble()
+        else:
+            self.de_novo_assemble()
         self.blast()
         cell = self.ig_blast()
         #self.blast()
@@ -362,12 +365,12 @@ class Assembler(TracerTask):
         #print("##Print recombinant info##")
         #print(cell.print_dict)
         #print("##Filtering by read count##")"""
-        cell.filter_recombinants()
+        #cell.filter_recombinants()
 
 
-        print("PRINTING REC INFO")
-        self.print_rec_info(cell)
-        print("DONE PRINTING REC INFO")
+        #print("PRINTING REC INFO")
+        #self.print_rec_info(cell)
+        #print("DONE PRINTING REC INFO")
         """print(cell.cdr3_dict)
         print("##Ranking recombinants by read counts##")
         print(cell.rank_recs)
@@ -512,7 +515,7 @@ class Assembler(TracerTask):
             #cell = io.parse_IgBLAST(self.receptor_name, self.loci, self.output_dir, self.cell_name, imgt_seq_location, 
             #                        self.species, self.seq_method, self.invariant_sequences)
             cell = io.parse_IgBLAST(self.receptor_name, self.loci, self.output_dir, self.cell_name, imgt_seq_location, 
-                                    self.species, self.seq_method, self.max_junc_len)
+                                    self.species, self.seq_method, self.assembler, self.max_junc_len)
             if cell.is_empty:
                 self.die_with_empty_cell(self.cell_name, self.output_dir, self.species)
 
