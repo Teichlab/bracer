@@ -84,8 +84,8 @@ class Cell(object):
 
     def determine_isotype(self, loci, receptor, recombinants):
         #To make code work before filtering for highest expressed chains, I give all cells isotype IGHM: Must change!!
-        isotype = "IGHM"
-        """H_recombinants = self.recombinants[receptor]["H"]
+        #isotype = "IGHM"
+        H_recombinants = self.recombinants[receptor]["H"]
         isotype = None
         isotype_list = []
         for recombinant in H_recombinants:
@@ -110,7 +110,7 @@ class Cell(object):
             elif isotype_list[0].split("*")[0] == "IGHM" and isotype_list[1].split("*")[0] == "IGHD":
                 isotype = "IGHDM"
             elif isotype_list[0].split("*")[0] == "IGHD" and isotype_list[1].split("*")[0] == "IGHM":
-                isotype = "IGHDM" """
+                isotype = "IGHDM"
          
         return(isotype)
 

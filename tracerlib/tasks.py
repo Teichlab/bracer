@@ -287,11 +287,11 @@ class Assembler(TracerTask):
             io.makeOutputDir("{}/{}".format(self.output_dir, d))
 
         # Perform TraCeR's core functions
-        self.align()
-        if self.assembler == "oases":
-            self.oases_assemble()
-        else:
-            self.de_novo_assemble()
+        #self.align()
+        #if self.assembler == "oases":
+            #self.oases_assemble()
+        #else:
+            #self.de_novo_assemble()
         self.blast()
         cell = self.ig_blast()
         #self.blast()
@@ -547,7 +547,7 @@ class Assembler(TracerTask):
 
         # IgBlast of assembled contigs
         tracer_func.run_IgBlast(igblastn, self.receptor_name, self.loci, self.output_dir, self.cell_name, igblast_index_location,
-                                igblast_seqtype, self.species, self.resume_with_existing_files)
+                                igblast_seqtype, self.species, self.resume_with_existing_files, self.assembler)
         print()
         
         
@@ -572,7 +572,7 @@ class Assembler(TracerTask):
 
         # Blast of assembled contigs
         tracer_func.run_Blast(blastn, self.receptor_name, self.loci, self.output_dir, self.cell_name, blast_index_location,
-                                self.species, self.resume_with_existing_files)
+                                self.species, self.resume_with_existing_files, self.assembler)
         print()
 
 
@@ -606,9 +606,9 @@ class Assembler(TracerTask):
             for locus, recombinants in six.iteritems(locus_dict):
                 if recombinants is not None:
                     for rec in recombinants:
-                        if rec.contig_name in counts[receptor][locus].keys():
-                            tpm = counts[receptor][locus][rec.contig_name]
-                            rec.TPM = tpm
+                        #if rec.contig_name in counts[receptor][locus].keys():
+                        tpm = counts[receptor][locus][rec.contig_name]
+                        rec.TPM = tpm
                     
         #for locus, recombinants in six.iteritems(cell.all_recombinants):
         #    if recombinants is not None:

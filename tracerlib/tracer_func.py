@@ -1912,7 +1912,7 @@ def assemble_with_oases(velveth, velvetg, oases, receptor, loci, output_dir, cel
 
 
 def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, ig_seqtype, species,
-                should_resume):
+                should_resume, assembler):
     print("##Running IgBLAST##")
     print ("Ig_seqtype:", ig_seqtype)
     species_mapper = {
@@ -1953,43 +1953,31 @@ def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, 
         num_alignments_V = '5'
         num_alignments_D = '5'
         num_alignments_J = '5'
-    oases = True
-    if oases != True:
-        for locus in locus_names:
-            print("##{}##".format(locus))
+    
+    
+    for locus in locus_names:
+        print("##{}##".format(locus))
+        if assembler == "trinity":
             trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(output_dir, cell_name, locus)
-            if os.path.isfile(trinity_fasta):
-                command = [igblast, '-germline_db_V', databases['V'], '-germline_db_J', databases['J'], '-germline_db_D', 
+        else:
+            trinity_fasta = "{}/Oases_output/{}/MergedAssembly/transcripts.fa".format(output_dir, locus)
+        if os.path.isfile(trinity_fasta):
+            command = [igblast, '-germline_db_V', databases['V'], '-germline_db_J', databases['J'], '-germline_db_D', 
                         databases['D'], '-domain_system', 'imgt', '-organism', igblast_species,
                        '-ig_seqtype', ig_seqtype, '-show_translation', '-num_alignments_V', num_alignments_V,
                        '-num_alignments_D', num_alignments_D, '-num_alignments_J', num_alignments_J, '-outfmt', '7', '-query', trinity_fasta]
-                igblast_out = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
+            igblast_out = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
                                                                                               cell_name=cell_name,
                                                                                               locus=locus)
-                with open(igblast_out, 'w') as out:
-                    # print(" ").join(pipes.quote(s) for s in command)
-                    subprocess.check_call(command, stdout=out, stderr=DEVNULL)
-    else:
-        for locus in locus_names:
-            print("##{}##".format(locus))
-            oases_fasta = "{}/Oases_output/{}/MergedAssembly/transcripts.fa".format(output_dir, locus)
-            if os.path.isfile(oases_fasta):
-                command = [igblast, '-germline_db_V', databases['V'], '-germline_db_J', databases['J'], '-germline_db_D',
-                        databases['D'], '-domain_system', 'imgt', '-organism', igblast_species,
-                       '-ig_seqtype', ig_seqtype, '-show_translation', '-num_alignments_V', num_alignments_V,
-                       '-num_alignments_D', num_alignments_D, '-num_alignments_J', num_alignments_J, '-outfmt', '7', '-query', oases_fasta]
-                igblast_out = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
-                                                                                              cell_name=cell_name,
-                                                                                              locus=locus)
-                with open(igblast_out, 'w') as out:
-                    # print(" ").join(pipes.quote(s) for s in command)
-                    subprocess.check_call(command, stdout=out, stderr=DEVNULL)
+            with open(igblast_out, 'w') as out:
+                # print(" ").join(pipes.quote(s) for s in command)
+                subprocess.check_call(command, stdout=out, stderr=DEVNULL)
     DEVNULL.close()
 
 
 
 def run_Blast(blast, receptor, loci, output_dir, cell_name, index_location, species,
-                should_resume):
+                should_resume, assembler):
     print("##Running BLAST##") 
 
     species_mapper = {
@@ -2029,8 +2017,8 @@ def run_Blast(blast, receptor, loci, output_dir, cell_name, index_location, spec
     # Taken from http://stackoverflow.com/questions/11269575/how-to-hide-output-of-subprocess-in-python-2-7
     DEVNULL = open(os.devnull, 'wb')
 
-    oases = True
-    if oases != True:
+    
+    if assembler == "trinity":
       
         for locus in locus_names:
             print("##{}##".format(locus))
