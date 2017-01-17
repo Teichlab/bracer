@@ -1988,7 +1988,7 @@ def run_Blast(blast, receptor, loci, output_dir, cell_name, index_location, spec
     blast_species = species_mapper[species]
     initial_locus_names = ["_".join([receptor,x]) for x in loci]
     locus_names = copy.copy(initial_locus_names)
-    if should_resume:
+    """if should_resume:
         for locus in initial_locus_names:
             blast_out = "{output_dir}/BLAST_output/{cell_name}_{receptor}_{locus}.xml".format(
                                                         output_dir=output_dir,cell_name=cell_name,
@@ -1998,7 +1998,7 @@ def run_Blast(blast, receptor, loci, output_dir, cell_name, index_location, spec
                 print("Resuming with existing BLAST output for {locus}".format(locus=locus))
 
         if len(locus_names) == 0:
-            return
+            return"""
 
     print("Performing Blast on {locus_names}".format(locus_names = locus_names))
 
@@ -2016,38 +2016,22 @@ def run_Blast(blast, receptor, loci, output_dir, cell_name, index_location, spec
     # Lines below suppress Igblast warning about not having an auxliary file.
     # Taken from http://stackoverflow.com/questions/11269575/how-to-hide-output-of-subprocess-in-python-2-7
     DEVNULL = open(os.devnull, 'wb')
-
-    
-    if assembler == "trinity":
-      
-        for locus in locus_names:
-            print("##{}##".format(locus))
+  
+    for locus in locus_names:
+        print("##{}##".format(locus))
+        if assembler == "trinity":
             trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(output_dir, cell_name, locus)
-            if os.path.isfile(trinity_fasta):
-                command = [blast, '-db', database, '-evalue', '0.001',
+        else: 
+            trinity_fasta = "{}/Oases_output/{}/MergedAssembly/transcripts.fa".format(output_dir, locus)
+        if os.path.isfile(trinity_fasta):
+            command = [blast, '-db', database, '-evalue', '0.001',
                         '-num_alignments', '1', '-outfmt', '5', '-query', trinity_fasta]
-                blast_out = "{output_dir}/BLAST_output/{cell_name}_{locus}.xml".format(output_dir=output_dir,
+            blast_out = "{output_dir}/BLAST_output/{cell_name}_{locus}.xml".format(output_dir=output_dir,
                                                                                               cell_name=cell_name,
                                                                                               locus=locus)
-                with open(blast_out, 'w') as out:
-                    # print(" ").join(pipes.quote(s) for s in command)
-                    subprocess.check_call(command, stdout=out, stderr=DEVNULL)
-
-
-    else:
-
-        for locus in locus_names:
-            print("##{}##".format(locus))
-            oases_fasta = "{}/Oases_output/{}/MergedAssembly/transcripts.fa".format(output_dir, locus)
-            if os.path.isfile(oases_fasta):
-                command = [blast, '-db', database, '-evalue', '0.001',
-                        '-num_alignments', '1', '-outfmt', '5', '-query', oases_fasta]
-                blast_out = "{output_dir}/BLAST_output/{cell_name}_{locus}.xml".format(output_dir=output_dir,
-                                                                                              cell_name=cell_name,
-                                                                                              locus=locus)
-                with open(blast_out, 'w') as out:
-                    # print(" ").join(pipes.quote(s) for s in command)
-                    subprocess.check_call(command, stdout=out, stderr=DEVNULL)
+            with open(blast_out, 'w') as out:
+                # print(" ").join(pipes.quote(s) for s in command)
+                subprocess.check_call(command, stdout=out, stderr=DEVNULL)
 
     DEVNULL.close()
 

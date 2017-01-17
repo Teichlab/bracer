@@ -141,6 +141,8 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species, assembler):
                         if line_x.startswith("<Iteration_query-def>"):
                             line = line_x.split(">")[1]
                             blast_query_name = line.split("<")[0]
+                            if assembler == "trinity":
+                                blast_query_name = blast_query_name.split()[0] 
                             
                         elif line_x.startswith("<Hsp_evalue>"):
                             evalue = extract_blast_info(line_x)

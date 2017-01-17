@@ -914,7 +914,7 @@ class Recombinant(object):
         C_gene = None
         with open(blast_summary_file, 'r') as input:
             for line in input:
-                if line.startswith("##{contig_name}##".format(contig_name=self.contig_name)) or line.startswith("##reversed|{contig_name}##".format(contig_name=self.contig_name)):
+                if line.startswith("##{contig_name}".format(contig_name=self.contig_name)) or line.startswith("##reversed|{contig_name}".format(contig_name=self.contig_name)):
                     store_details = True
                 elif store_details == True:
                     if line.startswith("C segment"):
@@ -985,7 +985,7 @@ class Recombinant(object):
             store_details = False
             with open(blast_summary_file, 'r') as input:
                 for line in input:
-                    if line.startswith("##{contig_name}##".format(contig_name=self.contig_name)) or line.startswith("##reversed|{contig_name}##".format(contig_name=self.contig_name)):
+                    if line.startswith("##{contig_name}".format(contig_name=self.contig_name)) or line.startswith("##reversed|{contig_name}".format(contig_name=self.contig_name)):
                         store_details = True
                     elif store_details == True:
                         if line.startswith("C\t"):
