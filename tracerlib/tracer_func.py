@@ -184,7 +184,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                         print("Reversed sequence")
                     else:
                         trinity_seq = trinity_seq.seq
-                    start_coord, end_coord = get_coords(good_hits)
+                    start_coord, end_coord = get_coords(good_hits, receptor)
                     trinity_seq = str(trinity_seq[start_coord:end_coord])
 
                     (imgt_reconstructed_seq, is_productive, bestVJNames) = get_fasta_line_for_contig_imgt(
@@ -210,9 +210,8 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                         (is_productive, bestVJNames, cdr3) = get_fasta_line_for_contig_assembly(trinity_seq, good_hits,
                                                                                           returned_locus, IMGT_seqs,
                                                                                           cell_name, query_name,
-                                                                                          loci_for_segments, full_length)
+                                                                                          loci_for_segments, full_length, receptor)
 
-                        print("Seq mode is assembly")
                         print(is_productive, bestVJNames, cdr3)
                     
                     #Identify the most likely V genes if receptor is BCR
@@ -287,9 +286,29 @@ def find_V_genes_based_on_bit_score(seq, hit_table, query_name, threshold_percen
                     V_genes.append(V_gene)
     return(V_genes)
         
-           
+def find_J_gene_closest_to_C(seq, hit_table, query_name):
+    found_J = False
+    
+    for hit in hit_table:
+        info = hit.split()
+        segment = info[0]
+        allele = info[2]
+        
+        bit_score = float(info[13])
+        J_pos = int(info[9])
+        if segment == "V":
+            if found_V == False:
+                top_bit_score = bit_score
+                found_J = True
+                top_pos = J_pos
+                
+            elif found_J == True and bit_score == top_bit_score:
+                if J_pos > top_pos:
+                    top_pos = J_pos
+               
+    return(J_pos)           
 
-def get_coords(hit_table):
+def get_coords(hit_table, receptor):
     found_V = False
     found_J = False
     for entry in hit_table:
@@ -301,6 +320,14 @@ def get_coords(hit_table):
             if not found_J:
                 end = int(entry[9])
                 found_J = True
+                bitscore = float(entry[13])
+            if receptor == "BCR":
+                if found_J:
+                    next_bitscore = float(entry[13])
+                    if next_bitscore == bitscore:
+                        new_end = int(entry[9])
+                        if new_end > end:
+                            end = new_end
     return (start, end)
 
 
@@ -528,7 +555,7 @@ def get_segment_name(name, pattern):
 
 
 def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs, sample_name, 
-                                        query_name, loci_for_segments, full_length):
+                                        query_name, loci_for_segments, full_length, receptor):
     found_best_V = False
     found_best_D = False
     found_best_J = False
@@ -568,13 +595,31 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
         if entry[0] == 'J':
             if not found_J:
                 ref_J_end = int(entry[11])
+                J_end = int(entry[9])
                 found_J = True
+                bitscore = float(entry[13])
+            if receptor == "BCR":
+                if found_J:
+                    next_bitscore = float(entry[13])
+                    if next_bitscore == bitscore:
+                        new_J_end = int(entry[9])
+                        if new_J_end > J_end:
+                            ref_J_end = int(entry[11])
+
     start_padding = ref_V_start - 1
     ref_J_length = len(ref_J_seq)
     if locus in ["H", "K", "L", "BCR_H", "BCR_K", "BCR_L"] and full_length:
         end_padding = 0
     else:
         end_padding = (ref_J_length - ref_J_end)
+    print("trinity seq")
+    print(trinity_seq)
+    print("full length")
+    print(full_length)
+    print("end padding")
+    print(end_padding)
+    print("start padding")
+    print(start_padding)
     full_effective_length = start_padding + len(
         trinity_seq) + end_padding + 2  # add two because need first two bases of constant region to put in frame.
     if full_effective_length % 3 == 0:
@@ -584,12 +629,9 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
     if locus in ["H", "K", "L", "BCR_H", "BCR_K", "BCR_L"]:
         if ref_V_start > 1 and end_padding >= 0:
             full_effective_length = "Unknown"
-            in_frame = "Unknown" 
-        elif full_effective_length % 3 == 0:
-            in_frame = True
-        else:
-            in_frame = False
-
+            in_frame = "Unknown"
+    print("full effective length") 
+    print(full_effective_length)
     # remove the minimal nucleotides from the trinity sequence to check for stop codons
     #start_base_removal_count = (3 - (new_V_start - 1)) % 3
 
@@ -600,6 +642,12 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
         start_base_removal_count = (3 - (ref_V_start - 1)) % 3
     
     seq = trinity_seq[start_base_removal_count:-end_base_removal_count]
+    print("start base removal count")
+    print(start_base_removal_count)
+    print("end base rem count")
+    print(end_base_removal_count)
+    print("trimmed seq")
+    print(seq)
     seq = Seq(seq, IUPAC.unambiguous_dna)
     cdr3 = get_cdr3(seq, locus)
     cdr3_in_frame = is_cdr3_in_frame(cdr3, locus)
