@@ -24,7 +24,7 @@ class Cell(object):
         self.isotype = self.determine_isotype(loci, receptor, self.recombinants)
         self.bgcolor = self.assign_bgcolor(species, self.isotype)
         self.changeodict = self.get_changeo_db_for_locus(self.recombinants, receptor, loci)
-        self.print_dict = self.print_recombinants()
+        #self.print_dict = self.print_recombinants()
         self.detailed_identifier_dict = self.create_detailed_identifier_dict()
         self.cdr3_dict = self.find_recs_with_identical_cdr3()
         #self.rank_recs = self.rank_recombinants()
@@ -117,9 +117,8 @@ class Cell(object):
     def assign_bgcolor(self, species, isotype):
         """Assigns bgcolor for cell according to isotype (B cells)"""
         
-        """isotype_bgcolors = {"IGHM":'#99e699', "IGHD":'#66a3ff', "IGHA":'#b366ff', "IGHE":'#ffff66', "IGHG1":'#b30000', "IGHG2A":'#e60000', "IGHG2B":'#ff3333', "IGHG2C":'#ff6666', "IGHG3":'#ffb3b3'}"""
-        isotype_bgcolors = {"IGHD":'#c1f0c1', "IGHM":'#b3d1ff', "IGHA":'#e6ccff', "IGHE":'#ffffb3', "IGHG1":'#b30000', "IGHG2A":'#e60000', "IGHG2B":'#ff3333', "IGHG2C":'#ff6666', "IGHG3":'#ffb3b3', "IGHDM":'#99ffdd'}
-
+        isotype_bgcolors = {"IGHD":'#c1f0c1', "IGHM":'#b3d1ff', "IGHA":'#e6ccff', "IGHE":'#ffffb3', "IGHG1":'#b30000', "IGHG2A":'#e60000', "IGHG2B":'#ff3333', "IGHG2C":'#ff6666', 
+                            "IGHG3":'#ffb3b3', "IGHDM":'#99ffdd'}
 
         if isotype is None:
             bgcolor = None
@@ -128,7 +127,6 @@ class Cell(object):
 
         return (bgcolor)
     
-
                 
     def _check_is_empty(self):
         if (self.recombinants is None or len(self.recombinants) == 0):
@@ -190,12 +188,6 @@ class Cell(object):
     #    return (identifier_list)
 
     def html_style_label_dna(self, receptor, loci, colours):
-        #colours = {'A': {'productive': '#E41A1C', 'non-productive': "#ff8c8e"},
-        #           'B': {'productive': '#377eb8', 'non-productive': "#95c1e5"},
-        #           'G': {'productive': '#4daf4a', 'non-productive': "#aee5ac"},
-        #           'D': {'productive': '#984ea3', 'non-productive': "#deace5"}}
-        #locus_names = ['A', 'B', 'G', 'D']
-        
 
         recombinants = dict()
         final_string = '<<FONT POINT-SIZE="16"><B>' + self.name + "</B></FONT>"
@@ -220,14 +212,6 @@ class Cell(object):
         # return(self.name)
 
     def html_style_label_for_circles(self, receptor, loci, colours):
-        
-        #colours = {'A': {'productive': '#E41A1C', 'non-productive': "#ff8c8e"},
-        #           'B': {'productive': '#377eb8', 'non-productive': "#95c1e5"},
-        #           'G': {'productive': '#4daf4a', 'non-productive': "#aee5ac"},
-        #           'D': {'productive': '#984ea3', 'non-productive': "#deace5"}}
-        #locus_names = ['A', 'B', 'G', 'D']
-        
-        
         
         recombinants = dict()
         final_string = '<<table cellspacing="6px" border="0" cellborder="0">'
@@ -325,16 +309,7 @@ class Cell(object):
                         seq = rec.dna_seq
                         seq_string.append("\n".join([name, seq]))
         
-        #for locus, recombinants in six.iteritems(self.all_recombinants):
-        #    if recombinants is not None:
-        #        for rec in recombinants:
-        #            name = ">TCR|{contig_name}|{identifier}".format(contig_name=rec.contig_name,
-        #                                                            identifier=rec.identifier)
-        #            seq = rec.dna_seq
-        #            seq_string.append("\n".join([name, seq]))
         return ("\n".join(seq_string + ["\n"]))
-
-
 
 
 
@@ -369,20 +344,21 @@ class Cell(object):
                                 cdr3_dict[locus][cdr3].append(rec.contig_name)
         return (cdr3_dict)
 
-    """def rank_recombinants(self):
+    def rank_recombinants(self):
         ranked_recs = dict()
         for receptor, locus_dict in six.iteritems(self.recombinants):
             for locus, recombinants in six.iteritems(locus_dict):
+                most_common = []
                 if recombinants is not None:
                     if len(recombinants) > 2:
                         TPM_ranks = Counter()
                         for rec in recombinants:
                             TPM_ranks.update({rec.contig_name: rec.TPM})
+                        most_common = [x[0] for x in TPM_ranks.most_common()]
                         
-                        most_common = [x[0] for x in TPM_ranks.most_common(10)]
-                        ranked_recs[locus] = TPM_ranks
-        return (ranked_recs)"""
-                        
+                    ranked_recs[locus] = most_common
+        return (ranked_recs)
+
 
     def find_n_most_common(self, n):
         most_common_dict = dict()
@@ -480,13 +456,6 @@ class Cell(object):
         #print(keep_one_rec)
         return (keep_one_rec) 
  
-                               
-                                    
-                                
-
-
-
-
 
     """def assert_two_most_common(self):
         two_identical = dict()
@@ -510,7 +479,6 @@ class Cell(object):
         return (two_identical)"""
 
     def assert_third_most_common(self):
-        
         three_most_common_dict = self.find_n_most_common(3)
         replacement_rec_dict = dict()
         for receptor, locus_dict in six.iteritems(self.recombinants):
@@ -535,7 +503,6 @@ class Cell(object):
                         replacement_rec_dict[locus] = replacement_rec
         return (replacement_rec_dict)
                             
-                        
 
     """def assert_two_most_common(self):
         two_identical = dict()
@@ -630,8 +597,6 @@ class Cell(object):
                             for comparison_cell in comparison_cells:
                                 if current_cell.cdr3 == comparison_cell.cdr3:
                                     pass
-                        
-
 
 
     def filter_recombinants(self):
@@ -828,7 +793,7 @@ class Recombinant(object):
         self.imgt_reconstructed_seq = imgt_reconstructed_seq
         self.has_D_segment = has_D
         self.output_dir = output_dir
-        self.C_gene = self.get_C_gene()
+        (self.C_gene, self.C_gene_info, self.C_gene_pos) = self.get_C_gene()
         self.J_gene = self.get_J_gene()
         self.full_length = full_length
         self.query_length = query_length
@@ -912,19 +877,19 @@ class Recombinant(object):
 
         store_details = False
         C_gene = None
+        info_line = None
+        start_position = None
         with open(blast_summary_file, 'r') as input:
             for line in input:
-                if line.startswith("##{contig_name}".format(contig_name=self.contig_name)) or line.startswith("##reversed|{contig_name}".format(contig_name=self.contig_name)):
-                    store_details = True
-                elif store_details == True:
-                    if line.startswith("No C segment found"):
-                        C_gene = None
-                        store_details = False
-                    elif line.startswith("C segment"):
-                        C_gene = line.split("\t")[1]
-                        store_details = False
-                   
-        return (C_gene)
+                if line.startswith("C\t{contig_name}".format(contig_name=self.contig_name)) or line.startswith("C\treversed|{contig_name}".format(contig_name=self.contig_name)):
+                    C_gene = line.split("\t")[2]
+                    info_line = line
+                    start_position = line.split("\t")[8]
+                      
+        return (C_gene, info_line, start_position)
+
+   
+
 
     def get_J_gene(self):
         if not self.has_D_segment:
@@ -984,16 +949,16 @@ class Recombinant(object):
             summary_string = summary_string + "\t".join(line) + "\n"
         
         if find_C_gene == True and C_gene != None:
-            store_details = False
+            """store_details = False
             with open(blast_summary_file, 'r') as input:
                 for line in input:
                     if line.startswith("##{contig_name}".format(contig_name=self.contig_name)) or line.startswith("##reversed|{contig_name}".format(contig_name=self.contig_name)):
                         store_details = True
                     elif store_details == True:
                        
-                        if line.startswith("C\t{}".format(self.contig_name)) or line.startswith("C\treversed|{contig_name}".format(contig_name=self.contig_name)):
-                            summary_string = summary_string + line + "\n"
-                            store_details = False
+                        if line.startswith("C\t{}".format(self.contig_name)) or line.startswith("C\treversed|{contig_name}".format(contig_name=self.contig_name)):"""
+            summary_string = summary_string + self.C_gene_info + "\n"
+            #store_details = False
                 
         return (summary_string)
 

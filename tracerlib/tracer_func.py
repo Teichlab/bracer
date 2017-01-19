@@ -181,7 +181,6 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
 
                     if 'reversed' in good_hits[0][1]:
                         trinity_seq = trinity_seq.reverse_complement().seq
-                        print("Reversed sequence")
                     else:
                         trinity_seq = trinity_seq.seq
                     start_coord, end_coord = get_coords(good_hits, receptor)
@@ -215,20 +214,15 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                         print(is_productive, bestVJNames, cdr3)
                     
                     #Identify the most likely V genes if receptor is BCR
-                    
                     if receptor == "BCR":
                         if locus in ["H", "BCR_H"]:
                             threshold_percent = 0.05
                         else:
                             threshold_percent = 0.01
-                        #(matrix_identity, matrix_file) = create_identity_matrix_dictionary(species, receptor)
-                        #V_allele = rearrangement_summary[0].split(",")[0]
-                        #V_matrix_genes = find_matrix_identity_hits(species, receptor, V_allele, matrix_identity, matrix_file)
                         all_V_names = find_V_genes_based_on_bit_score(trinity_seq, query_data["hit_table"], query_name, threshold_percent)
                           
                     V_genes = all_V_names
                     
-
                     all_poss_identifiers = set()
                     for V in all_V_names:
                         for J in all_J_names:
@@ -266,6 +260,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
 
 
 def find_V_genes_based_on_bit_score(seq, hit_table, query_name, threshold_percent):
+    """Identifies the most likely V genes if receptor is BCR based on IgBlast bit scores"""
     found_V = False
     V_genes = []
     threshold = None
@@ -321,6 +316,7 @@ def get_coords(hit_table, receptor):
                 end = int(entry[9])
                 found_J = True
                 bitscore = float(entry[13])
+            # Look for other J gene hits with equal bitscore but higher J gene end position
             if receptor == "BCR":
                 if found_J:
                     next_bitscore = float(entry[13])
@@ -532,13 +528,31 @@ def is_rearrangement_full_length(seq, hit_table, query_name, query_length):
             found_V = True
         elif segment == "J" and found_J == False:
             J_end_pos = int(info[9])
+            J_ref_end_pos = int(info[11])
             J_hit = hit
             found_J = True
 
         if ref_V_start == 1:
-            full_5_prime = True 
+            full_5_prime = True
+        full_length = None 
         if J_end_pos is not None:
-            if int(query_length)>= (J_end_pos - 1) and full_5_prime == True:
+            if full_5_prime == False:
+                full_length = False
+                continue
+           
+            if "HJ" in J_hit:
+                if not J_ref_end_pos > 40:
+                    full_length = False
+            elif "KJ" in J_hit:
+                if not J_ref_end_pos > 30:
+                    full_length = False
+            elif "LJ" in J_hit:
+                if not J_ref_end_pos > 30:
+                    full_length = False
+            if full_length == False:
+                continue
+
+            if int(query_length)>= (J_end_pos - 1):
                 full_length = True
         else:
             full_length = False
@@ -612,14 +626,6 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
         end_padding = 0
     else:
         end_padding = (ref_J_length - ref_J_end)
-    print("trinity seq")
-    print(trinity_seq)
-    print("full length")
-    print(full_length)
-    print("end padding")
-    print(end_padding)
-    print("start padding")
-    print(start_padding)
     full_effective_length = start_padding + len(
         trinity_seq) + end_padding + 2  # add two because need first two bases of constant region to put in frame.
     if full_effective_length % 3 == 0:
@@ -630,8 +636,7 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
         if ref_V_start > 1 and end_padding >= 0:
             full_effective_length = "Unknown"
             in_frame = "Unknown"
-    print("full effective length") 
-    print(full_effective_length)
+    
     # remove the minimal nucleotides from the trinity sequence to check for stop codons
     #start_base_removal_count = (3 - (new_V_start - 1)) % 3
 
@@ -642,12 +647,6 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
         start_base_removal_count = (3 - (ref_V_start - 1)) % 3
     
     seq = trinity_seq[start_base_removal_count:-end_base_removal_count]
-    print("start base removal count")
-    print(start_base_removal_count)
-    print("end base rem count")
-    print(end_base_removal_count)
-    print("trimmed seq")
-    print(seq)
     seq = Seq(seq, IUPAC.unambiguous_dna)
     cdr3 = get_cdr3(seq, locus)
     cdr3_in_frame = is_cdr3_in_frame(cdr3, locus)
@@ -739,7 +738,7 @@ def collapse_close_sequences(recombinants, locus):
     # pdb.set_trace()
     contig_names = [r.contig_name for r in recombinants]
     filtered_contig_names = [r.contig_name for r in recombinants]
-    print("Recs before filtering")
+    print("Recs before collapsing close sequences")
     for r in filtered_contig_names:
         print(r)
     
@@ -837,10 +836,10 @@ def collapse_close_sequences(recombinants, locus):
             recombinants_to_delete.append(r)
 
     [recombinants.remove(r) for r in recombinants_to_delete]
-    print("Recs after filtering")
+    print("Recs after collapsing close sequences")
     for r in recombinants:
         print(r.contig_name)
-        print(r.TPM)
+       
 
     return (recombinants)
 
@@ -2036,17 +2035,6 @@ def run_Blast(blast, receptor, loci, output_dir, cell_name, index_location, spec
     blast_species = species_mapper[species]
     initial_locus_names = ["_".join([receptor,x]) for x in loci]
     locus_names = copy.copy(initial_locus_names)
-    """if should_resume:
-        for locus in initial_locus_names:
-            blast_out = "{output_dir}/BLAST_output/{cell_name}_{receptor}_{locus}.xml".format(
-                                                        output_dir=output_dir,cell_name=cell_name,
-                                                        receptor=receptor, locus=locus)
-            if (os.path.isfile(blast_out) and os.path.getsize(blast_out) > 0):
-                locus_names.remove(locus)
-                print("Resuming with existing BLAST output for {locus}".format(locus=locus))
-
-        if len(locus_names) == 0:
-            return"""
 
     print("Performing Blast on {locus_names}".format(locus_names = locus_names))
 

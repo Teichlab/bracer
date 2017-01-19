@@ -315,6 +315,9 @@ class Assembler(TracerTask):
                                                                             cell_name=cell.name,
                                                                             receptor=self.receptor_name), 'wb') as pf:
             pickle.dump(cell, pf, protocol=0)
+        print("##Testing my filtering##")
+        ranked_recs = cell.rank_recombinants()
+        print(ranked_recs)
         print("##Filtering by read count##")
         cell.filter_recombinants()
         fasta_filename = "{output_dir}/filtered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,

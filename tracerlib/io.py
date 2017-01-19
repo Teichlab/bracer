@@ -85,10 +85,6 @@ def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species, s
                 #    expecting_D[locus] = True
                 loci_for_segments[segment_name.split("_")[2]].append(locus)
                     
-    #segment_names = ['TRAJ', 'TRAV', 'TRBD', 'TRBJ', 'TRBV']
-    #IMGT_seqs = dict()
-    #for segment in segment_names:
-    #    IMGT_seqs[segment] = load_IMGT_seqs("{}/{}.fa".format(imgt_seq_location, segment))
     
     locus_names = ["_".join([receptor,x]) for x in loci]
     all_locus_data = defaultdict(dict)
@@ -121,12 +117,10 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species, assembler):
     for locus in loci:
         output_file = "{outdir}/BLAST_output/blastsummary_{locus}.txt".format(outdir=output_dir, locus=locus)
         with open(output_file, 'w') as outfile:
-
             outfile.write("------------------\n##{}##\n------------------\n\n#{}_{}#\n\n".format(cell_name, receptor, locus))
         
             input_file =  "{output_dir}/BLAST_output/{cell_name}_{receptor}_{locus}.xml".format(output_dir=output_dir,
                                                                                    cell_name=cell_name, locus=locus, receptor=receptor)
-
             #Split result file into chunks corresponding to results for each query sequence.
             if os.path.isfile(input_file):
                 blast_result_chunks = split_blast_file(input_file)
@@ -134,8 +128,6 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species, assembler):
                 for chunk in blast_result_chunks:
                     message = False
                     for line_x in chunk:
-                        print(line_x)
-
                         line_x= line_x.strip()
 
                         if line_x.startswith("<Iteration_query-def>"):
