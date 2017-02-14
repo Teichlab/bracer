@@ -170,6 +170,8 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                     # Only use the VDJ portion found by IgBLAST
                     if assembler == "oases":
                         trinity_file = "{}/Oases_output/{}/MergedAssembly/transcripts.fa".format(output_dir, locus)
+                    elif assembler == "basic":
+                        trinity_file = "{}/Basic_output/{}_{}.fasta".format(output_dir, cell_name, locus)
                       
                     else:
                         trinity_file = "{output_dir}/Trinity_output/{cell_name}_{locus}.Trinity.fasta".format(
@@ -2006,6 +2008,11 @@ def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, 
         print("##{}##".format(locus))
         if assembler == "trinity":
             trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(output_dir, cell_name, locus)
+        elif assembler == "basic":
+            if locus in ["K", "L"]:
+                trinity_fasta = "{}/Basic_output/basic_L.fa".format(output_dir, cell_name)
+            else:
+                trinity_fasta = "{}/Basic_output/basic_H.fa".format(output_dir, cell_name)
         else:
             trinity_fasta = "{}/Oases_output/{}/MergedAssembly/transcripts.fa".format(output_dir, locus)
         if os.path.isfile(trinity_fasta):
@@ -2013,7 +2020,13 @@ def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, 
                         databases['D'], '-domain_system', 'imgt', '-organism', igblast_species,
                        '-ig_seqtype', ig_seqtype, '-show_translation', '-num_alignments_V', num_alignments_V,
                        '-num_alignments_D', num_alignments_D, '-num_alignments_J', num_alignments_J, '-outfmt', '7', '-query', trinity_fasta]
-            igblast_out = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
+            
+            if assembler == "basic":
+                igblast_out = igblast_out = "{output_dir}/Basic_IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
+                                                                                              cell_name=cell_name,
+                                                                                              locus=locus)
+            else:
+                igblast_out = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
                                                                                               cell_name=cell_name,
                                                                                               locus=locus)
             with open(igblast_out, 'w') as out:
@@ -2057,12 +2070,21 @@ def run_Blast(blast, receptor, loci, output_dir, cell_name, index_location, spec
         print("##{}##".format(locus))
         if assembler == "trinity":
             trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(output_dir, cell_name, locus)
+        elif assembler == "basic":
+            if locus in ["K", "L"]:
+                trinity_fasta = "{}/Basic_output/basic_L.fa".format(output_dir, cell_name)
+            else:
+                trinity_fasta = "{}/Basic_output/basic_H.fa".format(output_dir, cell_name)
         else: 
             trinity_fasta = "{}/Oases_output/{}/MergedAssembly/transcripts.fa".format(output_dir, locus)
         if os.path.isfile(trinity_fasta):
             command = [blast, '-db', database, '-evalue', '0.001',
                         '-num_alignments', '1', '-outfmt', '5', '-query', trinity_fasta]
-            blast_out = "{output_dir}/BLAST_output/{cell_name}_{locus}.xml".format(output_dir=output_dir,
+            if assembler == "basic":
+                blast_out = "{output_dir}/Basic_BLAST_output/{cell_name}_{locus}.xml".format(output_dir=output_dir, cell_name=cell_name,
+                                                                                              locus=locus)
+            else:
+                blast_out = "{output_dir}/BLAST_output/{cell_name}_{locus}.xml".format(output_dir=output_dir,
                                                                                               cell_name=cell_name,
                                                                                               locus=locus)
             with open(blast_out, 'w') as out:

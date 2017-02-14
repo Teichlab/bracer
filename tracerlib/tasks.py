@@ -127,7 +127,7 @@ class TracerTask(object):
                                                                         output_dir=self.output_dir,
                                                                         receptor=self.receptor_name),
                                                                         self.receptor_name, self.loci)
-
+        
         # Save cell in a pickle
         with open("{output_dir}/unfiltered_{receptor}_seqs/{cell_name}.pkl".format(output_dir=self.output_dir,
                                                                             cell_name=cell.name, 
@@ -241,7 +241,8 @@ class Assembler(TracerTask):
             config_file = kwargs.get('config_file')
 
         self.config = self.read_config(config_file)
-        self.assembler = "trinity"
+        self.assembler = "basic"
+        #self.assembler = "trinity"
         #self.assembler = "oases"
         #self.locus_names = ["TCRA", "TCRB"]
 
@@ -283,37 +284,61 @@ class Assembler(TracerTask):
         data_dirs = ['aligned_reads', 'Trinity_output', 'Oases_output', 'IgBLAST_output', 'BLAST_output',
                      'unfiltered_{receptor}_seqs'.format(receptor=self.receptor_name),'expression_quantification', 
                      'filtered_{receptor}_seqs'.format(receptor=self.receptor_name)]
+        # Set up directories for testing Basic
+        if self.assembler == "basic":
+            data_dirs.append("Basic_BLAST_output")
+            data_dirs.append("Basic_IgBLAST_output")
         for d in data_dirs:
             io.makeOutputDir("{}/{}".format(self.output_dir, d))
 
         # Perform TraCeR's core functions
-        self.align()
+        if not assembler == "basic":
+            self.align()
         if self.assembler == "oases":
             self.oases_assemble()
+        # For Basic, just run IgBlast on Basic assembled seqs and parse output
+        elif self.assembler = "basic":
+            pass
         else:
             self.de_novo_assemble()
         self.blast()
         cell = self.ig_blast()
         #self.blast()
-        self.quantify(cell)
- 
-        fasta_filename = "{output_dir}/unfiltered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
+        if not self.assembler == "basic":
+            self.quantify(cell)
+        if self.assembler == "basic":
+            fasta_filename = "{output_dir}/unfiltered_{receptor}_seqs/Basic_{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
                                                                                         cell_name=self.cell_name,
                                                                                         receptor=self.receptor_name)
+            cell_summary_file =  "{output_dir}/unfiltered_{receptor}_seqs/Basic_unfiltered_{receptor}s.txt".format(
+                                                                        output_dir=self.output_dir,
+                                                                        receptor=self.receptor_name),
+                                                                        self.receptor_name, self.loci)
+        else:
+            fasta_filename = "{output_dir}/unfiltered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
+                                                                                        cell_name=self.cell_name,
+                                                                                        receptor=self.receptor_name)
+            cell_summary_file =  "{output_dir}/unfiltered_{receptor}_seqs/unfiltered_{receptor}s.txt".format(
+                                                                        output_dir=self.output_dir,
+                                                                        receptor=self.receptor_name),
+                                                                        self.receptor_name, self.loci)
         fasta_file = open(fasta_filename, 'w')
         fasta_file.write(cell.get_fasta_string())
         fasta_file.close()
 
-        self.print_cell_summary(
-            cell, "{output_dir}/unfiltered_{receptor}_seqs/unfiltered_{receptor}s.txt".format(
-                                                                        output_dir=self.output_dir,
-                                                                        receptor=self.receptor_name),
-                                                                        self.receptor_name, self.loci)
-
+        self.print_cell_summary(cell, cell_summary_file)
+        
         # Save cell in a pickle
-        with open("{output_dir}/unfiltered_{receptor}_seqs/{cell_name}.pkl".format(output_dir=self.output_dir,
+
+        if self.assembler == "basic":
+            unfiltered_pickle = "{output_dir}/unfiltered_{receptor}_seqs/Basic_{cell_name}.pkl".format(output_dir=self.output_dir,
                                                                             cell_name=cell.name,
-                                                                            receptor=self.receptor_name), 'wb') as pf:
+                                                                            receptor=self.receptor_name)
+        else:
+            unfiltered_pickle = "{output_dir}/unfiltered_{receptor}_seqs/Basic_{cell_name}.pkl".format(output_dir=self.output_dir,
+                                                                            cell_name=cell.name,
+                                                                            receptor=self.receptor_name)
+        with open(unfiltered_pickle, 'wb') as pf:
             pickle.dump(cell, pf, protocol=0)
 
         if self.receptor_name == "BCR":
@@ -338,11 +363,18 @@ class Assembler(TracerTask):
                                                                             output_dir=self.output_dir,
                                                                             receptor=self.receptor_name),
                                                                             self.receptor_name, self.loci)
-
-        with open("{output_dir}/filtered_{receptor}_seqs/{cell_name}.pkl".format(output_dir=self.output_dir,
+        if assembler == "basic":
+            with open("{output_dir}/filtered_{receptor}_seqs/Basic_{cell_name}.pkl".format(output_dir=self.output_dir,
                                                                           cell_name=cell.name,
                                                                           receptor=self.receptor_name), 'wb') as pf:
-            pickle.dump(cell, pf, protocol=0)
+                pickle.dump(cell, pf, protocol=0)
+
+        
+        else:
+            with open("{output_dir}/filtered_{receptor}_seqs/{cell_name}.pkl".format(output_dir=self.output_dir,
+                                                                          cell_name=cell.name,
+                                                                          receptor=self.receptor_name), 'wb') as pf:
+                pickle.dump(cell, pf, protocol=0)
 
 
 

@@ -89,7 +89,10 @@ def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species, s
     locus_names = ["_".join([receptor,x]) for x in loci]
     all_locus_data = defaultdict(dict)
     for locus in locus_names:
-        file = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
+        if assembler == "basic":
+            file = "{output_dir}/Basic_IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
+        else:                                                                           cell_name=cell_name, locus=locus)
+            file = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
                                                                                    cell_name=cell_name, locus=locus)
         if os.path.isfile(file):
             igblast_result_chunks = split_igblast_file(file)
@@ -115,7 +118,10 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species, assembler):
     locus_names = ["_".join([receptor,x]) for x in loci]    
 
     for locus in loci:
-        output_file = "{outdir}/BLAST_output/blastsummary_{locus}.txt".format(outdir=output_dir, locus=locus)
+        if assembler == "basic":
+            output_file = "{outdir}/BLAST_output/Basic_blastsummary_{locus}.txt".format(outdir=output_dir, locus=locus)
+        else:
+            output_file = "{outdir}/BLAST_output/blastsummary_{locus}.txt".format(outdir=output_dir, locus=locus)
         with open(output_file, 'w') as outfile:
             outfile.write("------------------\n##{}##\n------------------\n\n#{}_{}#\n\n".format(cell_name, receptor, locus))
         
