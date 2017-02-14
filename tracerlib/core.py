@@ -27,6 +27,7 @@ class Cell(object):
         #self.print_dict = self.print_recombinants()
         self.detailed_identifier_dict = self.create_detailed_identifier_dict()
         self.cdr3_dict = self.find_recs_with_identical_cdr3()
+        
         #self.rank_recs = self.rank_recombinants()
         #self.two_most_common = self.find_n_most_common(2)
         #self.identical = self.assert_two_most_common()
@@ -345,12 +346,13 @@ class Cell(object):
         return (cdr3_dict)
 
     def rank_recombinants(self):
+        """Ranks recombinants from highest TPM to lowest in case of more than two recombinants for a locus"""
         ranked_recs = dict()
         for receptor, locus_dict in six.iteritems(self.recombinants):
             for locus, recombinants in six.iteritems(locus_dict):
                 most_common = []
                 if recombinants is not None:
-                    if len(recombinants) > 2:
+                    if len(recombinants) > 0:
                         TPM_ranks = Counter()
                         for rec in recombinants:
                             TPM_ranks.update({rec.contig_name: rec.TPM})
@@ -360,7 +362,7 @@ class Cell(object):
         return (ranked_recs)
 
 
-    def find_n_most_common(self, n):
+    """def find_n_most_common(self, n):
         most_common_dict = dict()
         for receptor, locus_dict in six.iteritems(self.recombinants):
             for locus, recombinants in six.iteritems(locus_dict):
@@ -387,9 +389,28 @@ class Cell(object):
                             
                         most_common_dict[locus] = most_common
 
-        return (most_common_dict)
+        return (most_common_dict)"""
 
-    def assert_two_most_common(self):
+
+    def find_two_most_common(self):
+        ranked_recs = self.rank_recombinants()
+        two_most_common_dict = dict()
+        for locus, recs in six.iteritems(ranked_recs):
+            if len(recs) > 1:
+                two_recs = recs[:2]
+            elif len(recs) == 1:
+                two_recs = recs
+            else:
+                two_recs = []
+            two_most_common_dict[locus] = two_recs
+        return (two_most_common_dict)
+
+
+    def assert_two_most_common(self, ranked_recs):
+        pass      
+
+
+    """def assert_two_most_common(self):
         two_identical = dict()
         keep_one_rec = dict()
         detailed_identifier_dict = self.create_detailed_identifier_dict()
@@ -454,7 +475,7 @@ class Cell(object):
                             keep_one_rec[locus] = (keep_rec, keep_isotype)
         #print("KEEP ONE REC")
         #print(keep_one_rec)
-        return (keep_one_rec) 
+        return (keep_one_rec)""" 
  
 
     """def assert_two_most_common(self):

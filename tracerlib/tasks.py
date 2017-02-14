@@ -287,11 +287,11 @@ class Assembler(TracerTask):
             io.makeOutputDir("{}/{}".format(self.output_dir, d))
 
         # Perform TraCeR's core functions
-        #self.align()
-        #if self.assembler == "oases":
-            #self.oases_assemble()
-        #else:
-            #self.de_novo_assemble()
+        self.align()
+        if self.assembler == "oases":
+            self.oases_assemble()
+        else:
+            self.de_novo_assemble()
         self.blast()
         cell = self.ig_blast()
         #self.blast()
@@ -315,9 +315,16 @@ class Assembler(TracerTask):
                                                                             cell_name=cell.name,
                                                                             receptor=self.receptor_name), 'wb') as pf:
             pickle.dump(cell, pf, protocol=0)
-        print("##Testing my filtering##")
-        ranked_recs = cell.rank_recombinants()
-        print(ranked_recs)
+
+        if self.receptor_name == "BCR":
+            print("##Testing my filtering##")
+            ranked_recs = cell.rank_recombinants()
+            print(ranked_recs)
+
+            print("##Two most common recs##")
+            two_most_common_dict = cell.find_two_most_common()
+            print(two_most_common_dict)
+
         print("##Filtering by read count##")
         cell.filter_recombinants()
         fasta_filename = "{output_dir}/filtered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
@@ -597,7 +604,7 @@ class Assembler(TracerTask):
             kallisto_base_transcriptome = self.resolve_relative_path(self.config.get('kallisto_transcriptomes',
                                                                                  self.species))
 
-        # Quantification with kallisto
+        #Quantification with kallisto
         tracer_func.quantify_with_kallisto(
             kallisto, cell, self.output_dir, self.cell_name, kallisto_base_transcriptome, self.fastq1, self.fastq2,
             self.ncores, self.resume_with_existing_files, self.single_end, self.fragment_length, self.fragment_sd, self.receptor_name)
