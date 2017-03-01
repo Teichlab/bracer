@@ -793,7 +793,7 @@ class Recombinant(object):
 
     def __init__(self, contig_name, locus, identifier, all_poss_identifiers, productive, stop_codon, in_frame, TPM,
                  dna_seq, hit_table, summary, junction_details, best_VJ_names, alignment_summary, trinity_seq,
-                 imgt_reconstructed_seq, has_D, output_dir, full_length, query_length, V_genes, cdr3):
+                 imgt_reconstructed_seq, has_D, output_dir, full_length, query_length, V_genes, cdr3, assembler):
         self.contig_name = contig_name
         self.locus = locus
         self.identifier = identifier
@@ -801,6 +801,7 @@ class Recombinant(object):
         self.productive = productive
         self.TPM = TPM
         self.dna_seq = dna_seq
+        self.assembler = assembler
         #self.cdr3 = self._get_cdr3(dna_seq)
         self.cdr3 = cdr3
         self.hit_table = hit_table
@@ -892,9 +893,13 @@ class Recombinant(object):
         return (detailed_identifier)
        
     def get_C_gene(self):
-        
+        if self.assembler == "basic":
+            blast_dir = "Basic_BLAST_output"
+        else:
+            blast_dir = "BLAST_output"
+
         locus = self.locus.split("_")[1]
-        blast_summary_file = "{output_dir}/BLAST_output/blastsummary_{locus}.txt".format(output_dir=self.output_dir, locus=locus)
+        blast_summary_file = "{output_dir}/{blast_dir}/blastsummary_{locus}.txt".format(output_dir=self.output_dir,blast_dir=blast_dir, locus=locus)
 
         store_details = False
         C_gene = None
@@ -902,8 +907,11 @@ class Recombinant(object):
         start_position = None
         with open(blast_summary_file, 'r') as input:
             for line in input:
+                
                 if line.startswith("C\t{contig_name}".format(contig_name=self.contig_name)) or line.startswith("C\treversed|{contig_name}".format(contig_name=self.contig_name)):
                     C_gene = line.split("\t")[2]
+                    if "_CH1" or "_C-REGION" in C_gene:
+                        C_gene = C_gene.split("_")[0]
                     info_line = line
                     start_position = line.split("\t")[8]
                       
@@ -921,9 +929,12 @@ class Recombinant(object):
 
     def get_summary(self):
         summary_string = "##{contig_name}##\n".format(contig_name=self.contig_name)
-
+        if self.assembler == "basic":
+            blast_dir = "Basic_BLAST_output"
+        else:
+            blast_dir = "BLAST_output"
         locus = self.locus.split("_")[1]
-        blast_summary_file = "{output_dir}/BLAST_output/blastsummary_{locus}.txt".format(output_dir=self.output_dir, locus=locus)
+        blast_summary_file = "{output_dir}/{blast_dir}/blastsummary_{locus}.txt".format(output_dir=self.output_dir, blast_dir=blast_dir, locus=locus)
        
  
         if locus in ["H", "K", "L"]:

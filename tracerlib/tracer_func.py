@@ -83,13 +83,17 @@ def process_chunk(chunk):
 
         elif line_x.startswith('# Query'):
             query_name = line_x.split()[2]
+            if "cell_id=" in query_name:
+                query_name = query_name.split("=")[1]
             try:
                 query_length = query_name.split("Length_")[1]
                 return_dict['query_length'] = int(query_length)
             except:
-                query_length = line_x.split()[3]
-                return_dict['query_length'] = int(query_length.split("=")[1])
-            # return_dict['query_name'] = query_name
+                try:
+                    query_length = line_x.split()[3]
+                    return_dict['query_length'] = int(query_length.split("=")[1])
+                except:
+                    return_dict['query_length'] = None
 
         elif line_x.startswith('# V-(D)-J rearrangement summary'):
             store_VDJ_rearrangement_summary = True
@@ -111,8 +115,46 @@ def extract_blast_info(line):
     info = line.split(">")[1]
     info = info.split("<")[0]
     return (info)
+
+def get_C_gene(assembler, output_dir, locus, contig_name):
+    if assembler == "basic":
+        blast_dir = "Basic_BLAST_output"
+    else:
+        blast_dir = "BLAST_output"
+
+    locus = locus.split("_")[1]
+    blast_summary_file = "{output_dir}/{blast_dir}/blastsummary_{locus}.txt".format(output_dir=output_dir, blast_dir=blast_dir, locus=locus)
+
+    store_details = False
+    C_gene = None
+    info_line = None
+    start_position = None
+    with open(blast_summary_file, 'r') as input:
+        for line in input:
+
+            if line.startswith("C\t{contig_name}".format(contig_name=contig_name)) or line.startswith("C\treversed|{contig_name}".format(contig_name=contig_name)):
+                C_gene = line.split("\t")[2]
+                if "_CH1" or "_C-REGION" in C_gene:
+                    C_gene = C_gene.split("_")[0]
+                info_line = line
+                start_position = int(line.split("\t")[8])
+
+    return (C_gene, info_line, start_position)
+
  
-    
+def parse_alignment_summary(alignment_summary):
+    start = None
+    cdr3_start = None
+    for entry in alignment_summary:
+        info = entry.split("\t")
+        region = info[0]
+        if not region.startswith("CDR3"):
+            if start == None:
+                start = int(info[1])
+        elif region.startswith("CDR3"):
+             cdr3_start = int(info[1])
+            
+    return (start, cdr3_start)    
 
 def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, output_dir, species, seq_method,
                              invariant_seqs, loci_for_segments, receptor, loci, max_junc_string_length, assembler):
@@ -121,13 +163,11 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
     for locus in locus_names:
         recombinants[locus] = []
     
-    #recombinants = {'TCRA': [], 'TCRB': []}
     for locus in locus_names:
         data_for_locus = sample_dict[locus]
         if data_for_locus is not None:
             for query_name, query_data in six.iteritems(data_for_locus):
                 processed_hit_table = process_hit_table(query_name, query_data, locus)
-
                 if processed_hit_table is not None:
                     (returned_locus, good_hits, rearrangement_summary) = processed_hit_table
                     junction_list = query_data['junction_details']
@@ -155,6 +195,14 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                     ##line attempting to add alignment summary to data for use with PCR comparisons
 
                     alignment_summary = query_data['alignment_summary']
+                    if receptor == "BCR":
+                        align_start, cdr3_start = parse_alignment_summary(alignment_summary)
+                        print("Alignment start, cdr3 start")
+                        print(align_start, cdr3_start)
+                        (C_gene, info_line, C_start) = get_C_gene(assembler, output_dir, locus, query_name)
+                        print("C gene, C start position")
+                        print(C_gene, C_start)
+                    
                     if receptor is not "BCR":
                         all_V_names = [remove_allele_stars(x) for x in rearrangement_summary[0].split(',')]
 
@@ -166,26 +214,47 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                         all_V_names = [remove_allele_stars(x) for x in rearrangement_summary[0].split(',')]
 
 
-                    # get original sequence from Trinity file/Oases file - needed for summary of reconstructed lengths.
-                    # Only use the VDJ portion found by IgBLAST
+                    # get original sequence from Trinity/Oases/Basic file - needed for summary of reconstructed lengths.
+                    # Only use the VDJ portion found by IgBLAST or trim for BCRs:
                     if assembler == "oases":
                         trinity_file = "{}/Oases_output/{}/MergedAssembly/transcripts.fa".format(output_dir, locus)
                     elif assembler == "basic":
-                        trinity_file = "{}/Basic_output/{}_{}.fasta".format(output_dir, cell_name, locus)
-                      
+                        if locus == "BCR_H":
+                            trinity_file = "{}/Basic_output/basic_H.fa".format(output_dir)
+                        else:
+                            trinity_file = "{}/Basic_output/basic_L.fa".format(output_dir)
                     else:
                         trinity_file = "{output_dir}/Trinity_output/{cell_name}_{locus}.Trinity.fasta".format(
                         locus=locus, output_dir=output_dir, cell_name=cell_name)
                     with open(trinity_file, 'rU') as tf:
                         for record in SeqIO.parse(tf, 'fasta'):
                             if query_name in record.id:
+                    
                                 trinity_seq = record
-
+                                if "cell_id=" in query_name:
+                                    query_name = query_name.split("=")[1]
+                    query_length = query_data["query_length"]
+                    if query_length == None:
+                        query_length = len(trinity_seq)
                     if 'reversed' in good_hits[0][1]:
                         trinity_seq = trinity_seq.reverse_complement().seq
                     else:
                         trinity_seq = trinity_seq.seq
+
                     start_coord, end_coord = get_coords(good_hits, receptor)
+                    print(end_coord)
+                    if receptor == "BCR":
+                        if C_gene is not None:
+                            #Keep overlapping nt if end of J overlaps with beginning of C 
+                            if (C_start - 1) == end_coord:
+                                end_coord = end_coord + 1 
+                            elif (C_start - 1) > end_coord:
+                                end_coord = C_start - 1
+                            
+                            print("End coord")
+                            print(end_coord)
+                    
+                    # May need to be altered for BCRs according to where C region starts and V start according to CDR3 start to be in frame
                     trinity_seq = str(trinity_seq[start_coord:end_coord])
 
                     (imgt_reconstructed_seq, is_productive, bestVJNames) = get_fasta_line_for_contig_imgt(
@@ -195,8 +264,8 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                     del (bestVJNames)
 
                     #Assess if rearrangement is full-length (from start of V gene to start of C gene)
-                    full_length = is_rearrangement_full_length(trinity_seq, query_data["hit_table"], query_name, query_data["query_length"])
-                    query_length = query_data["query_length"]
+                    full_length = is_rearrangement_full_length(trinity_seq, query_data["hit_table"], query_name, query_length)
+                    #query_length = query_data["query_length"]
 
 
                     if seq_method == 'imgt':
@@ -242,8 +311,9 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                                           summary=rearrangement_summary, junction_details=junction_list,
                                           best_VJ_names=bestVJNames, alignment_summary=alignment_summary,
                                           trinity_seq=trinity_seq, imgt_reconstructed_seq=imgt_reconstructed_seq, 
-                                          has_D=has_D, output_dir=output_dir, full_length=full_length, query_length=query_length, V_genes=V_genes, cdr3=cdr3)
+                                          has_D=has_D, output_dir=output_dir, full_length=full_length, query_length=query_length, V_genes=V_genes, cdr3=cdr3, assembler=assembler)
                         recombinants[locus].append(rec)
+                        print(query_name)
 
     if recombinants:
         for locus, rs in six.iteritems(recombinants):
@@ -259,6 +329,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
 
     # pdb.set_trace()
     return (cell)
+
 
 
 def find_V_genes_based_on_bit_score(seq, hit_table, query_name, threshold_percent):
@@ -521,6 +592,7 @@ def is_rearrangement_full_length(seq, hit_table, query_name, query_length):
     J_end_pos = None
     V_hit = None
     J_hit = None
+   
     for hit in hit_table:
         info = hit.split()
         segment = info[0]
@@ -652,19 +724,18 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
     seq = Seq(seq, IUPAC.unambiguous_dna)
     cdr3 = get_cdr3(seq, locus)
     cdr3_in_frame = is_cdr3_in_frame(cdr3, locus)
+    if receptor == "BCR":
+        in_frame = cdr3_in_frame
     aa_seq = seq.translate()
     
     contains_stop = "*" in aa_seq
-
-    if in_frame == True and cdr3_in_frame and not contains_stop:
-        productive = True
-        in_frame = True
-    elif in_frame == "Unknown" and cdr3_in_frame and not contains_stop:
+    
+    
+    if in_frame == True and not contains_stop:
         productive = True
         in_frame = True
     else:
         productive = False
-        in_frame = False
     print(sample_name, query_name, locus)
     print(cdr3)
 
@@ -1741,7 +1812,7 @@ def run_velvet_h(velveth, velvetg, oases, receptor, loci, output_dir, cell_name,
         #Set hash lengths and output paths
         oases_output_path = "{}/Oases_output/{}".format(output_dir, locus)
         tracerlib.io.makeOutputDir(oases_output_path)
-        hash_lengths = ["21"]
+        hash_lengths = ["15", "17", "19", "21", "23", "25", "27", "29", "31"]
         hash_length_paths = []
         for hash_length in hash_lengths:
             path = "{}/directory{}".format(oases_output_path, hash_length)
@@ -1839,125 +1910,6 @@ def run_velvet_h(velveth, velvetg, oases, receptor, loci, output_dir, cell_name,
             except (subprocess.CalledProcessError, IOError):
                 print("Merging of assemblies failed for locus when running {}".format(program))   
 
-def assemble_with_oases(velveth, velvetg, oases, receptor, loci, output_dir, cell_name, ncores, should_resume, single_end, species):
-    #velvet = "/nfs/users/nfs_i/il5/software/velvet"
-    #velvetg = "/nfs/users/nfs_i/il5/software/velvet/velvetg"
-    #velveth = "/nfs/users/nfs_i/il5/software/velvet/velveth"
-    #oases_script = oases[:-5] + "scripts/oases_pipeline.py"
-   
-    #base_command = [oases_script, '-m 17', '-M 39']
-
-    locus_names = ["_".join([receptor,x]) for x in loci]
-
-    # Get input files
-    aligned_read_path = "{}/aligned_reads/{}_{}".format(output_dir, cell_name, locus)
-    if not single_end:
-        file1 = "{}_1.fastq".format(aligned_read_path)
-        file2 = "{}_2.fastq".format(aligned_read_path)
-    oases_output_path = "{}/Oases_output".format(output_dir)
-    hash_lengths = ["21", "23"]
-    hash_length_paths = []
-    for hash_length in hash_lengths:
-        path = "{}/{}_dir".format(oases_output_path, hash_length)
-        hash_length_paths.append(path)
-    #21_dir_path = "{}/21_dir".format(oases_output_path)
-    #23_dir_path = "{}/23_dir".format(oases_output_path)
-    #print(velveth)
-    #print(oases)   
-    
-    #COMMANDS
-    #Command for velveth
-    for i in range(len(hash_lengths)):
-        path = hash_length_paths[i]
-        hash_length = hash_lengths[i]
-        velveth_command = [velveth, path, hash_length, '-fastq', '-shortPaired', '-separate', file1, file2]
-        print(velveth_command)
-    # velveth directory 21,23 data/reads.fa
-    #velvetg directory_21 -read_trkg yes
-    # oases directory_21
-    # ls directory_21
-    # velvetg directory_23 -read_trkg yes
-    # oases directory_23
-    # velveth mergedAssembly 23 -long directory*/transcripts.fa
-    # velvetg mergedAssembly -read_trkg yes -conserveLong yes
-    # oases mergedAssembly -merge
-
-    for locus in locus_names:
-        print("##{}##".format(locus))
-        oases_output = "{}/Oases_output/{}_{}".format(output_dir, cell_name, locus)
-        aligned_read_path = "{}/aligned_reads/{}_{}".format(output_dir, cell_name, locus)
-        if not single_end:
-            file1 = "{}_1.fastq".format(aligned_read_path)
-            file2 = "{}_2.fastq".format(aligned_read_path)
-            command = base_command + ['-o', 'pairedEnd', '-d \" -shortPaired -separate', file1, file2, '\"', '-p \" -ins_length 300 \"']
-            print(command) 
-            #["--output", '{}/Oases_output/Oases_{}_{}'.format(output_dir, cell_name, locus)]
-        #else:
-            #file = "{}.fastq".format(aligned_read_path)
-            #command = base_command + ["--single", file, "--output",
-                                 #'{}/Oases_output/Oases_{}_{}'.format(output_dir, cell_name, locus)]
-        try:
-            subprocess.check_call(command)
-            """shutil.move('{}/Oases_output/pairedEnd*'.format(output_dir, cell_name, locus),
-                        '{}/Oases_output/{}_{}.Oases.fasta'.format(output_dir, cell_name, locus))"""
-        except (subprocess.CalledProcessError, IOError):
-            print("Oases failed for locus")
-
-    # clean up unsuccessful assemblies
-    sleep(10)  # this gives the cluster filesystem time to catch up and stops weird things happening
-    """successful_files = glob.glob("{}/Oases_output/*.fasta".format(output_dir))
-    unsuccessful_directories = next(os.walk("{}/Oases_output".format(output_dir)))[1]
-    for directory in unsuccessful_directories:
-        shutil.rmtree("{}/Oases_output/{}".format(output_dir, directory))
-    successful_file_summary = "{}/Oases_output/successful_oases_assemblies.txt".format(output_dir)
-    unsuccessful_file_summary = "{}/Oases_output/unsuccessful_oases_assemblies.txt".format(output_dir)
-
-    successful_files = tracerlib.io.clean_file_list(successful_files)
-    unsuccessful_directories = tracerlib.io.clean_file_list(unsuccessful_directories)
-
-    success_out = open(successful_file_summary, "w")
-    fail_out = open(unsuccessful_file_summary, "w")
-
-    successful = defaultdict(list)
-    unsuccessful = defaultdict(list)
-
-    successful_ordered_files = set()
-    unsuccessful_ordered_files = set()
-
-    for filename in successful_files:
-        # success_out.write("{}\n".format(filename))
-        parsed_name = tracerlib.io.get_filename_and_locus(filename)
-        successful[parsed_name[0]].append(parsed_name[1])
-        successful_ordered_files.add(parsed_name[0])
-    successful_ordered_files = sorted(list(successful_ordered_files))
-
-    for filename in unsuccessful_directories:
-        # fail_out.write("{}\n".format(filename))
-        parsed_name = tracerlib.io.get_filename_and_locus(filename)
-        unsuccessful[parsed_name[0]].append(parsed_name[1])
-        unsuccessful_ordered_files.add(parsed_name[0])
-    unsuccessful_ordered_files = sorted(list(unsuccessful_ordered_files))
-
-    successful = tracerlib.io.sort_locus_names(successful)
-    unsuccessful = tracerlib.io.sort_locus_names(unsuccessful)
-
-    for file in successful_ordered_files:
-        success_out.write("{}\t{}\n".format(file, successful[file]))
-
-    for file in unsuccessful_ordered_files:
-        fail_out.write("{}\t{}\n".format(file, unsuccessful[file]))
-
-    success_out.close()
-    fail_out.close()
-
-    # remove pointless .readcount files
-    readcount_files = glob.glob("{}/aligned_reads/*.readcount".format(output_dir))
-    for f in readcount_files:
-        os.remove(f)
-
-    # if len(unsuccessful_directories) == 2:
-
-    return successful_files"""
 
 
 def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, ig_seqtype, species,
@@ -2009,7 +1961,7 @@ def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, 
         if assembler == "trinity":
             trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(output_dir, cell_name, locus)
         elif assembler == "basic":
-            if locus in ["K", "L"]:
+            if locus in ["BCR_K", "BCR_L"]:
                 trinity_fasta = "{}/Basic_output/basic_L.fa".format(output_dir, cell_name)
             else:
                 trinity_fasta = "{}/Basic_output/basic_H.fa".format(output_dir, cell_name)
@@ -2071,7 +2023,7 @@ def run_Blast(blast, receptor, loci, output_dir, cell_name, index_location, spec
         if assembler == "trinity":
             trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(output_dir, cell_name, locus)
         elif assembler == "basic":
-            if locus in ["K", "L"]:
+            if locus in ["BCR_K", "BCR_L"]:
                 trinity_fasta = "{}/Basic_output/basic_L.fa".format(output_dir, cell_name)
             else:
                 trinity_fasta = "{}/Basic_output/basic_H.fa".format(output_dir, cell_name)

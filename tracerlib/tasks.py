@@ -46,7 +46,6 @@ class TracerTask(object):
                              default='~/.tracerrc')
 
     config = None
-
     def run(self):
         pass
 
@@ -117,32 +116,48 @@ class TracerTask(object):
         #        out_file.write(rec.get_summary())
         #        out_file.write("\n\n")
         out_file.close()
-
     def die_with_empty_cell(self, cell_name, output_dir, species):
         print("##No recombinants found##")
         cell = core.Cell(cell_name, None, is_empty=True, species=species, receptor=self.receptor_name, loci=self.loci)
         
-        self.print_cell_summary(
-            cell, "{output_dir}/unfiltered_{receptor}_seqs/unfiltered_{receptor}s.txt".format(
-                                                                        output_dir=self.output_dir,
-                                                                        receptor=self.receptor_name),
-                                                                        self.receptor_name, self.loci)
-        
         # Save cell in a pickle
-        with open("{output_dir}/unfiltered_{receptor}_seqs/{cell_name}.pkl".format(output_dir=self.output_dir,
-                                                                            cell_name=cell.name, 
-                                                                            receptor=self.receptor_name), 'wb') as pf:
-            pickle.dump(cell, pf, protocol=0)
-        cell.filter_recombinants()
-        self.print_cell_summary(
-            cell, "{output_dir}/filtered_{receptor}_seqs/filtered_{receptor}s.txt".format(
+        if assembler == "basic":
+            unfiltered_summary = "{output_dir}/unfiltered_{receptor}_seqs/Basic_unfiltered_{receptor}s.txt".format(
+                                                                        output_dir=self.output_dir,
+                                                                        receptor=self.receptor_name)
+            pickle_file = "{output_dir}/unfiltered_{receptor}_seqs/Basic_{cell_name}.pkl".format(output_dir=self.output_dir,
+                                                                            cell_name=cell.name, receptor=self.receptor_name)
+            filtered_summary = "{output_dir}/filtered_{receptor}_seqs/Basic_filtered_{receptor}s.txt".format(output_dir=self.output_dir, receptor=self.receptor_name)
+
+            filtered_pickle = "{output_dir}/filtered_{receptor}_seqs/Basic_{cell_name}.pkl".format(output_dir=self.output_dir,
+                                                                          cell_name=cell.name, receptor=self.receptor_name)
+
+        else:
+            unfiltered_summary = "{output_dir}/unfiltered_{receptor}_seqs/unfiltered_{receptor}s.txt".format(
+                                                                        output_dir=self.output_dir,
+                                                                        receptor=self.receptor_name)
+            pickle_file = "{output_dir}/unfiltered_{receptor}_seqs/{cell_name}.pkl".format(output_dir=self.output_dir,
+                                                                            cell_name=cell.name,
+                                                                            receptor=self.receptor_name)
+            filtered_summary = "{output_dir}/filtered_{receptor}_seqs/filtered_{receptor}s.txt".format(
                                                                             output_dir=self.output_dir,
-                                                                            receptor=self.receptor_name),
-                                                                            self.receptor_name, self.loci)
+                                                                            receptor=self.receptor_name)
                                                                             
-        with open("{output_dir}/filtered_{receptor}_seqs/{cell_name}.pkl".format(output_dir=self.output_dir,
+            filtered_pickle = "{output_dir}/filtered_{receptor}_seqs/{cell_name}.pkl".format(output_dir=self.output_dir,
                                                                           cell_name=cell.name,
-                                                                          receptor=self.receptor_name), 'wb') as pf:
+                                                                          receptor=self.receptor_name)
+
+
+        self.print_cell_summary(cell, unfiltered_summary, self.receptor_name, self.loci)
+                                                                        
+
+        with open(pickle_file, 'wb') as pf:
+            pickle.dump(cell, pf, protocol=0)
+
+        cell.filter_recombinants()
+        self.print_cell_summary(cell, filtered_summary, self.receptor_name, self.loci)
+                                                                            
+        with open(filtered_pickle, 'wb') as pf:
             pickle.dump(cell, pf, protocol=0)
         
         exit(0)
@@ -172,8 +187,7 @@ class Assembler(TracerTask):
                                 help='look for existing intermediate files and use those instead of starting from scratch',
                                 action="store_true")
             parser.add_argument('--species', '-s',
-                                help='Species to use for reconstruction',
-                                choices=self.get_available_species(), default='Mmus')
+                                help='Species to use for reconstruction', choices=self.get_available_species(), default='Mmus')
             parser.add_argument('--receptor_name',
                                 help="Name of receptor to reconstruct", default='TCR')
             parser.add_argument('--loci',
@@ -228,21 +242,13 @@ class Assembler(TracerTask):
             self.fastq1 = kwargs.get('fastq1')
             self.fastq2 = kwargs.get('fastq2')
             self.ncores = kwargs.get('ncores')
-            self.species = kwargs.get('species')
-            self.seq_method = kwargs.get('seq_method')
-            self.resume_with_existing_files = kwargs.get('resume_with_existing_files')
-            self.output_dir = kwargs.get('output_dir')
-            self.single_end = kwargs.get('single_end')
-            self.fragment_length = kwargs.get('fragment_length')
-            self.fragment_sd = kwargs.get('fragment_sd')
-            self.receptor_name = kwargs.get('receptor_name')
             self.loci = kwargs.get('loci')
             self.max_junc_len = kwargs.get('max_junc_len')
             config_file = kwargs.get('config_file')
 
         self.config = self.read_config(config_file)
-        self.assembler = "basic"
-        #self.assembler = "trinity"
+        #self.assembler = "basic"
+        self.assembler = "trinity"
         #self.assembler = "oases"
         #self.locus_names = ["TCRA", "TCRB"]
 
@@ -292,55 +298,66 @@ class Assembler(TracerTask):
             io.makeOutputDir("{}/{}".format(self.output_dir, d))
 
         # Perform TraCeR's core functions
-        if not assembler == "basic":
-            self.align()
+        #if not self.assembler in ["basic", "oases"]:
+            #self.align()
         if self.assembler == "oases":
             self.oases_assemble()
-        # For Basic, just run IgBlast on Basic assembled seqs and parse output
-        elif self.assembler = "basic":
-            pass
-        else:
-            self.de_novo_assemble()
+        #elif not self.assembler == "basic":
+            #self.de_novo_assemble()
         self.blast()
         cell = self.ig_blast()
-        #self.blast()
+
         if not self.assembler == "basic":
             self.quantify(cell)
-        if self.assembler == "basic":
-            fasta_filename = "{output_dir}/unfiltered_{receptor}_seqs/Basic_{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
-                                                                                        cell_name=self.cell_name,
-                                                                                        receptor=self.receptor_name)
-            cell_summary_file =  "{output_dir}/unfiltered_{receptor}_seqs/Basic_unfiltered_{receptor}s.txt".format(
-                                                                        output_dir=self.output_dir,
-                                                                        receptor=self.receptor_name),
-                                                                        self.receptor_name, self.loci)
-        else:
-            fasta_filename = "{output_dir}/unfiltered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
-                                                                                        cell_name=self.cell_name,
-                                                                                        receptor=self.receptor_name)
-            cell_summary_file =  "{output_dir}/unfiltered_{receptor}_seqs/unfiltered_{receptor}s.txt".format(
-                                                                        output_dir=self.output_dir,
-                                                                        receptor=self.receptor_name),
-                                                                        self.receptor_name, self.loci)
-        fasta_file = open(fasta_filename, 'w')
-        fasta_file.write(cell.get_fasta_string())
-        fasta_file.close()
+        
+        if self.assembler == ("basic" or "oases"):
+            if assembler == "basic":
+                assembler_name = "Basic"
+            else:
+                assembler_name = "Oases"
+            unfiltered_fasta_filename = "{output_dir}/unfiltered_{receptor}_seqs/{assembler_name}_{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir, 
+                                                                                                  cell_name=self.cell_name, assembler_name=assembler_name, receptor=self.receptor_name)
+            unfiltered_cell_summary_file =  "{output_dir}/unfiltered_{receptor}_seqs/{assembler_name}_unfiltered_{receptor}s.txt".format(output_dir=self.output_dir, assembler_name=assembler_name,
+                                                                                                                            receptor=self.receptor_name)
+            unfiltered_pickle = "{output_dir}/unfiltered_{receptor}_seqs/{assembler_name}_{cell_name}.pkl".format(output_dir=self.output_dir, cell_name=cell.name, assembler_name=assembler_name,
+                                                                                                                           receptor=self.receptor_name)
 
-        self.print_cell_summary(cell, cell_summary_file)
+            filtered_fasta_filename = "{output_dir}/filtered_{receptor}_seqs/{assembler_name}_{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir, assembler_name=assembler_name,
+                                                                                                  cell_name=self.cell_name, receptor=self.receptor_name)
+            filtered_cell_summary_file =  "{output_dir}/filtered_{receptor}_seqs/{assembler_name}_filtered_{receptor}s.txt".format(output_dir=self.output_dir, assembler_name=assembler_name,
+                                                                                                                            receptor=self.receptor_name)
+            filtered_pickle = "{output_dir}/filtered_{receptor}_seqs/{assembler_name}_{cell_name}.pkl".format(output_dir=self.output_dir, cell_name=cell.name, assembler_name=assembler_name,
+                                                                                                                           receptor=self.receptor_name)                                                               
+        else:
+            unfiltered_fasta_filename = "{output_dir}/unfiltered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
+                                                                                        cell_name=self.cell_name, receptor=self.receptor_name)
+            unfiltered_cell_summary_file =  "{output_dir}/unfiltered_{receptor}_seqs/unfiltered_{receptor}s.txt".format(output_dir=self.output_dir, 
+                                                                                                                      receptor=self.receptor_name)
+
+            unfiltered_pickle = "{output_dir}/unfiltered_{receptor}_seqs/{cell_name}.pkl".format(output_dir=self.output_dir, cell_name=cell.name,
+                                                                                                                     receptor=self.receptor_name)
+
+
+            filtered_fasta_filename = "{output_dir}/filtered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
+                                                                                                  cell_name=self.cell_name, receptor=self.receptor_name)
+            filtered_cell_summary_file =  "{output_dir}/filtered_{receptor}_seqs/filtered_{receptor}s.txt".format(output_dir=self.output_dir,
+                                                                                                                            receptor=self.receptor_name)
+            filtered_pickle = "{output_dir}/filtered_{receptor}_seqs/{cell_name}.pkl".format(output_dir=self.output_dir, cell_name=cell.name,
+                                                                                                                           receptor=self.receptor_name)
+
+                                                                        
+        unfiltered_fasta_file = open(unfiltered_fasta_filename, 'w')
+        unfiltered_fasta_file.write(cell.get_fasta_string())
+        unfiltered_fasta_file.close()
+
+        self.print_cell_summary(cell, unfiltered_cell_summary_file, self.receptor_name, self.loci)
         
         # Save cell in a pickle
 
-        if self.assembler == "basic":
-            unfiltered_pickle = "{output_dir}/unfiltered_{receptor}_seqs/Basic_{cell_name}.pkl".format(output_dir=self.output_dir,
-                                                                            cell_name=cell.name,
-                                                                            receptor=self.receptor_name)
-        else:
-            unfiltered_pickle = "{output_dir}/unfiltered_{receptor}_seqs/Basic_{cell_name}.pkl".format(output_dir=self.output_dir,
-                                                                            cell_name=cell.name,
-                                                                            receptor=self.receptor_name)
         with open(unfiltered_pickle, 'wb') as pf:
             pickle.dump(cell, pf, protocol=0)
 
+        # Various filtering tests for BCRs
         if self.receptor_name == "BCR":
             print("##Testing my filtering##")
             ranked_recs = cell.rank_recombinants()
@@ -350,32 +367,19 @@ class Assembler(TracerTask):
             two_most_common_dict = cell.find_two_most_common()
             print(two_most_common_dict)
 
+        # Filter recombinants
         print("##Filtering by read count##")
         cell.filter_recombinants()
-        fasta_filename = "{output_dir}/filtered_{receptor}_seqs/{cell_name}_{receptor}seqs.fa".format(output_dir=self.output_dir,
-                                                                                        cell_name=self.cell_name,
-                                                                                        receptor=self.receptor_name)
-        fasta_file = open(fasta_filename, 'w')
-        fasta_file.write(cell.get_fasta_string())
-        fasta_file.close()
-        self.print_cell_summary(
-            cell, "{output_dir}/filtered_{receptor}_seqs/filtered_{receptor}s.txt".format(
-                                                                            output_dir=self.output_dir,
-                                                                            receptor=self.receptor_name),
-                                                                            self.receptor_name, self.loci)
-        if assembler == "basic":
-            with open("{output_dir}/filtered_{receptor}_seqs/Basic_{cell_name}.pkl".format(output_dir=self.output_dir,
-                                                                          cell_name=cell.name,
-                                                                          receptor=self.receptor_name), 'wb') as pf:
-                pickle.dump(cell, pf, protocol=0)
 
+        filtered_fasta_file = open(filtered_fasta_filename, 'w')
+        filtered_fasta_file.write(cell.get_fasta_string())
+        filtered_fasta_file.close()
+        self.print_cell_summary(cell, filtered_cell_summary_file, self.receptor_name, self.loci)
+
+        # Save cell in a pickle
         
-        else:
-            with open("{output_dir}/filtered_{receptor}_seqs/{cell_name}.pkl".format(output_dir=self.output_dir,
-                                                                          cell_name=cell.name,
-                                                                          receptor=self.receptor_name), 'wb') as pf:
-                pickle.dump(cell, pf, protocol=0)
-
+        with open(filtered_pickle, 'wb') as pf:
+            pickle.dump(cell, pf, protocol=0)
 
 
 
@@ -557,9 +561,7 @@ class Assembler(TracerTask):
         velveth = self.get_binary('velveth')
         velvetg = self.get_binary('velvetg') 
         oases = self.get_binary('oases')
-        print(velveth)
-        print(oases)
-        # Run velveth
+        # Run Velvet and Oases
         tracer_func.run_velvet_h(velveth, velvetg, oases, self.receptor_name, self.loci, self.output_dir, self.cell_name, self.ncores, self.resume_with_existing_files, self.single_end, self.species)
 
         # Make oases input files
@@ -620,8 +622,6 @@ class Assembler(TracerTask):
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            #cell = io.parse_IgBLAST(self.receptor_name, self.loci, self.output_dir, self.cell_name, imgt_seq_location,
-            #                        self.species, self.seq_method, self.invariant_sequences)
             isotype = io.parse_BLAST(self.receptor_name, self.loci, self.output_dir, self.cell_name, self.species, self.assembler)
         return isotype
 
@@ -2212,11 +2212,3 @@ class Builder(TracerTask):
                 except subprocess.CalledProcessError:
                     print("makeblastdb failed for {receptor}_{segment}"
                           .format(receptor=self.receptor_name, segment=s))
-                
-            else:
-                with open(fasta_file) as e:
-                    existing_seqs = SeqIO.to_dict(SeqIO.parse(e, "fasta"))
-                if len(existing_seqs) == 0:
-                    missing_dbs.append(s)
-
-        return missing_dbs

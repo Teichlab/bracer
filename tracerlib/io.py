@@ -68,12 +68,9 @@ def load_IMGT_seqs(file):
 def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species, seq_method, assembler, max_junc_len=50, invariant_seqs=None):
     
     IMGT_seqs = dict()
-    #expecting_D = dict()
     
     loci_for_segments = defaultdict(list)
     
-    #for locus in loci:
-    #    expecting_D[locus] = False
     for locus in loci:
         seq_files = glob.glob(os.path.join(raw_seq_dir, "{receptor}_{locus}_*.fa".format(receptor=receptor, 
                                                                                     locus=locus)))
@@ -91,7 +88,8 @@ def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species, s
     for locus in locus_names:
         if assembler == "basic":
             file = "{output_dir}/Basic_IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
-        else:                                                                           cell_name=cell_name, locus=locus)
+                                                                                      cell_name=cell_name, locus=locus)
+        else:    
             file = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
                                                                                    cell_name=cell_name, locus=locus)
         if os.path.isfile(file):
@@ -99,8 +97,12 @@ def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species, s
          
             for chunk in igblast_result_chunks:
                 (query_name, chunk_details) = process_chunk(chunk)
-
+                if query_name is not None: 
+                    if "cell_id=" in query_name:
+                        query_name = query_name.split("=")[1]
                 all_locus_data[locus][query_name] = chunk_details
+                print("parse igblast query name")
+                print(query_name)
                 
         else:
             all_locus_data[locus] = None
@@ -119,14 +121,17 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species, assembler):
 
     for locus in loci:
         if assembler == "basic":
-            output_file = "{outdir}/BLAST_output/Basic_blastsummary_{locus}.txt".format(outdir=output_dir, locus=locus)
+            blast_dir = "Basic_BLAST_output"
         else:
-            output_file = "{outdir}/BLAST_output/blastsummary_{locus}.txt".format(outdir=output_dir, locus=locus)
+            blast_dir = "BLAST_output"
+        
+        output_file = "{outdir}/{blast_dir}/blastsummary_{locus}.txt".format(outdir=output_dir, blast_dir=blast_dir, locus=locus)
+        input_file =  "{output_dir}/{blast_dir}/{cell_name}_{receptor}_{locus}.xml".format(output_dir=output_dir, blast_dir=blast_dir, 
+                                                                                   cell_name=cell_name, locus=locus, receptor=receptor)
+
         with open(output_file, 'w') as outfile:
             outfile.write("------------------\n##{}##\n------------------\n\n#{}_{}#\n\n".format(cell_name, receptor, locus))
         
-            input_file =  "{output_dir}/BLAST_output/{cell_name}_{receptor}_{locus}.xml".format(output_dir=output_dir,
-                                                                                   cell_name=cell_name, locus=locus, receptor=receptor)
             #Split result file into chunks corresponding to results for each query sequence.
             if os.path.isfile(input_file):
                 blast_result_chunks = split_blast_file(input_file)
@@ -141,14 +146,14 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species, assembler):
                             blast_query_name = line.split("<")[0]
                             if assembler == "trinity":
                                 blast_query_name = blast_query_name.split()[0] 
-                            
                         elif line_x.startswith("<Hsp_evalue>"):
                             evalue = extract_blast_info(line_x)
                             evalue = format(float(evalue), '.0e')
 
                         elif line_x.startswith("<Hit_accession>"):
                             C_segment = extract_blast_info(line_x)
-            
+                            if "C-REGION" or "CH1" in C_segment:
+                                C_segment = C_segment.split("_")[0]
                         elif line_x.startswith("<Hsp_bit-score>"):
                             bit_score = extract_blast_info(line_x)
                               
@@ -197,8 +202,9 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species, assembler):
                                
                             intro_string = "##{blast_query_name}##\nC segment:\t{C_segment}\n\n".format(blast_query_name=blast_query_name, C_segment=C_segment)
                             header_string = "Segment\tquery_id\tsubject_id\t% identity\talignment length\tmismatches\tgap opens\tgaps\tq start\tq end\ts start\ts end\tevalue\tbit score\n"
-                            out_string = "C\t{blast_query_name}\t{C_segment}\t{identity_pro}\t{align_length}\t{mismatches}\tNA\t{gaps}\t{q_start}\t{q_end}\t{s_start}\t{s_end}\t{evalue}\t{bit_score}\n\n".format(blast_query_name=blast_query_name,
-                            C_segment=C_segment, identity_pro=identity_pro, align_length=align_length, evalue=evalue, mismatches=mismatches, gaps=gaps, q_start=q_start, q_end=q_end, s_start=s_start, s_end=s_end, bit_score=bit_score)
+                            out_string = "C\t{blast_query_name}\t{C_segment}\t{identity_pro}\t{align_length}\t{mismatches}\tNA\t{gaps}\t{q_start}\t{q_end}\t{s_start}\t{s_end}\t{evalue}\t{bit_score}\n\n".format(
+                                          blast_query_name=blast_query_name, C_segment=C_segment, identity_pro=identity_pro, align_length=align_length, evalue=evalue, mismatches=mismatches, gaps=gaps, 
+                                          q_start=q_start, q_end=q_end, s_start=s_start, s_end=s_end, bit_score=bit_score)
                             string_to_write = intro_string + header_string + out_string
                             outfile.write(string_to_write)                           
                                   
