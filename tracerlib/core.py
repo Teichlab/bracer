@@ -17,13 +17,17 @@ class Cell(object):
         
         self.name = cell_name
         self.species = species
+        self.receptor = receptor
         self.recombinants = self._process_recombinants(recombinants, receptor, loci)
-        
+               
         self.is_empty = self._check_is_empty()
-        
-        self.isotype = self.determine_isotype(loci, receptor, self.recombinants)
-        self.bgcolor = self.assign_bgcolor(species, self.isotype)
-        self.changeodict = self.get_changeo_db_for_locus(self.recombinants, receptor, loci)
+        self.two_most_common = self.find_two_most_common()
+        self.ranked_recs = self.rank_recombinants()
+        self.bgcolor = None
+        self.isotype = None
+        #self.isotype = self.determine_isotype(loci, receptor, self.recombinants)
+        #self.bgcolor = self.assign_bgcolor(species, self.isotype)
+        #self.changeodict = self.get_changeo_db_for_locus(self.recombinants, receptor, loci)
         #self.print_dict = self.print_recombinants()
         self.detailed_identifier_dict = self.create_detailed_identifier_dict()
         self.cdr3_dict = self.find_recs_with_identical_cdr3()
@@ -67,58 +71,63 @@ class Cell(object):
         return dict(recombinant_dict)
 
 
-    def get_changeo_db_for_locus(self, recombinants, receptor, loci):
+    def get_changeo_db_for_locus(self, receptor, loci):
         changeodict = defaultdict(dict)
         for l in loci:
             changeodict[l] = None
             changeo_string = ""
             recombinants = self.recombinants[receptor][l]
             for rec in recombinants:
-                string = rec.create_changeo_db_string()
-                string = self.name + "_" + string
-                changeo_string += string + "\n"
+                if rec.productive:
+                    string = rec.create_changeo_db_string()
+                    string = self.name + "_" + string
+                    changeo_string += string + "\n"
+                else:
+                    changeo_string = changeo_string
             changeodict[l] = changeo_string
         return(changeodict)
             
 
 
 
-    def determine_isotype(self, loci, receptor, recombinants):
-        #To make code work before filtering for highest expressed chains, I give all cells isotype IGHM: Must change!!
-        #isotype = "IGHM"
-        H_recombinants = self.recombinants[receptor]["H"]
+    def determine_isotype(self, ranked_recs):
+        #ranked_recs = self.ranked_recs
+        ranked_H = ranked_recs["H"][0:2]
+        H_recombinants = self.recombinants[self.receptor]["H"]
         isotype = None
         isotype_list = []
-        for recombinant in H_recombinants:
-            if recombinant.productive == True:
-                C_gene = recombinant.C_gene
-                isotype_list.append(C_gene)
+        for ranked_rec in ranked_H:
+            for recombinant in H_recombinants:
+                if recombinant.contig_name == ranked_rec and recombinant.productive:
+                    C_gene = recombinant.C_gene
+                    if C_gene is not None:
+                        C_gene = C_gene.split("*")[0]
+                        isotype_list.append(C_gene)
         if len(isotype_list) == 0:
             isotype = None
         elif len(isotype_list) == 1:
-            if isotype_list[0] is None:
-                isotype = None
-            else:
-                if isotype is not None:
-                    isotype = isotype_list[0].split("*")[0]
-        
+            isotype = isotype_list[0]
         elif len(isotype_list) == 2:
-            if isotype_list[0] == isotype_list[1]:
-                if isotype_list[0] is not None:
-                    isotype = isotype_list[0].split("*")[0]
+            iso_1 = isotype_list[0]
+            iso_2 = isotype_list[1]
+            if iso_1 == iso_2:
+                isotype = iso_1
+            elif iso_1 is not None and iso_2 is not None:
+                if iso_1 in ["IGHM", "IGHD"] and iso_2 in ["IGHM", "IGHD"]:
+                    isotype = "IGHDM"
                 else:
-                    isotype = None
-            elif isotype_list[0].split("*")[0] == "IGHM" and isotype_list[1].split("*")[0] == "IGHD":
-                isotype = "IGHDM"
-            elif isotype_list[0].split("*")[0] == "IGHD" and isotype_list[1].split("*")[0] == "IGHM":
-                isotype = "IGHDM"
+                    isotype = iso_1
+            elif iso_1 is None:
+                isotype = iso_2
+            elif iso_2 is None:
+                isotype = iso_1
          
         return(isotype)
 
-    def assign_bgcolor(self, species, isotype):
+    def assign_bgcolor(self, isotype):
         """Assigns bgcolor for cell according to isotype (B cells)"""
         
-        isotype_bgcolors = {"IGHD":'#c1f0c1', "IGHM":'#b3d1ff', "IGHA":'#e6ccff', "IGHE":'#ffffb3', "IGHG1":'#b30000', "IGHG2A":'#e60000', "IGHG2B":'#ff3333', "IGHG2C":'#ff6666', 
+        isotype_bgcolors = {"IGHD":'#c1f0c1', "IGHM":'#b3d1ff', "IGHA":'#e6ccff', "IGHA1":'#b8a3cc', "IGHA2":'#e6ccff', "IGHE":'#ffffb3', "IGHG1":'#b30000', "IGHG2A":'#e60000', "IGHG2B":'#ff3333', "IGHG2C":'#ff6666', 
                             "IGHG3":'#ffb3b3', "IGHDM":'#99ffdd'}
 
         if isotype is None:
@@ -793,7 +802,7 @@ class Recombinant(object):
 
     def __init__(self, contig_name, locus, identifier, all_poss_identifiers, productive, stop_codon, in_frame, TPM,
                  dna_seq, hit_table, summary, junction_details, best_VJ_names, alignment_summary, trinity_seq,
-                 imgt_reconstructed_seq, has_D, output_dir, full_length, query_length, V_genes, cdr3, assembler):
+                 imgt_reconstructed_seq, has_D, output_dir, full_length, query_length, V_genes, cdr3, assembler, C_gene, C_info_line):
         self.contig_name = contig_name
         self.locus = locus
         self.identifier = identifier
@@ -802,7 +811,6 @@ class Recombinant(object):
         self.TPM = TPM
         self.dna_seq = dna_seq
         self.assembler = assembler
-        #self.cdr3 = self._get_cdr3(dna_seq)
         self.cdr3 = cdr3
         self.hit_table = hit_table
         self.summary = summary
@@ -815,62 +823,16 @@ class Recombinant(object):
         self.imgt_reconstructed_seq = imgt_reconstructed_seq
         self.has_D_segment = has_D
         self.output_dir = output_dir
-        (self.C_gene, self.C_gene_info, self.C_gene_pos) = self.get_C_gene()
+        self.C_gene = C_gene
+        self.C_gene_info = C_info_line
         self.J_gene = self.get_J_gene()
         self.full_length = full_length
         self.query_length = query_length
         self.V_genes = V_genes
-        self.cdr3_in_frame = self.is_cdr3_in_frame(self.cdr3)       
         self.detailed_identifier = self.create_detailed_identifier(self.productive, self.cdr3, self.C_gene, self.full_length)        
 
     def __str__(self):
         return ("{} {} {} {}".format(self.identifier, self.productive, self.TPM))
-
-    def _get_cdr3(self, dna_seq):
-        
-        aaseq = Seq(str(dna_seq), generic_dna).translate()
-        # Specify first amino acid in conserved motif according to receptor and locus
-        if self.locus in ["BCR_H", "H"]:
-            motif_start = "W"
-        else:
-            motif_start = "F"
-        motif = motif_start + "G.G"
-
-        if re.findall(motif, str(aaseq)) and re.findall('C', str(aaseq)):
-            indices = [i for i, x in enumerate(aaseq) if x == 'C']
-            upper = str(aaseq).find(re.findall(motif, str(aaseq))[0])
-            lower = False
-            for i in indices:
-                if i < upper:
-                    lower = i
-            # If motif not found, allow to search for "FSDG" in kappa sequences (present in IGKJ3)
-            if lower == False:
-                if self.locus in ["BCR_K", "K"]:
-                    motif = "FSDG"
-                    upper = str(aaseq).find(re.findall(motif, str(aaseq))[0])
-                    for i in indices:
-                        if i < upper:
-                            lower = i
-
-            if lower:
-                cdr3 = aaseq[lower:upper + 4]
-            else:
-                cdr3 = "Couldn't find conserved cysteine"
-        elif re.findall(motif, str(aaseq)):
-            cdr3 = "Couldn't find conserved cysteine"
-        elif re.findall('C', str(aaseq)):
-            cdr3 = "Couldn't find {}GXG".format(motif_start)
-        else:
-            cdr3 = "Couldn't find either conserved boundary"
-
-        return (cdr3)
- 
-    def is_cdr3_in_frame(self, cdr3):
-        if len(cdr3) % 3 == 0:
-            cdr3_in_frame = True
-        else:
-            cdr3_in_frame = False
-        return (cdr3_in_frame)
 
     def create_detailed_identifier(self, productive, cdr3, C_gene, full_length):
         if productive == True:
@@ -891,34 +853,6 @@ class Recombinant(object):
             full_length = "false"
         detailed_identifier = "{}_{}*{}_{}".format(cdr3, productive, C_gene, full_length)
         return (detailed_identifier)
-       
-    def get_C_gene(self):
-        if self.assembler == "basic":
-            blast_dir = "Basic_BLAST_output"
-        else:
-            blast_dir = "BLAST_output"
-
-        locus = self.locus.split("_")[1]
-        blast_summary_file = "{output_dir}/{blast_dir}/blastsummary_{locus}.txt".format(output_dir=self.output_dir,blast_dir=blast_dir, locus=locus)
-
-        store_details = False
-        C_gene = None
-        info_line = None
-        start_position = None
-        with open(blast_summary_file, 'r') as input:
-            for line in input:
-                
-                if line.startswith("C\t{contig_name}".format(contig_name=self.contig_name)) or line.startswith("C\treversed|{contig_name}".format(contig_name=self.contig_name)):
-                    C_gene = line.split("\t")[2]
-                    if "_CH1" or "_C-REGION" in C_gene:
-                        C_gene = C_gene.split("_")[0]
-                    info_line = line
-                    start_position = line.split("\t")[8]
-                      
-        return (C_gene, info_line, start_position)
-
-   
-
 
     def get_J_gene(self):
         if not self.has_D_segment:
@@ -929,14 +863,7 @@ class Recombinant(object):
 
     def get_summary(self):
         summary_string = "##{contig_name}##\n".format(contig_name=self.contig_name)
-        if self.assembler == "basic":
-            blast_dir = "Basic_BLAST_output"
-        else:
-            blast_dir = "BLAST_output"
         locus = self.locus.split("_")[1]
-        blast_summary_file = "{output_dir}/{blast_dir}/blastsummary_{locus}.txt".format(output_dir=self.output_dir, blast_dir=blast_dir, locus=locus)
-       
- 
         if locus in ["H", "K", "L"]:
             find_C_gene = True
             C_gene = self.C_gene
@@ -973,24 +900,17 @@ class Recombinant(object):
 
         summary_string += segments_string
         summary_string += "ID:\t{}\n".format(self.identifier)
-        summary_string += "TPM:\t{TPM}\nProductive:\t{productive}\nStop codon:\t{stop_codon}\nIn frame:\t{in_frame}\nFull length:\t{full_length}\nSequence length: \t{query_length}\nPossible V genes:\t{V_genes}\n\n".format(
-            TPM=self.TPM, productive=self.productive, stop_codon=self.stop_codon, in_frame=self.in_frame, full_length=self.full_length, query_length=self.query_length, V_genes=self.V_genes)
+        summary_string += "TPM:\t{TPM}\nProductive:\t{productive}\nStop codon:\t{stop_codon}\nIn frame:\t{in_frame}\nFull length:\t{full_length}\nSequence length: \t{query_length}\
+                           \nPossible V genes:\t{V_genes}\n\n".format(TPM=self.TPM, productive=self.productive, stop_codon=self.stop_codon, 
+                           in_frame=self.in_frame, full_length=self.full_length, query_length=self.query_length, V_genes=self.V_genes)
 
         summary_string += 'Segment\tquery_id\tsubject_id\t% identity\talignment length\tmismatches\tgap opens\tgaps\tq start\tq end\ts start\ts end\te value\tbit score\n'
+
         for line in self.hit_table:
             summary_string = summary_string + "\t".join(line) + "\n"
         
         if find_C_gene == True and C_gene != None:
-            """store_details = False
-            with open(blast_summary_file, 'r') as input:
-                for line in input:
-                    if line.startswith("##{contig_name}".format(contig_name=self.contig_name)) or line.startswith("##reversed|{contig_name}".format(contig_name=self.contig_name)):
-                        store_details = True
-                    elif store_details == True:
-                       
-                        if line.startswith("C\t{}".format(self.contig_name)) or line.startswith("C\treversed|{contig_name}".format(contig_name=self.contig_name)):"""
             summary_string = summary_string + self.C_gene_info + "\n"
-            #store_details = False
                 
         return (summary_string)
 

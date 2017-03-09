@@ -362,15 +362,20 @@ class Assembler(TracerTask):
             print("##Testing my filtering##")
             ranked_recs = cell.rank_recombinants()
             print(ranked_recs)
+            # Determine isotype and cell background colour
+            isotype = cell.determine_isotype(ranked_recs)
+            bgcolor = cell.assign_bgcolor(isotype)
+            cell.bgcolor = bgcolor
+            cell.isotype = isotype      
+            #print("##Two most common recs##")
+            #two_most_common_dict = cell.find_two_most_common()
+            #print(two_most_common_dict)
 
-            print("##Two most common recs##")
-            two_most_common_dict = cell.find_two_most_common()
-            print(two_most_common_dict)
-
-        # Filter recombinants
+        # Filter recombinants - needs to be modified for naive B cells!
         print("##Filtering by read count##")
         cell.filter_recombinants()
-
+        cell.changeodict = cell.get_changeo_db_for_locus(self.receptor_name, self.loci)
+        print(cell.changeodict)
         filtered_fasta_file = open(filtered_fasta_filename, 'w')
         filtered_fasta_file.write(cell.get_fasta_string())
         filtered_fasta_file.close()
@@ -847,7 +852,7 @@ class Summariser(TracerTask):
         prod_counters = defaultdict(Counter)
         if self.receptor_name == "BCR":
             isotype_counters = defaultdict(Counter)
-            possible_isotypes = ["IGHM", "IGHG1", "IGHG2A", "IGHG2B", "IGHG2C", "IGHG3", "IGHA", "IGHE", "IGHD"]
+            possible_isotypes = ["IGHM", "IGHG1", "IGHG2A", "IGHG2B", "IGHG2C", "IGHG3", "IGHG4", "IGHA", "IGHA1", "IGHA2", "IGHE", "IGHD"]
         
         for cell in cells.values():
             for l in self.loci:
@@ -1413,7 +1418,7 @@ class Summariser(TracerTask):
                 first_cell = first_cell_dict[clone][l]
                 for cell_name, alignment in six.iteritems(alignment_string):
                     # Trim sequences in dictionary to exclude initial gaps
-                    for i in range(0, num_lines-1):
+                    for i in range(0, num_lines):
                         difference = len(alignment_string[first_cell][i]) - len(alignment_string["summary"][i])
                     
                         if cell_name is not "summary":
@@ -1463,15 +1468,21 @@ class Summariser(TracerTask):
         matrix = dict()
         if self.species == "Mmus":
             # Use M1N substitution distance model (from ChangeO)
-                matrix["A"] = {"A":0, "C":2.86, "G":1, "T":"2.14", "N":0, "-":0}
+                matrix["A"] = {"A":0, "C":2.86, "G":1, "T":2.14, "N":0, "-":0}
                 matrix["C"] = {"A":2.86, "C":0, "G":2.14, "T":1, "N":0, "-":0}
                 matrix["G"] = {"A":1, "C":2.14, "G":0, "T":2.86, "N":0, "-":0}
                 matrix["T"] = {"A":2.14, "C":1, "G":2.86, "T":0, "N":0, "-":0}
                 matrix["N"] = {"A":0, "C":0, "G":0, "T":0, "N":0, "-":0}
                 matrix["-"] = {"A":0, "C":0, "G":0, "T":0, "N":0, "-":0}
+            # Use hh_s1f substitution matrix from ChangeO
         elif species == "Hsap":
-            matrix = None
-            # Use HS1F substitution distance model (from ChangeO). FILL IN!!!
+                matrix["A"] = {"A":0, "C":1.21, "G":0.64, "T":1.16, "N":0, "-":0}
+                matrix["C"] = {"A":1.21, "C":0, "G":1.16, "T":0.64, "N":0, "-":0}
+                matrix["G"] = {"A":0.64, "C":1.16, "G":0, "T":1.21, "N":0, "-":0}
+                matrix["T"] = {"A":1.16, "C":0.64, "G":1.21, "T":0, "N":0, "-":0}
+                matrix["N"] = {"A":0, "C":0, "G":0, "T":0, "N":0, "-":0}
+                matrix["-"] = {"A":0, "C":0, "G":0, "T":0, "N":0, "-":0}
+
         else:
             matrix = None
             # Use Hamming distance instead of SHM distance model
