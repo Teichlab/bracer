@@ -302,8 +302,8 @@ class Assembler(TracerTask):
             #self.align()
         if self.assembler == "oases":
             self.oases_assemble()
-        #elif not self.assembler == "basic":
-            #self.de_novo_assemble()
+        elif not self.assembler == "basic":
+            self.de_novo_assemble()
         self.blast()
         cell = self.ig_blast()
 
@@ -949,22 +949,24 @@ class Summariser(TracerTask):
                     warnings.simplefilter("ignore")
 
             # Read ChangeO result files and define clone groups for each locus
-            (clones, cell_clones) = self.read_changeo_results(self.loci, outdir)
-            print("Changeo results Clones")
-            print(clones)
-            print("Cell_clones")
-            print(cell_clones)
+            (clones, cell_clones, cell_contig_clones) = self.read_changeo_results(self.loci, outdir)
+            #print("Changeo results Clones")
+            #print(clones)
+            #print("Cell_clones")
+            #print(cell_clones)
+            #print("Cell contig clones")
+            #print(cell_contig_clones)
 
             # Filter out H clone groups consisting of a single cell
             multiple_clones_H = dict()
-            for clone, cell_list in six.iteritems(clones["H"]):
-                if len(cell_list) > 1:
-                    multiple_clones_H[clone] = cell_list
+            for clone, cells in six.iteritems(clones["H"]):
+                if len(cells.keys()) > 2:
+                    multiple_clones_H[clone] = cells
             print("Multiple_clones_H")
             print(multiple_clones_H)
 
             # Get groups of clones sharing heavy and light chain
-            paired_clone_groups = self.get_initial_clone_groups(self.loci, multiple_clones_H, cell_clones)
+            paired_clone_groups = self.get_initial_clone_groups(self.loci, clones, multiple_clones_H, cell_clones, cell_contig_clones)
             print("Paired clone groups: ", paired_clone_groups)
             clonal_cells = []
             for clone, cell_list in six.iteritems(paired_clone_groups):
@@ -1029,18 +1031,6 @@ class Summariser(TracerTask):
             outfile.write("\n")
             self.plot_isotype_distributions(isotype_counter, outdir)
 
-        #iNKT_count = len(NKT_cells)
-        #if iNKT_count == 1:
-        #    cell_word = 'cell'
-        #else:
-        #    cell_word = 'cells'
-        #outfile.write("\n\n#iNKT cells#\nFound {iNKT_count} iNKT {cell_word}\n".format(iNKT_count=iNKT_count,
-        #                                                                               cell_word=cell_word))
-        #if iNKT_count > 0:
-        #    for cell_name, ids in six.iteritems(NKT_cells):
-        #        outfile.write("###{cell_name}###\n".format(cell_name=cell_name))
-        #        outfile.write("TCRA:\t{}\nTCRB\t{}\n\n".format(ids[0], ids[1]))
-        #
         
         # reporting invariant cells
         invariant_cells = []
@@ -1257,7 +1247,6 @@ class Summariser(TracerTask):
     def make_changeo_input(self, outdir, locus, receptor, cells):
         """Creates input file for each locus compatible with ChangeO"""
         
-        
         changeo_string = "SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\tJUNCTION_LENGTH\tJUNCTION\n"
         changeo_input = "{}/changeo_input_{}.tab".format(outdir, locus)
         with open(changeo_input, 'w') as output:
@@ -1278,12 +1267,15 @@ class Summariser(TracerTask):
         """Reads ChangeO result files and defines clone groups for each locus"""
         clones = dict()
         cell_clones = dict()
+        cell_contig_clones = dict()
         cell_list = []
+        contig_list = []
 
         for l in loci:
-            
             clones[l] = dict()
             cell_clones[l] = dict()
+            cell_contig_clones[l] = dict()
+            
             changeo_result = "{}/changeo_input_{}_clone-pass.tab".format(outdir, l)
             if not os.path.exists(changeo_result):
                 continue
@@ -1296,23 +1288,39 @@ class Summariser(TracerTask):
                             fields = line.split("\t")
                             clone = fields[len(fields)-1].rstrip()
                             cell = fields[0].split("_TRINITY")[0]
+                            contig_name = fields[0].split("{}_".format(cell))[1]
                             cell_clones[l][cell] = clone
+                            cell_contig_clones[l][cell] = dict()
+                            cell_contig_clones[l][cell][contig_name] = clone
                             if not clone in clones[l].keys():
-                                clones[l][clone] = []
-                            clones[l][clone].append(cell)
+                                clones[l][clone] = dict()
+                                contig_list = [contig_name]
+                                clones[l][clone][cell] = contig_list
+                            elif not cell in clones[l][clone].keys():
+                                contig_list = [contig_name]
+                                clones[l][clone][cell] = contig_list
+                            else:
+                                clones[l][clone][cell].append(contig_name)
                             if not cell in cell_list:
                                 cell_list.append(cell)
-        return (clones, cell_clones)
+        return (clones, cell_clones, cell_contig_clones)
 
-    def get_initial_clone_groups(self, loci, multiple_clones_H, cell_clones):
+    def get_initial_clone_groups(self, loci, clones, multiple_clones_H, cell_clones, cell_contig_clones):
         """Get groups of B cell clones sharing clonally related heavy and light chains (from changeo output)"""
         paired_clone_groups = dict()
-        for clone, cell_list in six.iteritems(multiple_clones_H):
+        paired_clone_groups_contigs = dict()
+        for clone, cells in six.iteritems(multiple_clones_H):
+            cell_list = []
+            for cell, data in six.iteritems(multiple_clones_H[clone]):
+                cell_list.append(cell)
+            
             for i in range(len(cell_list)):
                 current_cell = cell_list[i]
                 comparison_cells = cell_list[i + 1:]
+                # Inrykk herfra!
                 for comparison_cell in comparison_cells:
                     for l in self.loci:
+                    
                         if not comparison_cell in cell_clones[l].keys():
                             cell_clones[l][comparison_cell] = None
                         elif not current_cell in cell_clones[l].keys():
@@ -1365,6 +1373,9 @@ class Summariser(TracerTask):
                         for line in input:
                             if not line.startswith("SEQUENCE_ID"):
                                 cell_name = line.split("_TRINITY")[0]
+                                contig_name = line.split("\t")[0].split("{}_".format(cell_name))[1]
+                                print(contig_name)
+                                
                                 if cell_name in cell_list:
                                     sequence = line.split()[4] + "\n"
                                     fasta_header = ">" + line.split()[0] + "\n"

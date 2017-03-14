@@ -802,7 +802,7 @@ class Recombinant(object):
 
     def __init__(self, contig_name, locus, identifier, all_poss_identifiers, productive, stop_codon, in_frame, TPM,
                  dna_seq, hit_table, summary, junction_details, best_VJ_names, alignment_summary, trinity_seq,
-                 imgt_reconstructed_seq, has_D, output_dir, full_length, query_length, V_genes, cdr3, assembler, C_gene, C_info_line):
+                 imgt_reconstructed_seq, has_D, output_dir, full_length, query_length, V_genes, cdr3, assembler, C_gene, C_info_line, cdr3_seq):
         self.contig_name = contig_name
         self.locus = locus
         self.identifier = identifier
@@ -829,6 +829,7 @@ class Recombinant(object):
         self.full_length = full_length
         self.query_length = query_length
         self.V_genes = V_genes
+        self.cdr3_seq = cdr3_seq
         self.detailed_identifier = self.create_detailed_identifier(self.productive, self.cdr3, self.C_gene, self.full_length)        
 
     def __str__(self):
@@ -916,6 +917,7 @@ class Recombinant(object):
 
 
     def create_changeo_db_string(self):
+        """For assessment of B cell clonality"""
         changeo_db_header = "SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\tJUNCTION_LENGTH\tJUNCTION"
         #Add sequence_ID at cell level to include cell name
         changeo_db_string = ""
@@ -933,7 +935,9 @@ class Recombinant(object):
             junc_string = junc_string.split("(")
             junc_string = "".join(junc_string)
             junc_string = junc_string.split(")")
-            junction = "".join(junc_string)
+            #junction = "".join(junc_string)
+            # Replace junction with CDR3 sequence
+            junction = self.cdr3_seq
             junction_length = int(len(junction))
             changeo_db_string = "{}_{}\t{}\t{}\t{}\t{}\t{}\t{}".format(self.contig_name, self.identifier, V_call, D_call, J_call, sequence_vdj, junction_length, junction)
 

@@ -243,9 +243,9 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                     if receptor == "BCR":
                         if C_gene is not None:
                             #Keep overlapping nt if end of J overlaps with beginning of C 
-                            if (C_start - 1) == end_coord:
-                                end_coord = end_coord + 1 
-                            elif (C_start - 1) > end_coord:
+                            #if (C_start - 1) == end_coord:
+                                #end_coord = end_coord + 1 
+                            if (C_start - 1) > end_coord:
                                 end_coord = C_start - 1
                             
                             print("End coord")
@@ -269,14 +269,16 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                             rearrangement_summary, junction_list, good_hits, returned_locus, IMGT_seqs, cell_name,
                             query_name, species, loci_for_segments)
                         cdr3 = get_cdr3(seq, locus)
+                        cdr3_seq = None
                         
 
                     elif seq_method == 'assembly':
                         fasta_line_for_contig = trinity_seq
-                        (is_productive, bestVJNames, cdr3) = get_fasta_line_for_contig_assembly(trinity_seq, good_hits,
+                        (is_productive, bestVJNames, cdr3, cdr3_seq) = get_fasta_line_for_contig_assembly(trinity_seq, good_hits,
                                                                                           returned_locus, IMGT_seqs,
                                                                                           cell_name, query_name,
-                                                                                          loci_for_segments, full_length, receptor, alignment_summary)
+                                                                                          loci_for_segments, full_length, receptor, alignment_summary,
+                                                                                          rearrangement_summary)
 
                         print(is_productive, bestVJNames, cdr3)
                     
@@ -308,7 +310,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                                           best_VJ_names=bestVJNames, alignment_summary=alignment_summary,
                                           trinity_seq=trinity_seq, imgt_reconstructed_seq=imgt_reconstructed_seq, 
                                           has_D=has_D, output_dir=output_dir, full_length=full_length, query_length=query_length, 
-                                          V_genes=V_genes, cdr3=cdr3, assembler=assembler, C_gene=C_gene, C_info_line=C_info_line)
+                                          V_genes=V_genes, cdr3=cdr3, assembler=assembler, C_gene=C_gene, C_info_line=C_info_line, cdr3_seq=cdr3_seq)
                         recombinants[locus].append(rec)
                         print(query_name)
 
@@ -351,6 +353,39 @@ def find_V_genes_based_on_bit_score(seq, hit_table, query_name, threshold_percen
                     V_genes.append(V_gene)
     return(V_genes)
         
+
+def parse_rearrangement_summary(rearrangement_summary):
+    """Returns a tuple of (stop_codon, in_frame, productive) from IgBlast output for BCRs"""
+    chain_type = rearrangement_summary[0][0:4]
+    if "IGH" in chain_type:
+        i = 0
+    else:
+        i = 1
+
+    stop_codon = rearrangement_summary[4-i]
+    in_frame = rearrangement_summary[5-i]
+    productive = rearrangement_summary[6-i]
+
+    if stop_codon == "No":
+        stop_codon = False
+    elif stop_codon == "Yes":
+        stop_codon = True
+    else:
+        stop_codon = None
+
+    if "In" in in_frame:
+        in_frame = True
+    else:
+        in_frame = False
+    
+    if productive == "No":
+        productive = False
+    elif productive == "Yes":
+        productive = True
+    else:
+        productive = None
+   
+    return (stop_codon, in_frame, productive)
 
 def get_coords(hit_table, receptor):
     found_V = False
@@ -620,7 +655,7 @@ def get_segment_name(name, pattern):
 
 
 def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs, sample_name, 
-                                        query_name, loci_for_segments, full_length, receptor, alignment_summary):
+                                        query_name, loci_for_segments, full_length, receptor, alignment_summary, rearrangement_summary):
     found_best_V = False
     found_best_D = False
     found_best_J = False
@@ -673,12 +708,9 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
 
     start_padding = ref_V_start - 1
     ref_J_length = len(ref_J_seq)
-    #cdr3 = get_cdr3(trinity_seq, locus)
-    print()
-    print("######################")
-    print(query_name)
-    print("Trinity seq")
-    print(trinity_seq)
+    cdr3_length = None
+    cdr3_seq = None
+    
     if receptor == "TCR":
         cdr3 = get_cdr3(trinity_seq, locus)
         end_padding = (ref_J_length - ref_J_end)
@@ -694,22 +726,30 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
         end_base_removal_count = (1 - end_padding) % 3
     
         seq = trinity_seq[start_base_removal_count:-end_base_removal_count]
+        seq = Seq(seq, IUPAC.unambiguous_dna)
+
+        aa_seq = seq.translate()
+        contains_stop = "*" in aa_seq
+
+        if in_frame == True and not contains_stop:
+            productive = True
+        else:
+            productive = False
 
     else:
-        #in_frame = is_cdr3_in_frame(cdr3, locus)
+        (contains_stop, in_frame, productive) = parse_rearrangement_summary(rearrangement_summary)
         (start, stop) = get_coords(hit_table, receptor)
         del (stop)
-        
-        print(alignment_summary)
-        (align_start, cdr3_start) = parse_alignment_summary(alignment_summary)
-        print("cdr3 start")
-        print(cdr3_start)
-        cdr3_start = cdr3_start - start
-        print("cdr3 start")
-        print(cdr3_start)
+        if in_frame == False:
+            cdr3 = "Couldn't find CDR3"
+        else:
+            (align_start, cdr3_start) = parse_alignment_summary(alignment_summary)
+            cdr3_start = cdr3_start - start
+            print("cdr3 start")
+            print(cdr3_start)
         
         # remove the minimal nucleotides from the trinity sequence to check for stop codons, working from the position at which the cdr3 region starts (first nt in frame)
-        start_base_removal_count = (cdr3_start - 1) % 3   # There are cdr3_start - 1 nt before beginning of CDR3. These need to be in same reading frame as CDR3.
+        """start_base_removal_count = (cdr3_start - 1) % 3   # There are cdr3_start - 1 nt before beginning of CDR3. These need to be in same reading frame as CDR3.
         print("remove start")
         print(start_base_removal_count)
  
@@ -723,30 +763,35 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
         print(end_base_removal_count)
         if end_base_removal_count != 0:
             seq = seq[:-end_base_removal_count]
-        print(seq)
-        cdr3 = get_cdr3(seq, locus)
-        in_frame = is_cdr3_in_frame(cdr3, locus)
+        print(seq)"""
+
+        # Trim sequence to look for CDR3 in correct region
+        if in_frame:
+            print("XXXXXXXXXXXX TRIMMING TO DETECT CDR3 XXXXXXXXXXXXXX")
+            print(trinity_seq)
+            seq = trinity_seq[cdr3_start - 7:]
+            print(seq)
+            cdr3 = get_cdr3(seq, locus)
+            cdr3_length = len(cdr3)
+            # Get CDR3 nt sequence excluding conserved Cys and XGXG motif
+            cdr3_seq = trinity_seq[cdr3_start-1:cdr3_length*3+cdr3_start-16]
+ 
+        print(cdr3)
+        print(cdr3_length)
+        print(cdr3_seq)
+        #in_frame = is_cdr3_in_frame(cdr3, locus)
 
 
-    seq = Seq(seq, IUPAC.unambiguous_dna)
-    
+    #seq = Seq(seq, IUPAC.unambiguous_dna)
+    #aa_seq = seq.translate()
 
-    aa_seq = seq.translate()
     
-    contains_stop = "*" in aa_seq
-    
-    print("Trimmed seq")
-    print(seq)
     print()
-    if in_frame == True and not contains_stop:
-        productive = True
-    else:
-        productive = False
 
     productive_rearrangement = (productive, contains_stop, in_frame)
     bestVJ = [best_V_name, best_J_name]
 
-    return (productive_rearrangement, bestVJ, cdr3)
+    return (productive_rearrangement, bestVJ, cdr3, cdr3_seq)
 
 
 def get_cdr3(dna_seq, locus):
@@ -763,8 +808,12 @@ def get_cdr3(dna_seq, locus):
         indices = [i for i, x in enumerate(aaseq) if x == 'C']
         upper = str(aaseq).find(re.findall(motif, str(aaseq))[0])
         for i in indices:
-            if i < upper:
-                lower = i
+            if not locus in ["BCR_H", "H", "BCR_K", "K", "BCR_L", "L"]:
+                if i < upper:
+                    lower = i
+            else:
+                 if i < upper and lower == False:
+                     lower = i
         if lower:
             cdr3 = aaseq[lower:upper + 4]
         else:
