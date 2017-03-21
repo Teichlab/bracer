@@ -126,9 +126,14 @@ class Cell(object):
 
     def assign_bgcolor(self, isotype):
         """Assigns bgcolor for cell according to isotype (B cells)"""
-        
-        isotype_bgcolors = {"IGHD":'#c1f0c1', "IGHM":'#b3d1ff', "IGHA":'#e6ccff', "IGHA1":'#b8a3cc', "IGHA2":'#e6ccff', "IGHE":'#ffffb3', "IGHG1":'#b30000', "IGHG2A":'#e60000', "IGHG2B":'#ff3333', "IGHG2C":'#ff6666', 
-                            "IGHG3":'#ffb3b3', "IGHDM":'#99ffdd'}
+        if self.species == "Mmus":
+            isotype_bgcolors = {"IGHD":'#e6f7ff', "IGHM":'#e5ffcc', "IGHA":'#ffe6e6', 
+                "IGHE":'#ffffcc', "IGHG1":'#f1e6ff', "IGHG2A":'#e2ccff', "IGHG2B":'#d4b3ff', "IGHG2C":'#c599ff',
+                "IGHG3":'a866ff', "IGHDM":'#b3ffff'}
+        else:
+            # Isotypoe background colours for Hsap
+            isotype_bgcolors = {"IGHD":'#e6f7ff', "IGHM":'#e5ffcc', "IGHA1":'#ffe6e6', "IGHA2":'#ffcccc', 
+                "IGHE":'#ffffcc', "IGHG1":'#f1e6ff', "IGHG2":'#e2ccff', "IGHG3":'#d4b3ff', "IGHG4":'#c599ff', "IGHDM":'#b3ffff'}
 
         if isotype is None:
             bgcolor = None
@@ -930,12 +935,16 @@ class Recombinant(object):
             else:
                 J_call = self.summary[2]
             sequence_vdj = self.dna_seq
-            junc_string = "".join(self.junction_details)
-            junc_string = tracer_func.remove_NA(junc_string)
-            junc_string = junc_string.split("(")
-            junc_string = "".join(junc_string)
-            junc_string = junc_string.split(")")
-            #junction = "".join(junc_string)
+            J_genes = J_call.split(",")
+            J_call = ""
+            for J_gene in J_genes:
+                J_gene = J_gene.split("*")[0]
+                if len(J_call) == 0:
+                    J_call = J_gene
+                else:
+                    if not J_gene in J_call:
+                        J_call += ",{}".format(J_gene)
+
             # Replace junction with CDR3 sequence
             junction = self.cdr3_seq
             junction_length = int(len(junction))

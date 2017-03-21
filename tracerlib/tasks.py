@@ -822,7 +822,6 @@ class Summariser(TracerTask):
         total_cells = len(cells)
        
 
-
         for l in self.loci:
             count = cell_recovery_count[l]
             pc = round((count/float(total_cells))*100, 1)
@@ -933,7 +932,6 @@ class Summariser(TracerTask):
         # B CELL SPECIFIC TASKS
 
         if self.receptor_name == "BCR":
-
             #Report cells with productive kappa and lambda chain
             outstring = self.report_kappa_lambda_cells(self.loci, cells, self.receptor_name)
             if len(outstring) > 0:
@@ -941,7 +939,9 @@ class Summariser(TracerTask):
 
             # Make initial clonal assignments for B cells using ChangeO DefineClones bygroup
             for locus in self.loci:
+                # Create input file for ChangeO
                 self.make_changeo_input(outdir, locus, self.receptor_name, cells)
+                # Run ChangeO
                 changeo = self.get_binary('changeo')
                 tracer_func.run_changeo(changeo, locus, outdir, self.species)
                 print()
@@ -950,51 +950,56 @@ class Summariser(TracerTask):
 
             # Read ChangeO result files and define clone groups for each locus
             (clones, cell_clones, cell_contig_clones) = self.read_changeo_results(self.loci, outdir)
-            #print("Changeo results Clones")
-            #print(clones)
-            #print("Cell_clones")
-            #print(cell_clones)
-            #print("Cell contig clones")
-            #print(cell_contig_clones)
-
-            # Filter out H clone groups consisting of a single cell
+            
+            # Get H clone groups consisting of 2 or more cells
             multiple_clones_H = dict()
-            for clone, cells in six.iteritems(clones["H"]):
-                if len(cells.keys()) > 2:
-                    multiple_clones_H[clone] = cells
-            print("Multiple_clones_H")
-            print(multiple_clones_H)
+            for clone, cells_info in six.iteritems(clones["H"]):
+                if len(cells_info.keys()) > 1:
+                    multiple_clones_H[clone] = cells_info
+            #print("Multiple_clones_H")
+            #print(multiple_clones_H)
 
             # Get groups of clones sharing heavy and light chain
-            paired_clone_groups = self.get_initial_clone_groups(self.loci, clones, multiple_clones_H, cell_clones, cell_contig_clones)
-            print("Paired clone groups: ", paired_clone_groups)
+            (paired_clone_groups, paired_clone_groups_contigs) = self.get_initial_clone_groups(self.loci, clones, multiple_clones_H, cell_clones, cell_contig_clones)
+            #print("Paired clone groups: ", paired_clone_groups)
+            #print("Paired clone groups contigs: ", paired_clone_groups_contigs)
             clonal_cells = []
             for clone, cell_list in six.iteritems(paired_clone_groups):
                 for cell in cell_list:
                     clonal_cells.append(cell)
-            print("Clonal cells: ", clonal_cells)
+            #print("Clonal cells: ", clonal_cells)
 
-            # Get sequences for each locus for cells in same clone groups
-            for l in self.loci:
-                self.make_muscle_clonal_alignment_input(outdir, l, self.receptor_name, cells, clonal_cells, paired_clone_groups)
-
-            # Align sequences in potential clonal groups with Muscle
+            
+            # Align clonal sequences with Muscle
             muscle = self.get_binary('muscle')
-            for locus in self.loci:
+            for l in self.loci:
+                # Create Muscle input file for each paired clone group for each locus
+                self.make_muscle_clonal_alignment_input(outdir, l, self.receptor_name, cells, clonal_cells, paired_clone_groups, paired_clone_groups_contigs)
+                # Run Muscle
                 for clone, cell_list in six.iteritems(paired_clone_groups):
-                    tracer_func.run_muscle(muscle, locus, outdir, self.species, clone)
+                    tracer_func.run_muscle(muscle, l, outdir, self.species, clone)
             
             # Create dictionary for sequence alignments for each clonal group
             (alignment_dict, first_cell_dict, differences_dict) = self.create_alignment_dict(paired_clone_groups, self.loci, outdir)
-            print("initial alignment dict", alignment_dict)
-            print("first cell dict", first_cell_dict)
-            print("differences_dict", differences_dict)
+            #print("initial alignment dict", alignment_dict)
+            #print("first cell dict", first_cell_dict)
+            #print("differences_dict", differences_dict)
 
-     
-            (alignment_dict, differences_dict) = self.modify_alignment_dict(paired_clone_groups, self.loci, outdir, alignment_dict, first_cell_dict, differences_dict)
-            print("modified alignment dict", alignment_dict)
-            print("differences_dict", differences_dict) 
-      
+            # Modify alignment dictionary
+            trimmed_alignment_dict = self.modify_alignment_dict(alignment_dict, first_cell_dict)
+
+            (trimmed_alignment_dict, differences_dict) = self.get_differences_dict(trimmed_alignment_dict, first_cell_dict)
+
+            print()
+            print("#####################   Differences_dict   ############################\n")
+            for clone, locus_data in six.iteritems(differences_dict):
+                print("\n---{}---".format(clone))
+                 
+                for locus, cell_data in six.iteritems(differences_dict[clone]):
+                    print("\n**{}**".format(locus))
+                    for cell_info, differences in six.iteritems(differences_dict[clone][locus]):
+                        print(cell_info, differences)
+
             # Get distances between sequences in potential clonal groups
             matrix = self.load_distance_matrix(self.species)
             if matrix is not None:
@@ -1002,15 +1007,46 @@ class Summariser(TracerTask):
             else:
                 pass
                 # Calculate Hamming distance?
-            edit_distances = self.get_edit_distance(matrix, alignment_dict, differences_dict)
-            print("Edit distances: ", edit_distances)
+            edit_distances = self.get_edit_distance(matrix, trimmed_alignment_dict, differences_dict)
+
+            print()
+            print("######################   Edit distances   ############################\n")
+            for clone, locus_data in six.iteritems(edit_distances):
+                print("\n---{}---".format(clone))
+
+                for locus, cell_data in six.iteritems(edit_distances[clone]):
+                    print("\n**{}**".format(locus))
+                    for cell_info, differences in six.iteritems(edit_distances[clone][locus]):
+                        print(cell_info, differences)
+
             # Normalise edit distances to sequence length
-            n_edit_distances = self.get_normalised_edit_distance(edit_distances, alignment_dict)
-            print("Normalised distances: ", n_edit_distances)
+            n_edit_distances = self.get_normalised_edit_distance(edit_distances, trimmed_alignment_dict)
+
+            print()
+            print("######################   Normalised edit distances   ############################\n")
+            for clone, locus_data in six.iteritems(n_edit_distances):
+                print("\n---{}---".format(clone))
+
+                for locus, cell_data in six.iteritems(n_edit_distances[clone]):
+                    print("\n**{}**".format(locus))
+                    for cell_info, differences in six.iteritems(n_edit_distances[clone][locus]):
+                        print(cell_info, differences)
+
             
             # Get sum of normalised distances for all loci for each cell pair in each clone group
             s_edit_distances = self.get_sum_normalised_edit_distance(n_edit_distances)
-            print("Sum normalised distances: ", s_edit_distances)
+
+
+            print()
+            print("######################   Summarised normalised edit distances   ############################\n")
+            for clone, cell_data in six.iteritems(s_edit_distances):
+                print("\n---{}---".format(clone))
+
+                for cell_info, distances in six.iteritems(s_edit_distances[clone]):
+                    print(cell_info, distances)
+    
+
+
             # Print output of initial clonal grouping
             outstring = "\n\n###Initial clonal groups determined by ChangeO###\n\n"
             clonal_cells = []
@@ -1024,6 +1060,8 @@ class Summariser(TracerTask):
             outfile.write("\n")
         
             # Make isotype usage table and plot isotype distributions
+            #print("XXXXXXXXXXXXXXXXXXXXX PRINTING CELLS XXXXXXXXXXXXXXXXXXXXXXXXXXX")
+            #print(cells)
             isotype_counter = self.count_isotype_usage(cells)
             (header, outstring) = self.make_isotype_table(cell_recovery_count, isotype_counter)
             outfile.write(header)
@@ -1251,9 +1289,7 @@ class Summariser(TracerTask):
         changeo_input = "{}/changeo_input_{}.tab".format(outdir, locus)
         with open(changeo_input, 'w') as output:
             empty = True
-            #output.write(changeo_string)
             for cell_name, cell in six.iteritems(cells):
-
                 productive = cell.count_productive_recombinants(receptor, locus)
 
                 if productive > 0:
@@ -1290,19 +1326,19 @@ class Summariser(TracerTask):
                             cell = fields[0].split("_TRINITY")[0]
                             contig_name = fields[0].split("{}_".format(cell))[1]
                             cell_clones[l][cell] = clone
-                            cell_contig_clones[l][cell] = dict()
-                            cell_contig_clones[l][cell][contig_name] = clone
                             if not clone in clones[l].keys():
                                 clones[l][clone] = dict()
                                 contig_list = [contig_name]
                                 clones[l][clone][cell] = contig_list
+                                cell_contig_clones[l][cell] = dict()
                             elif not cell in clones[l][clone].keys():
                                 contig_list = [contig_name]
                                 clones[l][clone][cell] = contig_list
+                                cell_contig_clones[l][cell] = dict()
                             else:
                                 clones[l][clone][cell].append(contig_name)
-                            if not cell in cell_list:
-                                cell_list.append(cell)
+                            cell_contig_clones[l][cell][contig_name] = clone
+
         return (clones, cell_clones, cell_contig_clones)
 
     def get_initial_clone_groups(self, loci, clones, multiple_clones_H, cell_clones, cell_contig_clones):
@@ -1317,70 +1353,154 @@ class Summariser(TracerTask):
             for i in range(len(cell_list)):
                 current_cell = cell_list[i]
                 comparison_cells = cell_list[i + 1:]
-                # Inrykk herfra!
                 for comparison_cell in comparison_cells:
+                    Hcontig1 = []
+                    Hcontig2 = []
                     for l in self.loci:
-                    
-                        if not comparison_cell in cell_clones[l].keys():
-                            cell_clones[l][comparison_cell] = None
-                        elif not current_cell in cell_clones[l].keys():
-                            cell_clones[l][current_cell] = None
+                        if not comparison_cell in cell_contig_clones[l].keys():
+                            cell_contig_clones[l][comparison_cell] = None
+                        else:
+                            if l == "H":
+                                for contig, data in six.iteritems(cell_contig_clones[l][comparison_cell]):
+                                    contig = comparison_cell + "_" + contig
+                                    Hcontig2.append(contig)
+                        if not current_cell in cell_contig_clones[l].keys():
+                            cell_contig_clones[l][current_cell] = None
+                        else:
+                            if l == "H":
+                                for contig, data in six.iteritems(cell_contig_clones[l][current_cell]):
+                                    contig = current_cell + "_" + contig
+                                    Hcontig1.append(contig)
                     clone = False
-                    if ((cell_clones["K"][comparison_cell] is None) or (cell_clones["K"][current_cell] is None)) and ((cell_clones["L"][comparison_cell] is None) or (cell_clones["L"][current_cell] is None)):
-                        clone = False
-                    elif (cell_clones["L"][comparison_cell] is None) or (cell_clones["L"][current_cell] is None):
-                        if cell_clones["K"][comparison_cell] == cell_clones["K"][current_cell]:
-                            clone = True
-                    elif (cell_clones["K"][comparison_cell] is None) or (cell_clones["K"][current_cell] is None):
-                        if cell_clones["L"][comparison_cell] == cell_clones["L"][current_cell]:
-                            clone = True
-                    elif (cell_clones["K"][comparison_cell] == cell_clones["K"][current_cell]) and (cell_clones["L"][comparison_cell] == cell_clones["L"][current_cell]):
-                        clone = True
-                    else:
+                    Kcontig1 = []
+                    Kcontig2 = []
+                    Lcontig1 = []
+                    Lcontig2 = []
+                    shared_K = False
+                    shared_L = False
+                    
+                    # Filter out cells with no light chain - make optional in future!
+                    if ((cell_contig_clones["K"][comparison_cell] is None) or (cell_contig_clones["K"][current_cell] is None)) and \
+                            ((cell_contig_clones["L"][comparison_cell] is None) or (cell_contig_clones["L"][current_cell] is None)):
                         clone = False
 
+                    # Check for shared kappa chains
+                    if (cell_contig_clones["K"][comparison_cell] is not None) and (cell_contig_clones["K"][current_cell] is not None):
+                        comparison_contigs = cell_contig_clones["K"][comparison_cell].keys()
+                        current_contigs = cell_contig_clones["K"][current_cell].keys()
+                        for comparison_contig in comparison_contigs:
+                            for current_contig in current_contigs:
+                                if cell_contig_clones["K"][comparison_cell][comparison_contig] == cell_contig_clones["K"][current_cell][current_contig]:
+                                    clone = True
+                                    contig = current_cell + "_" + current_contig
+                                    Kcontig1.append(contig)
+                                    contig = comparison_cell + "_" + comparison_contig
+                                    Kcontig2.append(contig)
+                                    shared_K = True
+                     
+                    # Check for shared lambda chains
+                    if (cell_contig_clones["L"][comparison_cell] is not None) and (cell_contig_clones["L"][current_cell] is not None):
+                        comparison_contigs = cell_contig_clones["L"][comparison_cell].keys()
+                        current_contigs = cell_contig_clones["L"][current_cell].keys()
+                        for comparison_contig in comparison_contigs:
+                            for current_contig in current_contigs:
+                                if cell_contig_clones["L"][comparison_cell][comparison_contig] == cell_contig_clones["L"][current_cell][current_contig]:
+                                    clone = True
+                                    contig = current_cell + "_" + current_contig
+                                    Lcontig1.append(contig)
+                                    contig = comparison_cell + "_" + comparison_contig
+                                    Lcontig2.append(contig)
+                                    shared_L = True
+         
+                    # Add to dictionary if cells are clonal 
                     if clone == True:
                         found = False
                         clones_so_far = len(paired_clone_groups.keys())
                         if clones_so_far == 0:
                             paired_clone_groups[1] = [current_cell, comparison_cell]
+                            paired_clone_groups_contigs[1] = dict()
+                            paired_clone_groups_contigs[1]["K"] = None
+                            paired_clone_groups_contigs[1]["L"] = None
+                            if shared_K:
+                                paired_clone_groups_contigs[1]["K"] = [Kcontig1, Kcontig2]
+                            if shared_L:
+                                paired_clone_groups_contigs[1]["L"] = [Lcontig1, Lcontig2]
+                            paired_clone_groups_contigs[1]["H"] = [Hcontig1, Hcontig2]
                         else:
                             for i in range(1, clones_so_far+1):
                                 if (current_cell or comparison_cell) in paired_clone_groups[i]:
-                                    found = True
+                                    if paired_clone_groups_contigs[i]["K"] is not None:
+                                        if (Kcontig1 or Kcontig2) in paired_clone_groups_contigs[i]["K"]:
+                                            found = True
+                                            if not Kcontig1 in paired_clone_groups_contigs[i]["K"]:
+                                                paired_clone_groups_contigs[i]["K"].append(Kcontig1)
+                                            elif not  Kcontig2 in paired_clone_groups_contigs[i]["K"]:
+                                                paired_clone_groups_contigs[i]["K"].append(Kcontig2)  
+                                    if paired_clone_groups_contigs[i]["L"] is not None:                                 
+                                        if (Lcontig1 or Lcontig2) in paired_clone_groups_contigs[i]["L"]:
+                                            found = True
+                                            if not Lcontig1 in paired_clone_groups_contigs[i]["L"]:
+                                                paired_clone_groups_contigs[i]["L"].append(Lcontig1)
+                                            elif not  Lcontig2 in paired_clone_groups_contigs[i]["L"]:
+                                                paired_clone_groups_contigs[i]["L"].append(Lcontig2) 
+                                            found = True
+                                    if paired_clone_groups_contigs[i]["H"] is not None:
+                                        if (Hcontig1 or Hcontig2) in paired_clone_groups_contigs[i]["H"]:
+                                            found = True
+                                            if not Hcontig1 in paired_clone_groups_contigs[i]["H"]:
+                                                paired_clone_groups_contigs[i]["H"].append(Hcontig1)
+                                            elif not  Hcontig2 in paired_clone_groups_contigs[i]["H"]:
+                                                paired_clone_groups_contigs[i]["H"].append(Hcontig2)
                                     if not current_cell in paired_clone_groups[i]:
                                         paired_clone_groups[i].append(current_cell)
+                                        
                                     elif not comparison_cell in paired_clone_groups[i]:
                                         paired_clone_groups[i].append(comparison_cell)
-                                        break
+                                        
+                                        
                             if not found == True:
                                 paired_clone_groups[clones_so_far + 1] = [current_cell, comparison_cell]
+                                paired_clone_groups_contigs[clones_so_far + 1] = dict()
+                                paired_clone_groups_contigs[clones_so_far + 1]["K"] = None
+                                paired_clone_groups_contigs[clones_so_far + 1]["L"] = None
+                                if shared_K:
+                                    paired_clone_groups_contigs[clones_so_far + 1]["K"] = [Kcontig1, Kcontig2]
+                                if shared_L:
+                                    paired_clone_groups_contigs[clones_so_far + 1]["L"] = [Lcontig1, Lcontig2]
+                                paired_clone_groups_contigs[clones_so_far + 1]["H"] = [Hcontig1, Hcontig2]
+        return (paired_clone_groups, paired_clone_groups_contigs)
 
-        return (paired_clone_groups)
 
 
-
-    def make_muscle_clonal_alignment_input(self, outdir, locus, receptor, cells, clonal_cells, paired_clone_groups):
+    def make_muscle_clonal_alignment_input(self, outdir, locus, receptor, cells, clonal_cells, paired_clone_groups, paired_clone_groups_contigs):
         """Creates input file for each locus only containing sequences from cells belonging to paired clonal groups"""
 
         changeo_output = "{}/changeo_input_{}_clone-pass.tab".format(outdir, locus)
         if os.path.exists(changeo_output):
        
-            for clone, cell_list in six.iteritems(paired_clone_groups):
+            for clone, locus_data in six.iteritems(paired_clone_groups_contigs):
                 muscle_input = "{}/muscle_input_{}_{}.fa".format(outdir, locus, clone)
                 with open(muscle_input, 'w') as output:
-                    with open(changeo_output, 'r') as input:
-                        for line in input:
-                            if not line.startswith("SEQUENCE_ID"):
-                                cell_name = line.split("_TRINITY")[0]
-                                contig_name = line.split("\t")[0].split("{}_".format(cell_name))[1]
-                                print(contig_name)
-                                
-                                if cell_name in cell_list:
-                                    sequence = line.split()[4] + "\n"
-                                    fasta_header = ">" + line.split()[0] + "\n"
-                                    output.write(fasta_header)
-                                    output.write(sequence)
+                    if paired_clone_groups_contigs[clone][locus] is not None:
+                        
+                        with open(changeo_output, 'r') as input:
+                            contig_list = []
+                            
+                            for item in paired_clone_groups_contigs[clone][locus]:
+                                for item2 in item:
+                                    contig_list.append(item2)
+                            for line in input:
+                                if not line.startswith("SEQUENCE_ID"):
+                                    cell_name = line.split("_TRINITY")[0]
+                                    contig_name = line.split("\t")[0].split("{}_".format(cell_name))[1]
+                                    cell_contig_name = line.split("\t")[0]
+                                    #print(cell_contig_name)
+                                    
+                                    if cell_contig_name in contig_list:
+                                        sequence = line.split()[4] + "\n"
+                                        fasta_header = ">" + line.split()[0] + "\n"
+                                        output.write(fasta_header)
+                                        output.write(sequence)
 
 
 
@@ -1400,78 +1520,120 @@ class Summariser(TracerTask):
                 differences_dict[clone][l] = dict()
                 first_cell = False
                 with open(muscle_result_file, 'r') as infile:
+                    count = 0
                     for line in infile:
+                        cell_name = None
                         line = line.lstrip()
-                        if line.startswith("MUSCLE") or line.startswith("\n") or len(line) == 0:
+                        if line.startswith("MUSCLE"):
                             continue
+                        if (line.startswith("\n") or len(line) == 0) and count == 0:
+                            continue
+                        if (line.startswith("\n") or len(line) == 0) and count > 0:
+                            count += 1
+                            if count > 2:
+                                cell_name = "summary"
+                                line = ""
+                            
                         elif line.startswith("*"):
                             cell_name = "summary"
                             line = line.lstrip()
+                            count = 0
                         else:
                             cell_name = line.split("_TRINITY")[0]
                             start = line.find("  ")
                             line = line[start:].lstrip()
+                            count = 1
                             if first_cell == False:
                                 first_cell = cell_name
                                 first_cell_dict[clone][l] = first_cell
+                                
                         if not cell_name in alignment_dict[clone][l].keys():
-                            alignment_dict[clone][l][cell_name] = [line]
+                            if not cell_name is None:
+                                alignment_dict[clone][l][cell_name] = [line]
                         else:
-                            alignment_dict[clone][l][cell_name].append(line)
+                            if not cell_name is None:
+                                alignment_dict[clone][l][cell_name].append(line)
 
         return (alignment_dict, first_cell_dict, differences_dict)
 
-    def modify_alignment_dict(self, paired_clone_groups, loci, outdir, alignment_dict, first_cell_dict, differences_dict):
+
+    def modify_alignment_dict(self, alignment_dict, first_cell_dict):
+        trimmed_alignment_dict = dict()
         for clone, data in six.iteritems(alignment_dict):
+            trimmed_alignment_dict[clone] = dict()
             for l, l_data in six.iteritems(alignment_dict[clone]):
+                trimmed_alignment_dict[clone][l] = dict()
                 alignment_string = alignment_dict[clone][l]
+                
                 num_lines = len(alignment_string["summary"])
+                skip_lines = 0
+                for line in alignment_string["summary"]:
+                    if len(line) > 0:
+                        break
+                    else:
+                        skip_lines += 1
+                
                 first_cell = first_cell_dict[clone][l]
-                for cell_name, alignment in six.iteritems(alignment_string):
-                    # Trim sequences in dictionary to exclude initial gaps
-                    for i in range(0, num_lines):
-                        difference = len(alignment_string[first_cell][i]) - len(alignment_string["summary"][i])
-                    
-                        if cell_name is not "summary":
-                            if i == 0:
-                                alignment[i] = alignment[i][difference:len(alignment[i]) -1]
-                            else:
-                                alignment[i] = alignment[i][:len(alignment[i]) -1]
-                        else:
-                            if i == 0:
-                                alignment[i] = alignment[i][:len(alignment[i])-1]
+                total_lines = len(alignment_string[first_cell])
+
+                for cell_name, alignment in six.iteritems(alignment_dict[clone][l]):
+                    new_alignment = ""
+                     
+                    if cell_name == "summary":
+                        for i in range(skip_lines, total_lines):
+                            difference = len(alignment_dict[clone][l][first_cell][i]) - len(alignment_dict[clone][l]["summary"][i])
+                            if i == skip_lines:
+                                add = alignment[i][:len(alignment[i]) -1]
                             else:
                                 if difference > 0:
-                                    alignment[i] = difference*" " +  alignment[i][:len(alignment[i])-1]
+                                    add = difference*" " +  alignment[i][:len(alignment[i])-1]
+                                
                                 else:
-                                    alignment[i] = alignment[i][:len(alignment[i])-1]
-                        if i == 0:
-                            new_alignment = alignment[i]
-                        else:
-                            new_alignment += alignment[i]
+                                    add = alignment[i][:len(alignment[i]) -1]
+                            if len(new_alignment) == 0:
+                                new_alignment = add
+                            else:
+                                new_alignment += add
+                    else:
+                        for i in range(skip_lines, total_lines):
+                            difference = len(alignment_dict[clone][l][first_cell][i]) - len(alignment_dict[clone][l]["summary"][i])
+                            if i == skip_lines:
+                                add = alignment[i][difference:len(alignment[i]) -1]
+                            else:
+                                add = alignment[i][:len(alignment[i]) -1]  
 
-               
-                    new_alignment = "".join(str(e) for e in new_alignment)
-                    alignment_dict[clone][l][cell_name] = new_alignment
+                            if len(new_alignment) == 0:
+                                new_alignment = add
+                            else:
+                                new_alignment += add            
+                    
+                    trimmed_alignment_dict[clone][l][cell_name] = new_alignment
+ 
+        
+        return(trimmed_alignment_dict)
 
-                    # Identify polymorphic sites in sequence alignments
-                    length = len(alignment_string["summary"])
-                    polymorphic = []
-                    for i in range(0, length -1):
-                        if alignment_string["summary"][i] is not "*":
-                            polymorphic.append(i)
-
-                    seq_differences = differences_dict[clone][l]
-                del alignment_string["summary"]
+    def get_differences_dict(self, trimmed_alignment_dict, first_cell_dict):
+        differences_dict = dict()
+        for clone, data in six.iteritems(trimmed_alignment_dict):
+            differences_dict[clone] = dict()
+            for l, l_data in six.iteritems(trimmed_alignment_dict[clone]):
+                differences_dict[clone][l] = dict()
+                # Identify polymorphic sites in sequence alignments
+                summary_string = trimmed_alignment_dict[clone][l]["summary"]
+                length = len(summary_string)
+                polymorphic = []
+                for i in range(0, length):
+                    if summary_string[i] is not "*":
+                        polymorphic.append(i)
+    
                 for i in range(0, len(polymorphic)):
-                    for cell_name, alignment in six.iteritems(alignment_string):
-                        if i == 0:
-                            seq_differences[cell_name] = [alignment[polymorphic[0]]]
-                        else:
-                            seq_differences[cell_name].append(alignment[polymorphic[i]])
-
-        return(alignment_dict, differences_dict)
-
+                    for cell_name, alignment in six.iteritems(trimmed_alignment_dict[clone][l]):
+                        if i == 0 and not cell_name == "summary":
+                            differences_dict[clone][l][cell_name] = [alignment[polymorphic[0]]]
+                        elif not cell_name == "summary":
+                            differences_dict[clone][l][cell_name].append(alignment[polymorphic[i]])
+                del(trimmed_alignment_dict[clone][l]["summary"])
+        return(trimmed_alignment_dict, differences_dict)
 
 
     def load_distance_matrix(self, species):
@@ -1503,6 +1665,7 @@ class Summariser(TracerTask):
 
 
     def get_edit_distance(self, matrix, alignment_dict, differences_dict):
+        """Returns edit distance between sequences in each clone group for each locus"""
         edit_distances = dict()
         for clone, clone_data in six.iteritems(alignment_dict):
             edit_distances[clone] = dict()
@@ -1734,16 +1897,18 @@ class Summariser(TracerTask):
         prod_counters = defaultdict(Counter)
         cell_isotypes = []
         isotype_counter = dict()
+        for cell in cells.values():
 
-        for cell_name, cell in six.iteritems(cells):
-            l = "H"
+            #for cell_name, cell in six.iteritems(cells):
+            """l = "H"
             productive = cell.count_productive_recombinants(self.receptor_name, l)
-            prod_counters[l].update({productive: 1})
+            prod_counters[l].update({productive: 1})"""
             isotype = cell.isotype
             if isotype == None:
                 isotype = "None"
-            if productive > 0:
-                cell_isotypes.append(isotype)
+            cell_isotypes.append(isotype)
+            #if productive > 0:
+                #cell_isotypes.append(isotype)
         for isotype in cell_isotypes:
             if not isotype in isotype_counter:
                 isotype_counter[isotype] = 1

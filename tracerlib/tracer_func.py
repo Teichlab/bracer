@@ -1111,7 +1111,7 @@ def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, 
                 G.node[cell]['style'] = 'filled'
 
                 G.node[cell]['fillcolor'] = cell.bgcolor
-            #print(cell.name, cell.isotype, cell.bgcolor)
+            print(cell.name, cell.isotype, cell.bgcolor)
 
     else:
         for cell in cells:
@@ -2166,13 +2166,13 @@ def run_changeo(changeo, locus, outdir, species):
     # Set model to Hamming distance if species is not Mmus or Hsap
     if species == "Mmus":
         model = "m1n"
-        dist = "0.02"
+        dist = "0.2"
     elif species == "Hsap":
         model = "hs5f"
-        dist = "0.02"
+        dist = "0.2"
     else:
         model = "ham"
-        dist = "0.02"
+        dist = "0.2"
 
     
     changeo_input = "{}/changeo_input_{}.tab".format(outdir, locus)
