@@ -45,6 +45,7 @@ class TracerTask(object):
     base_parser.add_argument('--config_file', '-c', metavar="<CONFIG_FILE>", help='config file to use',
                              default='~/.tracerrc')
 
+    assembler = "trinity"
     config = None
     def run(self):
         pass
@@ -116,7 +117,7 @@ class TracerTask(object):
         #        out_file.write(rec.get_summary())
         #        out_file.write("\n\n")
         out_file.close()
-    def die_with_empty_cell(self, cell_name, output_dir, species):
+    def die_with_empty_cell(self, cell_name, output_dir, species, assembler):
         print("##No recombinants found##")
         cell = core.Cell(cell_name, None, is_empty=True, species=species, receptor=self.receptor_name, loci=self.loci)
         
@@ -302,8 +303,8 @@ class Assembler(TracerTask):
             #self.align()
         if self.assembler == "oases":
             self.oases_assemble()
-        elif not self.assembler == "basic":
-            self.de_novo_assemble()
+        #elif not self.assembler == "basic":
+            #self.de_novo_assemble()
         self.blast()
         cell = self.ig_blast()
 
@@ -311,7 +312,7 @@ class Assembler(TracerTask):
             self.quantify(cell)
         
         if self.assembler == ("basic" or "oases"):
-            if assembler == "basic":
+            if self.assembler == "basic":
                 assembler_name = "Basic"
             else:
                 assembler_name = "Oases"
@@ -558,7 +559,7 @@ class Assembler(TracerTask):
             trinity_JM, trinity_version, self.resume_with_existing_files, self.single_end, self.species)
         if len(successful_files) == 0:
             print("No successful Trinity assemblies")
-            self.die_with_empty_cell(self.cell_name, self.output_dir, self.species)
+            self.die_with_empty_cell(self.cell_name, self.output_dir, self.species, self.assembler)
 
         print()
 
@@ -567,7 +568,7 @@ class Assembler(TracerTask):
         velvetg = self.get_binary('velvetg') 
         oases = self.get_binary('oases')
         # Run Velvet and Oases
-        tracer_func.run_velvet_h(velveth, velvetg, oases, self.receptor_name, self.loci, self.output_dir, self.cell_name, self.ncores, self.resume_with_existing_files, self.single_end, self.species)
+        tracer_func.run_oases(velveth, velvetg, oases, self.receptor_name, self.loci, self.output_dir, self.cell_name, self.ncores, self.resume_with_existing_files, self.single_end, self.species)
 
         # Make oases input files
         #input_files = tracer_func.get_oases_input(self.receptor_name, self.loci, self.output_dir, self.cell_name, self.ncores,
@@ -607,7 +608,7 @@ class Assembler(TracerTask):
             cell = io.parse_IgBLAST(self.receptor_name, self.loci, self.output_dir, self.cell_name, imgt_seq_location, 
                                     self.species, self.seq_method, self.assembler, self.max_junc_len)
             if cell.is_empty:
-                self.die_with_empty_cell(self.cell_name, self.output_dir, self.species)
+                self.die_with_empty_cell(self.cell_name, self.output_dir, self.species, self.assembler)
 
         return cell
 
@@ -950,19 +951,63 @@ class Summariser(TracerTask):
 
             # Read ChangeO result files and define clone groups for each locus
             (clones, cell_clones, cell_contig_clones) = self.read_changeo_results(self.loci, outdir)
-            
+            print(cell_contig_clones)
+
+            print("#####################   Cell contig clones   ############################\n")
+            for locus in ["H", "K", "L"]:
+                print("\n---{}---".format(locus))
+                for cell_name, contig_info in six.iteritems(cell_contig_clones[locus]):
+                    print(cell_name)
+                    
+                    for contig_name, clone in six.iteritems(cell_contig_clones[locus][cell_name]):
+                        print(contig_name, clone)
+
             # Get H clone groups consisting of 2 or more cells
             multiple_clones_H = dict()
             for clone, cells_info in six.iteritems(clones["H"]):
                 if len(cells_info.keys()) > 1:
                     multiple_clones_H[clone] = cells_info
+
+            print("#####################   H clone groups (> 1 seq)   ############################\n")
+            for clone, cells_info in six.iteritems(multiple_clones_H):
+                print("\n---{}---".format(clone))
+                for cell_name, contig_name in six.iteritems(multiple_clones_H[clone]):
+                    print(cell_name, contig_name)
+               
+
             #print("Multiple_clones_H")
             #print(multiple_clones_H)
 
             # Get groups of clones sharing heavy and light chain
-            (paired_clone_groups, paired_clone_groups_contigs) = self.get_initial_clone_groups(self.loci, clones, multiple_clones_H, cell_clones, cell_contig_clones)
-            #print("Paired clone groups: ", paired_clone_groups)
-            #print("Paired clone groups contigs: ", paired_clone_groups_contigs)
+            """(paired_clone_groups, paired_clone_groups_contigs) = self.get_initial_clone_groups(self.loci, clones, multiple_clones_H, cell_clones, cell_contig_clones)
+            print("Paired clone groups: ", paired_clone_groups)
+
+
+            print("#####################   Paired clone groups   ############################\n")
+            for clone, cell_names in six.iteritems(paired_clone_groups):
+                print("\n---{}---".format(clone))
+                
+                if not cell_names is None:
+                    for cell_name in cell_names:
+                        print(cell_name)
+
+            print("Paired clone groups contigs: ", paired_clone_groups_contigs)
+            
+            print("#####################   Paired clone groups contigs   ############################\n")
+            for clone, locus_info in six.iteritems(paired_clone_groups_contigs):
+                print("\n---{}---".format(clone))
+                if locus in paired_clone_groups_contigs[clone].keys():
+                    for locus, contigs in six.iteritems(paired_clone_groups_contigs[clone]):
+                        print(locus)
+                        if not contigs is None:
+                            for contig in (paired_clone_groups_contigs[clone][locus]):
+                                print(contig)
+                        #for cell_name, info in six.iteritems(paired_clone_groups_contigs[clone][locus]):
+                            #print(cell_name)
+                            #for inf in info:
+                                #print(inf)
+
+
             clonal_cells = []
             for clone, cell_list in six.iteritems(paired_clone_groups):
                 for cell in cell_list:
@@ -989,7 +1034,7 @@ class Summariser(TracerTask):
             trimmed_alignment_dict = self.modify_alignment_dict(alignment_dict, first_cell_dict)
 
             (trimmed_alignment_dict, differences_dict) = self.get_differences_dict(trimmed_alignment_dict, first_cell_dict)
-
+            #print(trimmed_alignment_dict)
             print()
             print("#####################   Differences_dict   ############################\n")
             for clone, locus_data in six.iteritems(differences_dict):
@@ -1057,7 +1102,7 @@ class Summariser(TracerTask):
                 for cell in cell_list:
                     clonal_cells.append(cell)
             outfile.write(outstring)
-            outfile.write("\n")
+            outfile.write("\n")"""
         
             # Make isotype usage table and plot isotype distributions
             #print("XXXXXXXXXXXXXXXXXXXXX PRINTING CELLS XXXXXXXXXXXXXXXXXXXXXXXXXXX")
@@ -1321,25 +1366,173 @@ class Summariser(TracerTask):
                 with open(changeo_result, 'r') as input_file:
                     for line in input_file:
                         if not line.startswith("SEQUENCE_ID"):
+                            
                             fields = line.split("\t")
                             clone = fields[len(fields)-1].rstrip()
                             cell = fields[0].split("_TRINITY")[0]
                             contig_name = fields[0].split("{}_".format(cell))[1]
-                            cell_clones[l][cell] = clone
+                            if not cell in cell_clones[l].keys():
+                                cell_clones[l][cell] = clone
                             if not clone in clones[l].keys():
                                 clones[l][clone] = dict()
                                 contig_list = [contig_name]
-                                clones[l][clone][cell] = contig_list
+                                clones[l][clone][cell] = []
+                            if not cell in cell_contig_clones[l].keys():
                                 cell_contig_clones[l][cell] = dict()
-                            elif not cell in clones[l][clone].keys():
+                            
+                            if not cell in clones[l][clone].keys():
                                 contig_list = [contig_name]
-                                clones[l][clone][cell] = contig_list
-                                cell_contig_clones[l][cell] = dict()
-                            else:
-                                clones[l][clone][cell].append(contig_name)
+                                clones[l][clone][cell] = []
+                                
+                            
+                            clones[l][clone][cell].append(contig_name)
                             cell_contig_clones[l][cell][contig_name] = clone
 
         return (clones, cell_clones, cell_contig_clones)
+
+
+    """def get_initial_clone_groups(self, loci, clones, multiple_clones_H, cell_clones, cell_contig_clones):
+        Get groups of B cell clones sharing clonally related heavy and light chains (from changeo output)
+        paired_clone_groups = dict()
+        paired_clone_groups_contigs = dict()
+        # Create list of cells belonging to at least one heavy chain clone group with more than 1 members
+        cell_list = []
+        
+        for clone, cells_info in six.iteritems(multiple_clones_H):    
+            for cell_name, contig_name in six.iteritems(multiple_clones_H[clone]):
+                if not cell_name in cell_list:
+                    cell_list.append(cell_name)  
+
+        for i in range(len(cell_list)):
+            current_cell = cell_list[i]
+            shared_H = False
+            Hcontig2 = []
+            Hcontig1 = []
+            contig_list = cell_contig_clones["H"][current_cell].keys()
+            for item in contig_list:
+                contig_name = current_cell + "_" + item
+                Hcontig2.append(contig_name)
+            
+            comparison_cells = cell_list[i + 1:]
+            for comparison_cell in comparison_cells:
+
+                comparison_contigs = cell_contig_clones["H"][comparison_cell].keys()
+                current_contigs = cell_contig_clones["H"][current_cell].keys()
+                for comparison_contig in comparison_contigs:
+                    for current_contig in current_contigs:
+                        if cell_contig_clones["H"][comparison_cell][comparison_contig] == cell_contig_clones["H"][current_cell][current_contig]:
+                            shared_H = True
+                
+                    
+                for l in self.loci:
+                    if not comparison_cell in cell_contig_clones[l].keys():
+                        cell_contig_clones[l][comparison_cell] = None
+
+                    if not current_cell in cell_contig_clones[l].keys():
+                        cell_contig_clones[l][current_cell] = None
+
+                if shared_H == True:
+                    clone = False
+                    Kcontig1 = []
+                    Kcontig2 = []
+                    Lcontig1 = []
+                    Lcontig2 = []
+                    shared_K = False
+                    shared_L = False
+
+                    # Filter out cells with no light chain - make optional in future!
+                    if ((cell_contig_clones["K"][comparison_cell] is None) or (cell_contig_clones["K"][current_cell] is None)) and \
+                            ((cell_contig_clones["L"][comparison_cell] is None) or (cell_contig_clones["L"][current_cell] is None)):
+                        clone = False
+
+                    # Check for shared kappa chains
+                    if (cell_contig_clones["K"][comparison_cell] is not None) and (cell_contig_clones["K"][current_cell] is not None):
+                        comparison_contigs = cell_contig_clones["K"][comparison_cell].keys()
+                        current_contigs = cell_contig_clones["K"][current_cell].keys()
+                        for comparison_contig in comparison_contigs:
+                            for current_contig in current_contigs:
+                                if cell_contig_clones["K"][comparison_cell][comparison_contig] == cell_contig_clones["K"][current_cell][current_contig]:
+                                    clone = True
+                                    contig = current_cell + "_" + current_contig
+                                    Kcontig1.append(contig)
+                                    contig = comparison_cell + "_" + comparison_contig
+                                    Kcontig2.append(contig)
+                                    shared_K = True
+
+                    # Check for shared lambda chains
+                    if (cell_contig_clones["L"][comparison_cell] is not None) and (cell_contig_clones["L"][current_cell] is not None):
+                        comparison_contigs = cell_contig_clones["L"][comparison_cell].keys()
+                        current_contigs = cell_contig_clones["L"][current_cell].keys()
+                        for comparison_contig in comparison_contigs:
+                            for current_contig in current_contigs:
+                                if cell_contig_clones["L"][comparison_cell][comparison_contig] == cell_contig_clones["L"][current_cell][current_contig]:
+                                    clone = True
+                                    contig = current_cell + "_" + current_contig
+                                    Lcontig1.append(contig)
+                                    contig = comparison_cell + "_" + comparison_contig
+                                    Lcontig2.append(contig)
+                                    shared_L = True
+
+                    # Add to dictionary if cells are clonal
+
+                    if clone == True and shared_H == True:
+                        found = False
+                        clones_so_far = len(paired_clone_groups.keys())
+                        if clones_so_far == 0:
+                            paired_clone_groups[1] = [current_cell, comparison_cell]
+                            paired_clone_groups_contigs[1] = dict()
+                            paired_clone_groups_contigs[1]["K"] = None
+                            paired_clone_groups_contigs[1]["L"] = None
+                            if shared_K:
+                                paired_clone_groups_contigs[1]["K"] = [Kcontig1, Kcontig2]
+                            if shared_L:
+                                paired_clone_groups_contigs[1]["L"] = [Lcontig1, Lcontig2]
+                            paired_clone_groups_contigs[1]["H"] = [Hcontig1, Hcontig2]
+
+                        else:
+                            for i in range(1, clones_so_far+1):
+                                if (current_cell or comparison_cell) in paired_clone_groups[i]:
+                                    if paired_clone_groups_contigs[i]["K"] is not None:
+                                        if (Kcontig1 or Kcontig2) in paired_clone_groups_contigs[i]["K"]:
+                                            found = True
+                                            if not Kcontig1 in paired_clone_groups_contigs[i]["K"]:
+                                                paired_clone_groups_contigs[i]["K"].append(Kcontig1)
+                                            elif not  Kcontig2 in paired_clone_groups_contigs[i]["K"]:
+                                                paired_clone_groups_contigs[i]["K"].append(Kcontig2)
+                                    if paired_clone_groups_contigs[i]["L"] is not None:
+                                        if (Lcontig1 or Lcontig2) in paired_clone_groups_contigs[i]["L"]:
+                                            found = True
+                                            if not Lcontig1 in paired_clone_groups_contigs[i]["L"]:
+                                                paired_clone_groups_contigs[i]["L"].append(Lcontig1)
+                                            elif not  Lcontig2 in paired_clone_groups_contigs[i]["L"]:
+                                                paired_clone_groups_contigs[i]["L"].append(Lcontig2)
+                                            found = True
+                                    if paired_clone_groups_contigs[i]["H"] is not None:
+                                        if (Hcontig1 or Hcontig2) in paired_clone_groups_contigs[i]["H"]:
+                                            found = True
+                                            if not Hcontig1 in paired_clone_groups_contigs[i]["H"]:
+                                                paired_clone_groups_contigs[i]["H"].append(Hcontig1)
+                                            elif not  Hcontig2 in paired_clone_groups_contigs[i]["H"]:
+                                                paired_clone_groups_contigs[i]["H"].append(Hcontig2)
+                                    if not current_cell in paired_clone_groups[i]:
+                                        paired_clone_groups[i].append(current_cell)
+
+                                    elif not comparison_cell in paired_clone_groups[i]:
+                                        paired_clone_groups[i].append(comparison_cell)
+
+
+                            if not found == True:
+                                paired_clone_groups[clones_so_far + 1] = [current_cell, comparison_cell]
+                                paired_clone_groups_contigs[clones_so_far + 1] = dict()
+                                paired_clone_groups_contigs[clones_so_far + 1]["K"] = None
+                                paired_clone_groups_contigs[clones_so_far + 1]["L"] = None
+                                if shared_K:
+                                    paired_clone_groups_contigs[clones_so_far + 1]["K"] = [Kcontig1, Kcontig2]
+                                if shared_L:
+                                    paired_clone_groups_contigs[clones_so_far + 1]["L"] = [Lcontig1, Lcontig2]
+                                paired_clone_groups_contigs[clones_so_far + 1]["H"] = [Hcontig1, Hcontig2]
+        return (paired_clone_groups, paired_clone_groups_contigs)"""
+
 
     def get_initial_clone_groups(self, loci, clones, multiple_clones_H, cell_clones, cell_contig_clones):
         """Get groups of B cell clones sharing clonally related heavy and light chains (from changeo output)"""
@@ -1352,25 +1545,29 @@ class Summariser(TracerTask):
             
             for i in range(len(cell_list)):
                 current_cell = cell_list[i]
+
+                Hcontig2 = []
+                Hcontig1 = []
+                contig_list = cells[current_cell]
+                for item in contig_list:
+                    contig_name = current_cell + "_" + item
+                    Hcontig2.append(contig_name)
+
                 comparison_cells = cell_list[i + 1:]
                 for comparison_cell in comparison_cells:
-                    Hcontig1 = []
-                    Hcontig2 = []
+                    #Hcontig1 = []
+                   
+                    contig_list = cells[comparison_cell]
+                    for item in contig_list:
+                        contig_name = comparison_cell + "_" + item
+                        Hcontig1.append(contig_name)
                     for l in self.loci:
                         if not comparison_cell in cell_contig_clones[l].keys():
                             cell_contig_clones[l][comparison_cell] = None
-                        else:
-                            if l == "H":
-                                for contig, data in six.iteritems(cell_contig_clones[l][comparison_cell]):
-                                    contig = comparison_cell + "_" + contig
-                                    Hcontig2.append(contig)
+                            
                         if not current_cell in cell_contig_clones[l].keys():
                             cell_contig_clones[l][current_cell] = None
-                        else:
-                            if l == "H":
-                                for contig, data in six.iteritems(cell_contig_clones[l][current_cell]):
-                                    contig = current_cell + "_" + contig
-                                    Hcontig1.append(contig)
+
                     clone = False
                     Kcontig1 = []
                     Kcontig2 = []
@@ -1413,6 +1610,7 @@ class Summariser(TracerTask):
                                     shared_L = True
          
                     # Add to dictionary if cells are clonal 
+
                     if clone == True:
                         found = False
                         clones_so_far = len(paired_clone_groups.keys())
@@ -1479,16 +1677,42 @@ class Summariser(TracerTask):
         if os.path.exists(changeo_output):
        
             for clone, locus_data in six.iteritems(paired_clone_groups_contigs):
+                print()
+                print(clone)
                 muscle_input = "{}/muscle_input_{}_{}.fa".format(outdir, locus, clone)
+                muscle_input2 = "{}/muscle_input_{}_{}b.fa".format(outdir, locus, clone)
                 with open(muscle_input, 'w') as output:
                     if paired_clone_groups_contigs[clone][locus] is not None:
+                        print()
+                        print(locus)
+                        print()
                         
                         with open(changeo_output, 'r') as input:
                             contig_list = []
-                            
+                            contig_list2 = []
+                            print(paired_clone_groups_contigs[clone][locus])
                             for item in paired_clone_groups_contigs[clone][locus]:
+                                print(item)
                                 for item2 in item:
-                                    contig_list.append(item2)
+                                    print("Item 2", item2)
+                                    # Check if two clonal chains for locus
+                                    if len(item2) == 2:
+                                        print("Len item2 is 2")
+                                        print("First item", item2[0], "Second item", item2[1])
+                                        contig_list.append(item2[0])
+                                        contig_list2.append(item2[1])
+                                        print("appended items to contig lists")
+                                        print("Contig list", contig_list, "Contig list 2", contig_list2)
+                                    else:
+                                        contig_list.append(item2)
+                                        #print("Len item2 is not 2")
+                                        print("Contig list", contig_list)
+                            # Check if two clonal chains for locus (contig_list2 not empty)
+                            if len(contig_list2) > 0:
+                                fh = open(muscle_input2, "w")
+                                print("Multiple clonal chains for locus detected")
+
+                                
                             for line in input:
                                 if not line.startswith("SEQUENCE_ID"):
                                     cell_name = line.split("_TRINITY")[0]
@@ -1496,12 +1720,22 @@ class Summariser(TracerTask):
                                     cell_contig_name = line.split("\t")[0]
                                     #print(cell_contig_name)
                                     
-                                    if cell_contig_name in contig_list:
+
+                                    if cell_contig_name in (contig_list or contig_list2):
                                         sequence = line.split()[4] + "\n"
                                         fasta_header = ">" + line.split()[0] + "\n"
-                                        output.write(fasta_header)
-                                        output.write(sequence)
+                                        if cell_contig_name in contig_list:
+                                            output.write(fasta_header)
+                                            output.write(sequence)
+                                        else:
+                                            print("Writing to extra file")
+                                            fh.write(fasta_header)
+                                            fh.write(sequence)
+                            
+                            if os.path.exists(muscle_input2):
+                                fh.close()
 
+               
 
 
     def create_alignment_dict(self, paired_clone_groups, loci, outdir):

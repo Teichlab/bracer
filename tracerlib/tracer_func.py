@@ -248,9 +248,6 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                             if (C_start - 1) > end_coord:
                                 end_coord = C_start - 1
                             
-                            print("End coord")
-                            print(end_coord)
-                    
                     trinity_seq = str(trinity_seq[start_coord:end_coord])
                     (imgt_reconstructed_seq, is_productive, bestVJNames) = get_fasta_line_for_contig_imgt(
                         rearrangement_summary, junction_list, good_hits, returned_locus, IMGT_seqs, cell_name,
@@ -298,7 +295,8 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                             if receptor != "BCR":
                                 i = V + "_" + junc_string + "_" + J
                             else:
-                                i = V + "_" + str(len(junc_string)) + "_" + J
+                                i = V + "_" + J
+                                #i = V + "_" + str(len(junc_string)) + "_" + J
                             all_poss_identifiers.add(i)
 
                     if len(junc_string) < int(max_junc_string_length):
@@ -745,8 +743,6 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
         else:
             (align_start, cdr3_start) = parse_alignment_summary(alignment_summary)
             cdr3_start = cdr3_start - start
-            print("cdr3 start")
-            print(cdr3_start)
         
         # remove the minimal nucleotides from the trinity sequence to check for stop codons, working from the position at which the cdr3 region starts (first nt in frame)
         """start_base_removal_count = (cdr3_start - 1) % 3   # There are cdr3_start - 1 nt before beginning of CDR3. These need to be in same reading frame as CDR3.
@@ -767,18 +763,12 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
 
         # Trim sequence to look for CDR3 in correct region
         if in_frame:
-            print("XXXXXXXXXXXX TRIMMING TO DETECT CDR3 XXXXXXXXXXXXXX")
-            print(trinity_seq)
             seq = trinity_seq[cdr3_start - 7:]
-            print(seq)
             cdr3 = get_cdr3(seq, locus)
             cdr3_length = len(cdr3)
             # Get CDR3 nt sequence excluding conserved Cys and XGXG motif
             cdr3_seq = trinity_seq[cdr3_start-1:cdr3_length*3+cdr3_start-16]
  
-        print(cdr3)
-        print(cdr3_length)
-        print(cdr3_seq)
         #in_frame = is_cdr3_in_frame(cdr3, locus)
 
 
@@ -872,9 +862,9 @@ def collapse_close_sequences(recombinants, locus):
     # pdb.set_trace()
     contig_names = [r.contig_name for r in recombinants]
     filtered_contig_names = [r.contig_name for r in recombinants]
-    print("Recs before collapsing close sequences")
-    for r in filtered_contig_names:
-        print(r)
+    #print("Recs before collapsing close sequences")
+    #for r in filtered_contig_names:
+        #print(r)
     
     uncollapsible_contigs = []
     if len(recombinants) > 1:
@@ -970,9 +960,9 @@ def collapse_close_sequences(recombinants, locus):
             recombinants_to_delete.append(r)
 
     [recombinants.remove(r) for r in recombinants_to_delete]
-    print("Recs after collapsing close sequences")
-    for r in recombinants:
-        print(r.contig_name)
+    #print("Recs after collapsing close sequences")
+    #for r in recombinants:
+        #print(r.contig_name)
        
 
     return (recombinants)
@@ -1096,7 +1086,7 @@ def load_kallisto_counts(tsv_file):
 
 
 def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, receptor, loci,
-                               network_colours, n_edit_distance):
+                               network_colours, cell_contig_clones):
     G = nx.MultiGraph()
 
     #H_clonal_groups = define_potential_H_clonal_groups(cells, receptor)
@@ -1111,7 +1101,7 @@ def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, 
                 G.node[cell]['style'] = 'filled'
 
                 G.node[cell]['fillcolor'] = cell.bgcolor
-            print(cell.name, cell.isotype, cell.bgcolor)
+            #print(cell.name, cell.isotype, cell.bgcolor)
 
     else:
         for cell in cells:
@@ -1127,7 +1117,9 @@ def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, 
         for locus, locus_data in six.iteritems(clone_data):
             col = network_colours[receptor][locus][0]
             shared_identifiers = 0
+            distance_threshold = 1000  # Set to no threshold in reality 
             for (cell1, cell2), distance in six.iteritems(locus_data):
+                
             
                 for cell in cells:
                     if cell1 == cell.name:
@@ -1135,11 +1127,18 @@ def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, 
                     elif cell2 == cell.name:
                         cell2 = cell
                 if (cell1, cell2, locus) in G.edges():
-                    width = 4
-                    G.add_edge(cell1, cell2, locus, penwidth=width, color=col)
+                    # Set distance threshold
+                    if distance < distance_threshold:
+                        width = 4
+                        G.add_edge(cell1, cell2, locus, penwidth=width, color=col)
+                    
                 else:
-                    shared_identifiers = 1
-
+                    if distance < distance_threshold:
+                        shared_identifiers = 1
+                    else:
+                        shared_identifiers = 0
+                
+                # Check if cells share nonfunctional chains
                 if len(cell1.recombinants[receptor][locus]) > 1 and len(cell2.recombinants[receptor][locus]) > 1:
                     for current_recombinant in cell1.recombinants[receptor][locus]:
                         if not current_recombinant.productive:
@@ -1149,12 +1148,14 @@ def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, 
                                 if not comparison_recombinant.productive:
                                     comparison_id_set = comparison_recombinant.all_poss_identifiers
                                     if len(current_id_set.intersection(comparison_id_set)) > 0:
-                                        shared_identifiers += 1
-                if not (cell1, cell2, locus) in G.edges():
-                    width = shared_identifiers * 2
-                    distance = float(distance)
-                    G.add_edge(cell1, cell2, locus, penwidth=width, color=col,
-                               dist=distance)
+                                        if shared_identifiers > 0:
+                                            shared_identifiers += 1
+                if shared_identifiers > 0:
+                    if not (cell1, cell2, locus) in G.edges():
+                    
+                        width = shared_identifiers * 2
+                        
+                        G.add_edge(cell1, cell2, locus, penwidth=width, color=col)
             
 
     deg = G.degree()
@@ -1189,7 +1190,7 @@ def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, 
 
     return (G, drawing_tool, component_groups)
 
-def make_dict_cells_distance_zero(cells, s_normalised_edit_distances):
+"""def make_dict_cells_distance_zero(cells, s_normalised_edit_distances):
 
     zero_distance = dict()
     zero_distance_names = dict()
@@ -1265,7 +1266,7 @@ def create_nodes_of_zero_distance_clones(cells, receptor, loci, network_colours,
         #G.add_edge(current_cell, comparison_cell, weight="100")
         #print(edges)
 
-"""def make_cell_network_from_dna_sum_normalised(cells, keep_unlinked, shape, dot, neato, receptor, loci,
+   def make_cell_network_from_dna_sum_normalised(cells, keep_unlinked, shape, dot, neato, receptor, loci,
                                network_colours, s_normalised_edit_distances):
     G = nx.Graph()
 
@@ -1528,14 +1529,14 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato, receptor
     return (G, drawing_tool, component_groups)
 
 
-def draw_network_from_cells(cells, output_dir, output_format, dot, neato, draw_graphs, receptor, loci, network_colours, n_edit_distance):
+def draw_network_from_cells(cells, output_dir, output_format, dot, neato, draw_graphs, receptor, loci, network_colours):
     cells = list(cells.values())
     if not receptor == "BCR":
         network, draw_tool, component_groups = make_cell_network_from_dna(cells, False, "box", dot,
                                                                       neato, receptor, loci, network_colours)
     else:
         network, draw_tool, component_groups = make_cell_network_from_dna_B_cells(cells, False, "box", dot,
-                                                                      neato, receptor, loci, network_colours, n_edit_distance)
+                                                                      neato, receptor, loci, network_colours)
     network_file = "{}/clonotype_network_with_identifiers.dot".format(output_dir)
     try:
         nx.write_dot(network, network_file)
@@ -1551,7 +1552,7 @@ def draw_network_from_cells(cells, output_dir, output_format, dot, neato, draw_g
                                                          neato, receptor, loci, network_colours)
     else:
         network, draw_tool, cgx = make_cell_network_from_dna_B_cells(cells, False, "circle", dot,
-                                                         neato, receptor, loci, network_colours, n_edit_distance)
+                                                         neato, receptor, loci, network_colours)
 
     network_file = "{}/clonotype_network_without_identifiers.dot".format(output_dir)
     try:
@@ -1760,6 +1761,9 @@ def bowtie2_alignment(bowtie2, ncores, receptor, loci, output_dir, cell_name, sy
                         if revcomp_flag == "1":
                             seq = str(Seq(seq).reverse_complement())
                             qual = qual[::-1]
+                        #Add /1 to name to avoid trouble with Trinity?
+                        if not name[len(name)-2:len(name)] == ("/1" or "/2"):
+                            name = name + "/1"
                         fastq_out.write("@{name}\n{seq}\n+\n{qual}\n".format(name=name, seq=seq, qual=qual))
                 fastq_out.close()
 
@@ -1864,7 +1868,7 @@ def assemble_with_trinity(trinity, receptor, loci, output_dir, cell_name, ncores
     return successful_files
 
 
-def run_velvet_h(velveth, velvetg, oases, receptor, loci, output_dir, cell_name, ncores, should_resume, single_end, species):
+def run_oases(velveth, velvetg, oases, receptor, loci, output_dir, cell_name, ncores, should_resume, single_end, species):
     locus_names = ["_".join([receptor,x]) for x in loci]    
     
     # Create single-k assemblies
@@ -1894,16 +1898,10 @@ def run_velvet_h(velveth, velvetg, oases, receptor, loci, output_dir, cell_name,
                 velveth_command = [velveth, path, hash_length, '-fastq', '-shortPaired', '-separate', file1, file2]
                 velveth_commands.append(velveth_command) 
                 velvetg_command = [velvetg, path, '-read_trkg', 'yes', '-min_contig_lgth', '400']
-                #'-exp_aov', 'auto', '-ins_length', '500'
                 velvetg_commands.append(velvetg_command)
                 oases_command = [oases, path, '-min_trans_lgth', '400'] 
-                #'-cov_cutoff', 'auto'
                 oases_commands.append(oases_command)
                 
-                #else:
-                    #file = "{}.fastq".format(aligned_read_path)
-                    #command = base_command + ["--single", file, "--output",
-                                 #'{}/Oases_output/Oases_{}_{}'.format(output_dir, cell_name, locus)]
 
         for command_list in [velveth_commands, velvetg_commands, oases_commands]:
             for command in command_list:
@@ -2162,7 +2160,9 @@ def quantify_with_kallisto(kallisto, cell, output_dir, cell_name, kallisto_base_
 
 
 def run_changeo(changeo, locus, outdir, species):
-    
+
+    print("##Defining clonal sequences with ChangeO##")
+
     # Set model to Hamming distance if species is not Mmus or Hsap
     if species == "Mmus":
         model = "m1n"
@@ -2180,34 +2180,6 @@ def run_changeo(changeo, locus, outdir, species):
         command = [changeo, "bygroup", '-d', changeo_input, '--mode', 'gene', '--act', 'set', 
                         '--model', model, '--dist', dist, '--sf', "JUNCTION", '--norm', 'len']
 
-            #changeo_out = "{}/changeo_input_{}_clone-pass.tab".format(outdir, locus)
-            #with open(changeo_result, 'w') as out:
-                # print(" ").join(pipes.quote(s) for s in command)
-        subprocess.check_call(command)
-
-def run_changeo_clonal_alignment(changeo, locus, outdir, species):
-
-    Command = "python DefineClones.py bygroup -d {changeo_input_file} --mode gene --act set --model m1n --dist 0.02 --sf JUNCTION"
-    # Set model to Hamming distance if species is not Mmus or Hsap
-    if species == "Mmus":
-        model = "m1n"
-        dist = "1.5"
-    elif species == "Hsap":
-        model = "hs5f"
-        dist = "0.02"
-    else:
-        model = "ham"
-        dist = "0.02"
-
-
-    changeo_input = "{}/changeo_clonal_alignment_input_{}.tab".format(outdir, locus)
-    if os.path.isfile(changeo_input):
-        command = [changeo, "bygroup", '-d', changeo_input, '--mode', 'gene', '--act', 'set',
-                        '--model', model, '--dist', dist, '--sf', "SEQUENCE_VDJ", '--norm', 'len', '-f', 'CLONE_GROUP']
-
-            #changeo_out = "{}/changeo_input_{}_clone-pass.tab".format(outdir, locus)
-            #with open(changeo_result, 'w') as out:
-                # print(" ").join(pipes.quote(s) for s in command)
         subprocess.check_call(command)
 
 
@@ -2216,14 +2188,8 @@ def run_muscle(muscle, locus, outdir, species, group):
     muscle_fasta_out = "{}/muscle_out_{}_{}.afa".format(outdir, locus, group)
     muscle_clw_out = "{}/muscle_out_{}_{}.aln".format(outdir, locus, group)
     
-    #changeo_input = "{}/changeo_input_{}.tab".format(outdir, locus)
     if os.path.isfile(muscle_input) and os.path.getsize(muscle_input)>0:
-        # seqtype must be protein to allow for substitution matrix!
         command = [muscle, "-in", muscle_input, '-fastaout', muscle_fasta_out, '-clwout', muscle_clw_out, '-quiet'] 
-        #'-matrix', matrix, '-seqtype', 'protein'
 
-            #changeo_out = "{}/changeo_input_{}_clone-pass.tab".format(outdir, locus)
-            #with open(changeo_result, 'w') as out:
-                # print(" ").join(pipes.quote(s) for s in command)
         subprocess.check_call(command)
 
