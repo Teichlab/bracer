@@ -148,11 +148,11 @@ def parse_alignment_summary(alignment_summary):
     for entry in alignment_summary:
         info = entry.split("\t")
         region = info[0]
-        if not region.startswith("CDR3"):
+        if not region.startswith("FR3-IMGT"):
             if start == None:
                 start = int(info[1])
-        elif region.startswith("CDR3"):
-             cdr3_start = int(info[1])
+        elif region.startswith("FR3-IMGT"):
+             cdr3_start = int(info[2]) + 1
             
     return (start, cdr3_start)    
 
@@ -200,9 +200,6 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                         align_start, cdr3_start = parse_alignment_summary(alignment_summary)
                         (C_gene, C_info_line, C_start) = get_C_gene(assembler, output_dir, locus, query_name)
                     
-                    if receptor is not "BCR":
-                        all_V_names = [remove_allele_stars(x) for x in rearrangement_summary[0].split(',')]
-
                     if has_D:
                         all_J_names = [remove_allele_stars(x) for x in rearrangement_summary[2].split(',')]
                     else:
@@ -239,7 +236,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                         trinity_seq = trinity_seq.seq
 
                     start_coord, end_coord = get_coords(good_hits, receptor)
-                    print(end_coord)
+
                     if receptor == "BCR":
                         if C_gene is not None:
                             #Keep overlapping nt if end of J overlaps with beginning of C 
@@ -258,8 +255,6 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                     #Assess if rearrangement is full-length (from start of V gene to start of C gene)
                     full_length = is_rearrangement_full_length(trinity_seq, query_data["hit_table"], query_name, query_length, assembler, output_dir, locus)
 
-                    #query_length = query_data["query_length"]
-
 
                     if seq_method == 'imgt':
                         (fasta_line_for_contig, is_productive, bestVJNames) = get_fasta_line_for_contig_imgt(
@@ -276,18 +271,21 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                                                                                           cell_name, query_name,
                                                                                           loci_for_segments, full_length, receptor, alignment_summary,
                                                                                           rearrangement_summary)
-
-                        print(is_productive, bestVJNames, cdr3)
                     
-                    #Identify the most likely V genes if receptor is BCR
+                    #Identify the most likely V and J genes if receptor is BCR
                     if receptor == "BCR":
                         if locus in ["H", "BCR_H"]:
                             threshold_percent = 0.05
                         else:
                             threshold_percent = 0.01
-                        all_V_names = find_V_genes_based_on_bit_score(trinity_seq, query_data["hit_table"], query_name, threshold_percent)
-                          
+                        all_V_names = find_V_genes_based_on_bit_score(trinity_seq, query_data["hit_table"], query_name, 
+                                                                      threshold_percent)
+                        all_J_names = find_J_genes_based_on_bit_score(trinity_seq, query_data["hit_table"], query_name, 
+                                                                      threshold_percent)
+
+                                      
                     V_genes = all_V_names
+                    J_genes = all_J_names
                     
                     all_poss_identifiers = set()
                     for V in all_V_names:
@@ -308,7 +306,8 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                                           best_VJ_names=bestVJNames, alignment_summary=alignment_summary,
                                           trinity_seq=trinity_seq, imgt_reconstructed_seq=imgt_reconstructed_seq, 
                                           has_D=has_D, output_dir=output_dir, full_length=full_length, query_length=query_length, 
-                                          V_genes=V_genes, cdr3=cdr3, assembler=assembler, C_gene=C_gene, C_info_line=C_info_line, cdr3_seq=cdr3_seq)
+                                          V_genes=V_genes, J_genes=J_genes, cdr3=cdr3, assembler=assembler, C_gene=C_gene, 
+                                          C_info_line=C_info_line, cdr3_seq=cdr3_seq)
                         recombinants[locus].append(rec)
                         print(query_name)
 
@@ -316,8 +315,10 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
         for locus, rs in six.iteritems(recombinants):
             # Adding code to collapse sequences with very low Levenshtein distances caused by confusion between
             # TRAVxD and TRAVx segments with different alignment lengths from IgBlast.
-            recombinants[locus] = collapse_close_sequences(rs, locus)
-
+            if receptor == "TCR":
+                recombinants[locus] = collapse_close_sequences(rs, locus)
+            elif receptor == "BCR":
+                recombinants[locus] = collapse_close_BCR_sequences(rs, locus)
         # cell_name, A_recombinants, B_recombinants, G_recombinants, D_recombinants, is_empty=False, species="Mmus")
         cell = Cell(cell_name, recombinants, species=species, receptor=receptor, loci=loci)
         
@@ -352,13 +353,36 @@ def find_V_genes_based_on_bit_score(seq, hit_table, query_name, threshold_percen
     return(V_genes)
         
 
+def find_J_genes_based_on_bit_score(seq, hit_table, query_name, threshold_percent):
+    """Identifies the most likely J genes if receptor is BCR based on IgBlast bit scores"""
+    found_J = False
+    J_genes = []
+    threshold = None
+    for hit in hit_table:
+        info = hit.split()
+        segment = info[0]
+        allele = info[2]
+        J_gene = allele.split("*")[0]
+        bit_score = float(info[13])
+        if segment == "J":
+            if found_J == False:
+                top_bit_score = bit_score
+                found_J = True
+                threshold = bit_score - bit_score*threshold_percent
+                J_genes.append(J_gene)
+            elif found_J == True:
+                if bit_score >= threshold and J_gene not in J_genes:
+                    J_genes.append(J_gene)
+    return(J_genes)
+
+
 def parse_rearrangement_summary(rearrangement_summary):
-    """Returns a tuple of (stop_codon, in_frame, productive) from IgBlast output for BCRs"""
+    """Returns a tuple of (stop_codon, in_frame, productive) from IgBlast output for BCRs.
+    in_frame is not always correct, need to check ourselves if it says out-of-frame!"""
+    i = 1
     chain_type = rearrangement_summary[0][0:4]
     if "IGH" in chain_type:
         i = 0
-    else:
-        i = 1
 
     stop_codon = rearrangement_summary[4-i]
     in_frame = rearrangement_summary[5-i]
@@ -425,6 +449,9 @@ def process_hit_table(query_name, query_data, locus):
     rearrangement_summary = query_data['VDJ_rearrangement_summary']
 
     e_value_cutoff = 5e-3
+    # Set lower e value cutoff for BCR H chain to avoid sequences with indeterminable V gene family
+    if locus in ["H", "BCR_H"]:
+        e_value_cutoff = 5e-4
 
     found_V = set()
     found_D = set()
@@ -670,16 +697,11 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
             # Remove forward slashes from shared A/D gene names to be the same as in the IMGT files.
             segment = segment.replace("/", "_")
             ref_V_seq = IMGT_seqs[V_locus_key][segment]
-
-            # hit[11] is the end of the V sequence
-            # best_V_seq = best_V_seq[0:int(hit[11])]
             found_best_V = True
         elif J_pattern.search(segment) and not found_best_J:
             J_locus_key = "_".join([locus, 'J'])
             best_J_name = segment
             ref_J_seq = IMGT_seqs[J_locus_key][segment]
-            # hit 10 is the start of the J sequence
-            # best_J_seq = best_J_seq[int(hit[10])-1 :]
             found_best_J = True
     
     # work out if sequence that exists is in frame
@@ -738,11 +760,18 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
         (contains_stop, in_frame, productive) = parse_rearrangement_summary(rearrangement_summary)
         (start, stop) = get_coords(hit_table, receptor)
         del (stop)
-        if in_frame == False:
+ 
+        (align_start, cdr3_start) = parse_alignment_summary(alignment_summary)
+
+        if cdr3_start is None:
             cdr3 = "Couldn't find CDR3"
+            in_frame = False
+        
         else:
-            (align_start, cdr3_start) = parse_alignment_summary(alignment_summary)
             cdr3_start = cdr3_start - start
+            in_frame = True
+
+        
         
         # remove the minimal nucleotides from the trinity sequence to check for stop codons, working from the position at which the cdr3 region starts (first nt in frame)
         """start_base_removal_count = (cdr3_start - 1) % 3   # There are cdr3_start - 1 nt before beginning of CDR3. These need to be in same reading frame as CDR3.
@@ -765,12 +794,19 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
         if in_frame:
             seq = trinity_seq[cdr3_start - 7:]
             cdr3 = get_cdr3(seq, locus)
-            cdr3_length = len(cdr3)
-            # Get CDR3 nt sequence excluding conserved Cys and XGXG motif
-            cdr3_seq = trinity_seq[cdr3_start-1:cdr3_length*3+cdr3_start-16]
- 
-        #in_frame = is_cdr3_in_frame(cdr3, locus)
+            if "Couldn't" in cdr3:
+                cdr3_length = None
+                in_frame = False
+            else:    
+                cdr3_length = len(cdr3)
+                # Get CDR3 nt sequence excluding conserved Cys and XGXG motif
+                cdr3_seq = trinity_seq[cdr3_start-1:cdr3_length*3+cdr3_start-16]
+                in_frame = is_cdr3_in_frame(cdr3, locus)
 
+        if in_frame and not contains_stop:
+            productive = True
+        else:
+            productive = False
 
     #seq = Seq(seq, IUPAC.unambiguous_dna)
     #aa_seq = seq.translate()
@@ -858,6 +894,124 @@ def is_cdr3_in_frame(cdr3, locus):
 
     return (cdr3_in_frame)
 
+
+def collapse_close_BCR_sequences(recombinants, locus):
+    #if locus == "BCR_H":
+        #pdb.set_trace()
+    contig_names = [r.contig_name for r in recombinants]
+    filtered_contig_names = [r.contig_name for r in recombinants]
+    print("Recs before collapsing close sequences")
+    for r in filtered_contig_names:
+        print(r)
+
+    uncollapsible_contigs = []
+    C_genes = dict()
+    if len(recombinants) > 1:
+        for i in range(len(recombinants) - 1):
+            base_name = recombinants[i].contig_name
+            base_seq = recombinants[i].dna_seq
+            base_V_segment = set(recombinants[i].V_genes)
+            base_J_segment = set(recombinants[i].J_genes)
+            base_cdr3 = recombinants[i].cdr3_seq
+            base_C_gene = None
+            if recombinants[i].C_gene:
+                base_C_gene = recombinants[i].C_gene
+            if base_C_gene is not None:
+                if "*" in base_C_gene:
+                    base_C_gene = base_C_gene.split("*")[0]
+            base_full_length = recombinants[i].full_length
+
+            base_id = recombinants[i].identifier
+            base_junc = base_id.split("_")[1]
+            base_e_value = float(recombinants[i].hit_table[0][-2])
+
+            for j in range(i + 1, len(recombinants)):
+                comp_name = recombinants[j].contig_name
+                comp_seq = recombinants[j].dna_seq
+                comp_V_segment = set(recombinants[j].V_genes)
+                comp_J_segment = set(recombinants[j].J_genes)
+                comp_id = recombinants[j].identifier
+                comp_junc = comp_id.split("_")[1]
+                comp_cdr3 = recombinants[j].cdr3_seq
+                comp_C_gene = None
+                if recombinants[j].C_gene:
+                    comp_C_gene = recombinants[j].C_gene
+                if comp_C_gene is not None:
+                    if "*" in comp_C_gene:
+                        comp_C_gene = comp_C_gene.split("*")[0]
+                comp_full_length = recombinants[i].full_length
+                comp_e_value = float(recombinants[j].hit_table[0][-2])
+                if base_full_length and comp_full_length:
+                    lev_dist = Levenshtein.distance(base_seq, comp_seq)
+
+                else:
+                    lev_dist = None
+
+                attempt_collapse = False
+                #if base_cdr3 == comp_cdr3:
+                    #pdb.set_trace()
+
+                if base_seq in comp_seq or comp_seq in base_seq and (base_name and comp_name) in filtered_contig_names:
+                    attempt_collapse = True 
+                elif base_cdr3 is not None and comp_cdr3 is not None:                
+
+                    if base_cdr3 == comp_cdr3 and base_name in filtered_contig_names \
+                            and comp_name in filtered_contig_names:
+                        if len(base_V_segment.intersection(comp_V_segment)) > 0 and len(base_J_segment.intersection(comp_J_segment)) > 0:
+                            attempt_collapse = True
+                elif base_cdr3 is None or comp_cdr3 is None:
+                    if base_junc == comp_junc and base_name in filtered_contig_names \
+                            and comp_name in filtered_contig_names:
+                        if len(base_V_segment.intersection(comp_V_segment)) > 0 and len(base_J_segment.intersection(comp_J_segment)) > 0:
+                            attempt_collapse = True
+
+                if attempt_collapse is False:
+                    uncollapsible_contigs.append("{}_vs_{}".format(base_name, comp_name))
+                C_gene = None       
+                if attempt_collapse:
+                    # Assert isotype
+                    if locus == "BCR_H":
+                        if not base_C_gene == comp_C_gene:
+                            if base_C_gene in ["IGHD", "IGHM"] and comp_C_gene in ["IGHD", "IGHM"]:
+                                C_gene = "IGHDM"
+                    # find alignment with lowest E value for V match
+                    if (base_e_value <= comp_e_value or comp_seq in base_seq) and comp_name in filtered_contig_names \
+                                            and base_name in filtered_contig_names:
+                        filtered_contig_names.remove(comp_name)
+                        if C_gene is not None:
+                            C_genes[base_name] = C_gene
+                        elif base_C_gene is None and comp_C_gene:
+                            C_genes[base_name] = recombinants[j].C_gene
+                    else:
+                        if comp_name in filtered_contig_names and base_name in filtered_contig_names:
+                            filtered_contig_names.remove(base_name)
+                            if C_gene is not None:
+                                C_genes[comp_name] = C_gene
+                            elif comp_C_gene is None and base_C_gene:
+                                C_genes[comp_name] = recombinants[i].C_gene
+                            
+          
+                else:
+                    uncollapsible_contigs.append("{}_vs_{}".format(base_name, comp_name))
+
+                # print("{}\t{}\t{}".format(base_id, comp_id, lev_dist))
+    recombinants_to_delete = []
+
+    for r in recombinants:
+        if not r.contig_name in filtered_contig_names:
+            recombinants_to_delete.append(r)
+        else:
+            if r.contig_name in C_genes.keys():
+                r.C_gene = C_genes[r.contig_name]
+
+    [recombinants.remove(r) for r in recombinants_to_delete]
+    print("Recs after collapsing close sequences")
+    for r in recombinants:
+        print(r.contig_name)
+        print(r.C_gene)
+
+
+    return (recombinants)
 def collapse_close_sequences(recombinants, locus):
     # pdb.set_trace()
     contig_names = [r.contig_name for r in recombinants]
@@ -892,11 +1046,11 @@ def collapse_close_sequences(recombinants, locus):
                         and comp_name in filtered_contig_names:
                     # pdb.set_trace()
                     # define re pattern here to find TRAVx[DN] or TRDVx[DN] depending on locus
-                    if locus == "TCRA":
+                    if locus == "TCR_A":
                         duplicate_pattern = re.compile(r"TRAV\d+[DN]")
                         segment_pattern = re.compile(r"TRAV(\d+)([DN])?(-\d)?.+")
                         attempt_collapse = True
-                    elif locus == "TCRD":
+                    elif locus == "TCR_D":
                         duplicate_pattern = re.compile(r"DV\d+[DN]")
                         segment_pattern = re.compile(r"DV(\d+)([DN])?(-\d)?.+")
                         attempt_collapse = True
@@ -921,11 +1075,11 @@ def collapse_close_sequences(recombinants, locus):
 
                 elif lev_dist < 75 and not base_id == comp_id and base_name in filtered_contig_names \
                         and comp_name in filtered_contig_names:
-                    if locus == "TCRA":
+                    if locus == "TCR_A":
                         duplicate_pattern = re.compile(r"TRAV\d+[DN]")
                         segment_pattern = re.compile(r"TRAV(\d+)([DN])?(-\d)?.+")
                         attempt_collapse = True
-                    elif locus == "TCRD":
+                    elif locus == "TCR_D":
                         duplicate_pattern = re.compile(r"DV\d+[DN]")
                         segment_pattern = re.compile(r"DV(\d+)([DN])?(-\d)?.+")
                         attempt_collapse = True
@@ -986,24 +1140,23 @@ def load_kallisto_counts(tsv_file):
 
 
 
-"""def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, receptor, loci,
-                               network_colours):
+def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, receptor, loci,
+                               network_colours, cell_contig_clones, cells_with_clonal_H):
     G = nx.MultiGraph()
 
-    #H_clonal_groups = define_potential_H_clonal_groups(cells, receptor)
+    print(cell_contig_clones)    
     # initialise all cells as nodes
-    
+
     if shape == 'circle':
         for cell in cells:
             G.add_node(cell, shape=shape, label=cell.html_style_label_for_circles(receptor, loci, network_colours),
                         sep=0.4, fontname="helvetica neue")
-            #print(cell.bgcolor)
+
             if cell.bgcolor is not None:
                 G.node[cell]['style'] = 'filled'
-            
+
                 G.node[cell]['fillcolor'] = cell.bgcolor
-            #print(cell.bgcolor)
-            #print(cell.name, cell.isotype, cell.bgcolor)
+            
 
     else:
         for cell in cells:
@@ -1013,150 +1166,127 @@ def load_kallisto_counts(tsv_file):
                 G.node[cell]['style'] = 'filled'
 
                 G.node[cell]['fillcolor'] = cell.bgcolor
+
+    # Create list of cells belonging to a heavy chain clone group
+    cell_names = cells_with_clonal_H
+
     # make edges:
-    for i in range(len(cells)):
-        current_cell = cells[i]
-        
-        comparison_cells = cells[i + 1:]
+    loci = ["H", "K", "L"]
+    for i in range(len(cell_names)):
+        current_cell = cell_names[i]
+        comparison_cells = cell_names[i + 1:]
+
         for locus in loci:
             col = network_colours[receptor][locus][0]
 
-            # current_identifiers = current_cell.getMainRecombinantIdentifiersForLocus(locus)
+           
             for comparison_cell in comparison_cells:
                 shared_identifiers = 0
-                if current_cell.recombinants[receptor][locus] is not None:
-                    for current_recombinant in current_cell.recombinants[receptor][locus]:
-                        current_id_set = current_recombinant.all_poss_identifiers
-                        #print("Current ID set")
-                        #print(current_id_set)
-                        if comparison_cell.recombinants[receptor][locus] is not None:
-                            for comparison_recombinant in comparison_cell.recombinants[receptor][locus]:
-                                comparison_id_set = comparison_recombinant.all_poss_identifiers
-                                #print("Comp ID set")
-                                #print(comparison_id_set)
-                                if len(current_id_set.intersection(comparison_id_set)) > 0:
-                                    shared_identifiers += 1
-                                    
-                                    
-                
-                if shared_identifiers > 0:
-                    width = shared_identifiers * 2
-                    
-                    if locus == "H" or G.has_edge(current_cell, comparison_cell):
-                    #print("Shared identifiers")
-                    #print(shared_identifiers)
-                      
-                    
-                        G.add_edge(current_cell, comparison_cell, locus, penwidth=width, color=col,
-                               weight=shared_identifiers)
-                
-           
 
-    deg = G.degree()
-
-    to_remove = [n for n in deg if deg[n] == 0]
-
-    if len(to_remove) < len(G.nodes()):
-        if not shape == 'circle':
-            G.remove_nodes_from(to_remove)
-            drawing_tool = [dot, '-Gsplines=true', '-Goverlap=false', '-Gsep=0.4']
-        
-        else:
-            drawing_tool = [dot, '-Gsplines=true', '-Goverlap=false']
-    else:
-        drawing_tool = [neato, '-Gsplines=true', '-Goverlap=false']
-    
-   
-
-    component_counter = 0
-    component_groups = list()
-    j = 0
-    components = nx.connected_components(G)
-
-    for component in components:
-        members = list()
-        if len(component) > 1:
-            for cell in component:
-                members.append(cell.name)
-                
-
-        component_groups.append(members)
-
-    return (G, drawing_tool, component_groups)"""
-
-
-def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, receptor, loci,
-                               network_colours, cell_contig_clones):
-    G = nx.MultiGraph()
-
-    #H_clonal_groups = define_potential_H_clonal_groups(cells, receptor)
-    # initialise all cells as nodes
-
-    if shape == 'circle':
-        for cell in cells:
-            G.add_node(cell, shape=shape, label=cell.html_style_label_for_circles(receptor, loci, network_colours),
-                        sep=0.4, fontname="helvetica neue")
-            
-            if cell.bgcolor is not None:
-                G.node[cell]['style'] = 'filled'
-
-                G.node[cell]['fillcolor'] = cell.bgcolor
-            #print(cell.name, cell.isotype, cell.bgcolor)
-
-    else:
-        for cell in cells:
-            G.add_node(cell, shape=shape, label=cell.html_style_label_dna(receptor, loci, network_colours),
-                        fontname="helvetica neue")
-            if cell.bgcolor is not None:
-                G.node[cell]['style'] = 'filled'
-
-                G.node[cell]['fillcolor'] = cell.bgcolor
-    # make edges:
-
-    for clone, clone_data in six.iteritems(n_edit_distance):
-        for locus, locus_data in six.iteritems(clone_data):
-            col = network_colours[receptor][locus][0]
-            shared_identifiers = 0
-            distance_threshold = 1000  # Set to no threshold in reality 
-            for (cell1, cell2), distance in six.iteritems(locus_data):
-                
-            
                 for cell in cells:
-                    if cell1 == cell.name:
-                        cell1 = cell
-                    elif cell2 == cell.name:
-                        cell2 = cell
-                if (cell1, cell2, locus) in G.edges():
-                    # Set distance threshold
-                    if distance < distance_threshold:
-                        width = 4
-                        G.add_edge(cell1, cell2, locus, penwidth=width, color=col)
-                    
-                else:
-                    if distance < distance_threshold:
-                        shared_identifiers = 1
-                    else:
-                        shared_identifiers = 0
-                
-                # Check if cells share nonfunctional chains
-                if len(cell1.recombinants[receptor][locus]) > 1 and len(cell2.recombinants[receptor][locus]) > 1:
-                    for current_recombinant in cell1.recombinants[receptor][locus]:
-                        if not current_recombinant.productive:
-                            current_id_set = current_recombinant.all_poss_identifiers
-                         
-                            for comparison_recombinant in cell2.recombinants[receptor][locus]:
-                                if not comparison_recombinant.productive:
-                                    comparison_id_set = comparison_recombinant.all_poss_identifiers
-                                    if len(current_id_set.intersection(comparison_id_set)) > 0:
-                                        if shared_identifiers > 0:
-                                            shared_identifiers += 1
-                if shared_identifiers > 0:
-                    if not (cell1, cell2, locus) in G.edges():
-                    
+                    if current_cell == cell.name:
+                        current_cell = cell
+                    elif comparison_cell == cell.name:
+                        comparison_cell = cell
+                current_contigs = []
+                comparison_contigs = []
+                if current_cell.name in cell_contig_clones[locus].keys() and comparison_cell.name in cell_contig_clones[locus].keys():
+              
+                    for contig_name, clone_group in six.iteritems(cell_contig_clones[locus][current_cell.name]):
+                        current_contigs.append(contig_name)
+                    for contig_name, clone_group in six.iteritems(cell_contig_clones[locus][comparison_cell.name]):
+                        comparison_contigs.append(contig_name)
+
+                if locus == "H":
+                    clonal_H = False
+
+                    # Check if cells share a clonal H chain
+                   
+                    for current_contig in current_contigs:
+                        for comparison_contig in comparison_contigs:
+                            if cell_contig_clones["H"][comparison_cell.name][comparison_contig] == cell_contig_clones["H"][current_cell.name][current_contig]:
+                                clonal_H = True
+                                shared_identifiers += 1 
+
+
+                    # Check if cells share nonfunctional chains
+                    if len(current_cell.recombinants[receptor][locus]) > 1 and len(comparison_cell.recombinants[receptor][locus]) > 1:
+                        for current_recombinant in current_cell.recombinants[receptor][locus]:
+                            if not current_recombinant.productive:
+                                current_id_set = current_recombinant.all_poss_identifiers
+
+                                for comparison_recombinant in comparison_cell.recombinants[receptor][locus]:
+                                    if not comparison_recombinant.productive:
+                                        comparison_id_set = comparison_recombinant.all_poss_identifiers
+                                        if len(current_id_set.intersection(comparison_id_set)) > 0:
+                                            if shared_identifiers > 0:
+                                                shared_identifiers += 1
+                  
+                    if shared_identifiers > 0:
                         width = shared_identifiers * 2
+                        G.add_edge(current_cell, comparison_cell, locus, penwidth=width, color=col)    
+
+                else:
+
+                    # Check if cells share clonal H chain
+                    if G.number_of_edges(current_cell, comparison_cell) > 0:
+ 
+                        if len(current_contigs) > 0 and len(comparison_contigs) > 0:
+                            for current_contig in current_contigs:
+                                for comparison_contig in comparison_contigs:
+                                    if cell_contig_clones[locus][comparison_cell.name][comparison_contig] \
+                                        == cell_contig_clones[locus][current_cell.name][current_contig]:
+                                        shared_identifiers += 1                          
                         
-                        G.add_edge(cell1, cell2, locus, penwidth=width, color=col)
-            
+                    if shared_identifiers > 0:
+                        width = shared_identifiers * 2
+                        G.add_edge(current_cell, comparison_cell, locus, penwidth=width, color=col)
+
+                    
+    # Check if cells sharing at least one functional H and one functional light 
+    # chain also share a nonfunctional light chain
+    for i in range(len(cell_names)):
+        current_cell = cell_names[i]
+        comparison_cells = cell_names[i + 1:]
+
+        for comparison_cell in comparison_cells:
+
+            for cell in cells:
+                if current_cell == cell.name:
+                    current_cell = cell
+                elif comparison_cell == cell.name:
+                    comparison_cell = cell
+
+            if G.number_of_edges(current_cell, comparison_cell) > 1:
+
+                for locus in ["K", "L"]:
+                    shared_identifiers = 0
+                    col = network_colours[receptor][locus][0]
+
+                    if len(current_cell.recombinants[receptor][locus]) > 0 and len(comparison_cell.recombinants[receptor][locus]) > 0:
+                        for current_recombinant in current_cell.recombinants[receptor][locus]:
+                            if not current_recombinant.productive:
+                                current_id_set = current_recombinant.all_poss_identifiers
+
+                                for comparison_recombinant in comparison_cell.recombinants[receptor][locus]:
+                                    if not comparison_recombinant.productive:
+                                        comparison_id_set = comparison_recombinant.all_poss_identifiers
+                                        print(locus)
+                                        print(current_recombinant.contig_name, comparison_recombinant.contig_name)
+                                        if len(current_id_set.intersection(comparison_id_set)) > 0:
+                                            print(current_id_set.intersection(comparison_id_set))
+                                            shared_identifiers += 1
+                        if shared_identifiers > 0:
+                            edge_dict = G.get_edge_data(current_cell, comparison_cell)
+                                         
+                            if locus in edge_dict.keys():
+                                width = 4
+                                G.add_edge(current_cell, comparison_cell, locus, penwidth=width, color=col)
+                                
+                            else:
+                                width = 2 * shared_identifiers
+                                G.add_edge(current_cell, comparison_cell, locus, penwidth=width, color=col)
+
 
     deg = G.degree()
 
@@ -1189,265 +1319,6 @@ def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, 
         component_groups.append(members)
 
     return (G, drawing_tool, component_groups)
-
-"""def make_dict_cells_distance_zero(cells, s_normalised_edit_distances):
-
-    zero_distance = dict()
-    zero_distance_names = dict()
-    for clone, data in six.iteritems(s_normalised_edit_distances):
-        zero_distance[clone] = dict()
-        zero_distance_names[clone] = dict()
-        cell_list = []
-        cell_list_names = []
-        counter = 0
-        
-        for (cell1, cell2), distance in  six.iteritems(s_normalised_edit_distances[clone]):
-            
-            if distance == 0:
-                for cell in cells:
-                    if cell1 == cell.name:
-                        cella = cell 
-                    elif cell2 == cell.name:
-                        cellb = cell
-                if counter == 0:
-                    zero_distance[clone][counter] = [cell1, cell2]
-                else:
-                    for i in range(counter):
-                        if (cell1 or cell2) in zero_distance[clone][i]:
-                            if not cell1 in zero_distance[clone][i]:
-                                zero_distance[clone][i].append(cell1)
-                            elif not cell2 in zero_distance[clone][i]:
-                                zero_distance[clone][i].append(cell2)
-                cells_append = (cella, cellb) 
-                cell_list.append(cells_append)
-                names = (cell1, cell2)
-                cell_list_names.append(names)
-        zero_distance[clone] = cell_list
-        zero_distance_names[clone] = cell_list_names
-                    
-    print(zero_distance_names)
-    return(zero_distance)
-
-
-def create_nodes_of_zero_distance_clones(cells, receptor, loci, network_colours, s_normalised_edit_distances):
-    H = nx.Graph()
-    # Initialise all zero distance cells as nodes
-    zero_distance = make_dict_cells_distance_zero(cells, s_normalised_edit_distances)
-    if shape == 'circle':
-        for cell in cells:
-            
-            G.add_node(cell, shape=shape, label=cell.html_style_label_for_circles(receptor, loci, network_colours),
-                        sep=0.4, fontname="helvetica neue")
-            
-            if cell.bgcolor is not None:
-                G.node[cell]['style'] = 'filled'
-
-                G.node[cell]['fillcolor'] = cell.bgcolor
-
-
-    else:
-        for cell in cells:
-            G.add_node(cell, shape=shape, label=cell.html_style_label_dna(receptor, loci, network_colours),
-                        fontname="helvetica neue")
-            if cell.bgcolor is not None:
-                G.node[cell]['style'] = 'filled'
-
-                G.node[cell]['fillcolor'] = cell.bgcolor
-    zero_distance = make_dict_cells_distance_zero(cells, s_normalised_edit_distances)
-
-    for clone, data in six.iteritems(zero_distance):
-        edges = []
-
-        for (cell1, cell2) in data:
-
-            edge = (cell1, cell2)
-            edges.append(edge)
-        G.add_edges_from(edges)
-        #G.add_edge(current_cell, comparison_cell, weight="100")
-        #print(edges)
-
-   def make_cell_network_from_dna_sum_normalised(cells, keep_unlinked, shape, dot, neato, receptor, loci,
-                               network_colours, s_normalised_edit_distances):
-    G = nx.Graph()
-
-
-    # initialise all cells as nodes
-
-    if shape == 'circle':
-        for cell in cells:
-            G.add_node(cell, shape=shape, label=cell.html_style_label_for_circles(receptor, loci, network_colours),
-                        sep=0.4, fontname="helvetica neue")
-            #print(cell.bgcolor)
-            if cell.bgcolor is not None:
-                G.node[cell]['style'] = 'filled'
-
-                G.node[cell]['fillcolor'] = cell.bgcolor
-            #print(cell.bgcolor)
-            #print(cell.name, cell.isotype, cell.bgcolor)
-
-    else:
-        for cell in cells:
-            G.add_node(cell, shape=shape, label=cell.html_style_label_dna(receptor, loci, network_colours),
-                        fontname="helvetica neue")
-            if cell.bgcolor is not None:
-                G.node[cell]['style'] = 'filled'
-
-                G.node[cell]['fillcolor'] = cell.bgcolor
-
-    zero_distance = make_dict_cells_distance_zero(cells, s_normalised_edit_distances)
-    print("Zero distance: ")
-    print(zero_distance)
-
-    # make edges between cells with distance 0:
-
-    #G.add_edge(current_cell, comparison_cell, distance, color="#000000",
-                        #weight=distance)
-
-    H = nx.Graph()
-    for clone, data in six.iteritems(zero_distance):
-        edges = []
-        #print("data")
-        #print(data)
-        for groups, cells_in_group in six.iteritems(zero_distance[clone]):
-             H = nx.Graph(G.subgraph(cells_in_group))
-             H.nodes()
-             G.add_node(H)   
-            #edge = (cell1, cell2)
-            #edges.append(edge)
-        #G.add_edges_from(edges)
-        #G.add_edge(current_cell, comparison_cell, weight="100")
-        #print(edges)
-
-
-
-    deg = G.degree()
-
-    to_remove = [n for n in deg if deg[n] == 0]
-
-
-    if len(to_remove) < len(G.nodes()):
-        if not shape == 'circle':
-            G.remove_nodes_from(to_remove)
-            drawing_tool = [dot, '-Gsplines=true', '-Goverlap=false', '-Gsep=0.4']
-
-        else:
-            drawing_tool = [dot, '-Gsplines=true', '-Goverlap=false']
-    else:
-        drawing_tool = [neato, '-Gsplines=true', '-Goverlap=false']
-
-
-    component_counter = 0
-    component_groups = list()
-    j = 0
-    components = nx.connected_components(G)
-    #H = nx.Graph()
-    #for group in component_groups:
-        #subgraph = G.subgraph(group)
-        #H.add_node(subgraph)
-
-    for component in components:
-        members = list()
-        if len(component) > 1:
-            for cell in component:
-                members.append(cell.name)
-
-
-        component_groups.append(members)
-
-
-
-    return (G, drawing_tool, component_groups)"""
-
-
-
-
-"""def make_cell_network_from_dna_sum_normalised(cells, keep_unlinked, shape, dot, neato, receptor, loci,
-                               network_colours, s_normalised_edit_distances):
-    G = nx.Graph()
-    
-
-    # initialise all cells as nodes
-
-    if shape == 'circle':
-        for cell in cells:
-            G.add_node(cell, shape=shape, label=cell.html_style_label_for_circles(receptor, loci, network_colours),
-                        sep=0.4, fontname="helvetica neue")
-            #print(cell.bgcolor)
-            if cell.bgcolor is not None:
-                G.node[cell]['style'] = 'filled'
-
-                G.node[cell]['fillcolor'] = cell.bgcolor
-            #print(cell.bgcolor)
-            #print(cell.name, cell.isotype, cell.bgcolor)
-
-    else:
-        for cell in cells:
-            G.add_node(cell, shape=shape, label=cell.html_style_label_dna(receptor, loci, network_colours),
-                        fontname="helvetica neue")
-            if cell.bgcolor is not None:
-                G.node[cell]['style'] = 'filled'
-
-                G.node[cell]['fillcolor'] = cell.bgcolor
-
-    zero_distance = make_dict_cells_distance_zero(cells, s_normalised_edit_distances)
-    #print(zero_distance)
-
-    # make edges between cells with distance 0:
-
-    #G.add_edge(current_cell, comparison_cell, distance, color="#000000",
-                        #weight=distance)
-     
-    for clone, data in six.iteritems(zero_distance): 
-        edges = []
-        for (cell1, cell2) in data:
-             
-            edge = (cell1, cell2, 3)
-            edges.append(edge)
-        G.add_weighted_edges_from(edges)            
-        #G.add_edge(current_cell, comparison_cell, weight="100")
-        #print(edges)
-        
-
-
-    deg = G.degree()
-
-    to_remove = [n for n in deg if deg[n] == 0]
-
-    
-    if len(to_remove) < len(G.nodes()):
-        if not shape == 'circle':
-            G.remove_nodes_from(to_remove)
-            drawing_tool = [dot, '-Gsplines=true', '-Goverlap=false', '-Gsep=0.4']
-
-        else:
-            drawing_tool = [dot, '-Gsplines=true', '-Goverlap=false']
-    else:
-        drawing_tool = [neato, '-Gsplines=true', '-Goverlap=false']
-
-
-    component_counter = 0
-    component_groups = list()
-    j = 0
-    components = nx.connected_components(G)
-    #H = nx.Graph()
-    #for group in component_groups:
-        #subgraph = G.subgraph(group)
-        #H.add_node(subgraph)
-
-    for component in components:
-        members = list()
-        if len(component) > 1:
-            for cell in component:
-                members.append(cell.name)
-
-
-        component_groups.append(members)
-
-
-  
-    return (G, drawing_tool, component_groups)"""
-
-
 
 
 
@@ -1529,14 +1400,14 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato, receptor
     return (G, drawing_tool, component_groups)
 
 
-def draw_network_from_cells(cells, output_dir, output_format, dot, neato, draw_graphs, receptor, loci, network_colours):
+def draw_network_from_cells(cells, output_dir, output_format, dot, neato, draw_graphs, receptor, loci, network_colours, cell_contig_clones, cells_with_clonal_H):
     cells = list(cells.values())
     if not receptor == "BCR":
         network, draw_tool, component_groups = make_cell_network_from_dna(cells, False, "box", dot,
                                                                       neato, receptor, loci, network_colours)
     else:
         network, draw_tool, component_groups = make_cell_network_from_dna_B_cells(cells, False, "box", dot,
-                                                                      neato, receptor, loci, network_colours)
+                                                                      neato, receptor, loci, network_colours, cell_contig_clones, cells_with_clonal_H)
     network_file = "{}/clonotype_network_with_identifiers.dot".format(output_dir)
     try:
         nx.write_dot(network, network_file)
@@ -1552,7 +1423,7 @@ def draw_network_from_cells(cells, output_dir, output_format, dot, neato, draw_g
                                                          neato, receptor, loci, network_colours)
     else:
         network, draw_tool, cgx = make_cell_network_from_dna_B_cells(cells, False, "circle", dot,
-                                                         neato, receptor, loci, network_colours)
+                                                         neato, receptor, loci, network_colours, cell_contig_clones, cells_with_clonal_H)
 
     network_file = "{}/clonotype_network_without_identifiers.dot".format(output_dir)
     try:
@@ -2148,48 +2019,41 @@ def quantify_with_kallisto(kallisto, cell, output_dir, cell_name, kallisto_base_
         else:
             kallisto_command = [kallisto, 'quant', '-i', idx_file, '-t', ncores, '-l', fragment_length, '-o',
                                 "{}/expression_quantification".format(output_dir), fastq1, fastq2]
-    else:
-        kallisto_command = [kallisto, 'quant', '-i', idx_file, '-t', ncores, '--single', '-l', fragment_length,
-                            '-s', fragment_sd, '-o', "{}/expression_quantification".format(output_dir), fastq1]
-    subprocess.check_call(kallisto_command)
 
-    # delete index file because it's huge and unecessary. Delete transcriptome file
-    # os.remove(idx_file)
-    # os.remove(output_transcriptome)
-    shutil.rmtree("{}/expression_quantification/kallisto_index/".format(output_dir))
+    else: 
+        kallisto_command = [kallisto, 'quant', '-i', idx_file, '-t', ncores, '--single', '-l', fragment_length, 
+                            '-s', fragment_sd, '-o', "{}/expression_quantification".format(output_dir), fastq1] 
+    subprocess.check_call(kallisto_command) 
 
-
-def run_changeo(changeo, locus, outdir, species):
-
-    print("##Defining clonal sequences with ChangeO##")
-
-    # Set model to Hamming distance if species is not Mmus or Hsap
-    if species == "Mmus":
-        model = "m1n"
-        dist = "0.2"
-    elif species == "Hsap":
-        model = "hs5f"
-        dist = "0.2"
-    else:
-        model = "ham"
-        dist = "0.2"
-
-    
-    changeo_input = "{}/changeo_input_{}.tab".format(outdir, locus)
-    if os.path.isfile(changeo_input) and os.path.getsize(changeo_input) > 0:
-        command = [changeo, "bygroup", '-d', changeo_input, '--mode', 'gene', '--act', 'set', 
-                        '--model', model, '--dist', dist, '--sf', "JUNCTION", '--norm', 'len']
-
-        subprocess.check_call(command)
+ 
+    # delete index file because it's huge and unecessary. Delete transcriptome file 
+    # os.remove(idx_file) 
+    # os.remove(output_transcriptome) 
+    shutil.rmtree("{}/expression_quantification/kallisto_index/".format(output_dir)) 
 
 
-def run_muscle(muscle, locus, outdir, species, group):
-    muscle_input = "{}/muscle_input_{}_{}.fa".format(outdir, locus, group)
-    muscle_fasta_out = "{}/muscle_out_{}_{}.afa".format(outdir, locus, group)
-    muscle_clw_out = "{}/muscle_out_{}_{}.aln".format(outdir, locus, group)
-    
-    if os.path.isfile(muscle_input) and os.path.getsize(muscle_input)>0:
-        command = [muscle, "-in", muscle_input, '-fastaout', muscle_fasta_out, '-clwout', muscle_clw_out, '-quiet'] 
 
-        subprocess.check_call(command)
+
+def run_changeo(changeo, locus, outdir, species): 
+      
+    # Set model to Hamming distance if species is not Mmus or Hsap 
+    if species == "Mmus": 
+        model = "m1n" 
+        dist = "0.2" 
+    elif species == "Hsap": 
+        model = "hs5f" 
+        dist = "0.2" 
+    else: 
+        model = "ham" 
+        dist = "0.2" 
+ 
+      
+    changeo_input = "{}/changeo_input_{}.tab".format(outdir, locus) 
+    if os.path.isfile(changeo_input) and os.path.getsize(changeo_input) > 0: 
+        command = [changeo, "bygroup", '-d', changeo_input, '--mode', 'gene', '--act', 'set',  
+                        '--model', model, '--dist', dist, '--sf', "JUNCTION", '--norm', 'len'] 
+
+ 
+        subprocess.check_call(command) 
+
 

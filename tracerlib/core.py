@@ -27,7 +27,7 @@ class Cell(object):
         self.isotype = None
         #self.isotype = self.determine_isotype(loci, receptor, self.recombinants)
         #self.bgcolor = self.assign_bgcolor(species, self.isotype)
-        #self.changeodict = self.get_changeo_db_for_locus(self.recombinants, receptor, loci)
+        self.changeodict = self.get_changeo_db_for_locus(receptor, loci)
         #self.print_dict = self.print_recombinants()
         self.detailed_identifier_dict = self.create_detailed_identifier_dict()
         self.cdr3_dict = self.find_recs_with_identical_cdr3()
@@ -101,7 +101,8 @@ class Cell(object):
                 if recombinant.contig_name == ranked_rec and recombinant.productive:
                     C_gene = recombinant.C_gene
                     if C_gene is not None:
-                        C_gene = C_gene.split("*")[0]
+                        if "*" in C_gene:
+                            C_gene = C_gene.split("*")[0]
                         isotype_list.append(C_gene)
         if len(isotype_list) == 0:
             isotype = None
@@ -110,7 +111,10 @@ class Cell(object):
         elif len(isotype_list) == 2:
             iso_1 = isotype_list[0]
             iso_2 = isotype_list[1]
-            if iso_1 == iso_2:
+            if iso_1 is "IGHDM" or iso_2 is "IGHDM":
+                isotype = "IGHDM"
+
+            elif iso_1 == iso_2:
                 isotype = iso_1
             elif iso_1 is not None and iso_2 is not None:
                 if iso_1 in ["IGHM", "IGHD"] and iso_2 in ["IGHM", "IGHD"]:
@@ -131,7 +135,7 @@ class Cell(object):
                 "IGHE":'#ffffcc', "IGHG1":'#f1e6ff', "IGHG2A":'#e2ccff', "IGHG2B":'#d4b3ff', "IGHG2C":'#c599ff',
                 "IGHG3":'a866ff', "IGHDM":'#b3ffff'}
         else:
-            # Isotypoe background colours for Hsap
+            # Isotype background colours for Hsap
             isotype_bgcolors = {"IGHD":'#e6f7ff', "IGHM":'#e5ffcc', "IGHA1":'#ffe6e6', "IGHA2":'#ffcccc', 
                 "IGHE":'#ffffcc', "IGHG1":'#f1e6ff', "IGHG2":'#e2ccff', "IGHG3":'#d4b3ff', "IGHG4":'#c599ff', "IGHDM":'#b3ffff'}
 
@@ -161,19 +165,6 @@ class Cell(object):
         else:
             return False
         
-
-    #def _check_if_inkt(self):
-    #    A_recombs = self.getMainRecombinantIdentifiersForLocus("A")
-    #    inkt_ident = False
-    #    for recomb in A_recombs:
-    #        for invar_seq in self.invariant_seqs:
-    #            if invar_seq['V'] in recomb and invar_seq['J'] in recomb:
-    #                inkt_ident = recomb
-    #    return (inkt_ident)
-
-    #def reset_cdr3_comparisons(self):
-    #    self.cdr3_comparisons = {'A': None, 'B': None, 'mean_both': None}
-
     def getAllRecombinantIdentifiersForLocus(self, locus):
         recombinants = self.all_recombinants[locus]
         identifier_list = set()
@@ -192,15 +183,6 @@ class Cell(object):
                 identifier_list.add(recombinant.identifier)
         return identifier_list
 
-    #def getAllRecombinantCDR3ForLocus(self, locus):
-    #    recombinants = self.all_recombinants[locus]
-    #    identifier_list = set()
-    #    if recombinants is not None:
-    #        for recombinant in recombinants:
-    #            cdr3 = str(recombinant.cdr3)
-    #            if "Couldn't" not in cdr3:
-    #                identifier_list.add(cdr3)
-    #    return (identifier_list)
 
     def html_style_label_dna(self, receptor, loci, colours):
 
@@ -775,13 +757,6 @@ class Cell(object):
                 lengths.append(len(rec.trinity_seq))
         return (lengths)
  
-    """def get_all_cdr3_lengths(self, receptor, locus):
-        recs = self.recombinants[receptor][locus]
-        lengths = []
-        if recs is not None:
-            for rec in recs:
-                lengths.append(len(rec.cdr3))
-        return (lengths)"""
  
     def get_prod_cdr3_lengths(self, receptor, locus):
         recs = self.recombinants[receptor][locus]
@@ -807,7 +782,8 @@ class Recombinant(object):
 
     def __init__(self, contig_name, locus, identifier, all_poss_identifiers, productive, stop_codon, in_frame, TPM,
                  dna_seq, hit_table, summary, junction_details, best_VJ_names, alignment_summary, trinity_seq,
-                 imgt_reconstructed_seq, has_D, output_dir, full_length, query_length, V_genes, cdr3, assembler, C_gene, C_info_line, cdr3_seq):
+                 imgt_reconstructed_seq, has_D, output_dir, full_length, query_length, V_genes, J_genes, cdr3, 
+                 assembler, C_gene, C_info_line, cdr3_seq):
         self.contig_name = contig_name
         self.locus = locus
         self.identifier = identifier
@@ -834,6 +810,7 @@ class Recombinant(object):
         self.full_length = full_length
         self.query_length = query_length
         self.V_genes = V_genes
+        self.J_genes = J_genes
         self.cdr3_seq = cdr3_seq
         self.detailed_identifier = self.create_detailed_identifier(self.productive, self.cdr3, self.C_gene, self.full_length)        
 
@@ -915,7 +892,7 @@ class Recombinant(object):
         for line in self.hit_table:
             summary_string = summary_string + "\t".join(line) + "\n"
         
-        if find_C_gene == True and C_gene != None:
+        if find_C_gene == True and C_gene != None and self.C_gene_info is not None:
             summary_string = summary_string + self.C_gene_info + "\n"
                 
         return (summary_string)
