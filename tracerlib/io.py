@@ -65,30 +65,52 @@ def load_IMGT_seqs(file):
     return (seqs)
 
 
-def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species, seq_method, assembler, max_junc_len=50, invariant_seqs=None):
+def parse_assembled_file(output_dir, cell_name, assembled_file):
+    if os.path.exists(assembled_file):
+        outfile = "{output_dir}/Trinity_output/{cell_name}.fasta".format(output_dir=output_dir,
+                                                                           cell_name=cell_name)
+    write = False
+    count = 0    
+    with open(assembled_file, "r") as input:
+        with open(outfile, "w") as output:
+            for line in input:
+                if line.startswith(">"):
+                    write = True
+                    header = ">TRINITY_DN0_c0_g0_i{}\n".format(str(count))
+                    output.write(header)
+                    count += 1
+                     
+                elif write == True:
+                    if len(line) > 0:
+                        output.write(line)
+
+
+def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species, seq_method, assembler, assembled_file, max_junc_len=50, invariant_seqs=None):
     
     IMGT_seqs = dict()
     
     loci_for_segments = defaultdict(list)
     
+    #if assembled_file is not None:
+        #parse_assembled_file(output_dir, cell_name, assembled_file)
+
     for locus in loci:
         seq_files = glob.glob(os.path.join(raw_seq_dir, "{receptor}_{locus}_*.fa".format(receptor=receptor, 
                                                                                     locus=locus)))
         for f in seq_files:
-            #if not f.endswith("_C.fa"):
-                segment_name = os.path.splitext(os.path.split(f)[1])[0]
-                IMGT_seqs[segment_name] = load_IMGT_seqs(f)
-                #if segment_name.split("_")[2] == 'D':
-                #    expecting_D[locus] = True
-                loci_for_segments[segment_name.split("_")[2]].append(locus)
+            segment_name = os.path.splitext(os.path.split(f)[1])[0]
+            IMGT_seqs[segment_name] = load_IMGT_seqs(f)
+            #if segment_name.split("_")[2] == 'D':
+            #    expecting_D[locus] = True
+            loci_for_segments[segment_name.split("_")[2]].append(locus)
                     
     
     locus_names = ["_".join([receptor,x]) for x in loci]
     all_locus_data = defaultdict(dict)
     for locus in locus_names:
-        if assembler == "basic":
-            file = "{output_dir}/Basic_IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
-                                                                                      cell_name=cell_name, locus=locus)
+        if assembled_file is not None:
+            file = "{output_dir}/IgBLAST_output/{cell_name}.IgBLASTOut".format(output_dir=output_dir,
+                                                                                      cell_name=cell_name)
         else:    
             file = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
                                                                                    cell_name=cell_name, locus=locus)
@@ -110,7 +132,7 @@ def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species, s
              
 
     cell = find_possible_alignments(all_locus_data, locus_names, cell_name, IMGT_seqs, output_dir, species, seq_method,
-                                     invariant_seqs, loci_for_segments, receptor, loci, max_junc_len, assembler)
+                                     invariant_seqs, loci_for_segments, receptor, loci, max_junc_len, assembler, assembled_file)
     return (cell)
 
 

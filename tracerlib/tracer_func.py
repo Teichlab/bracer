@@ -117,10 +117,7 @@ def extract_blast_info(line):
     return (info)
 
 def get_C_gene(assembler, output_dir, locus, contig_name):
-    if assembler == "basic":
-        blast_dir = "Basic_BLAST_output"
-    else:
-        blast_dir = "BLAST_output"
+    blast_dir = "BLAST_output"
 
     locus = locus.split("_")[1]
     blast_summary_file = "{output_dir}/{blast_dir}/blastsummary_{locus}.txt".format(output_dir=output_dir, blast_dir=blast_dir, locus=locus)
@@ -157,7 +154,7 @@ def parse_alignment_summary(alignment_summary):
     return (start, cdr3_start)    
 
 def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, output_dir, species, seq_method,
-                             invariant_seqs, loci_for_segments, receptor, loci, max_junc_string_length, assembler):
+                             invariant_seqs, loci_for_segments, receptor, loci, max_junc_string_length, assembler, assembled_file):
     alignment_dict = defaultdict(dict)
     recombinants = {}
     for locus in locus_names:
@@ -210,23 +207,17 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
 
                     # get original sequence from Trinity/Oases/Basic file - needed for summary of reconstructed lengths.
                     # Only use the VDJ portion found by IgBLAST or trim for BCRs:
-                    if assembler == "oases":
-                        trinity_file = "{}/Oases_output/{}/MergedAssembly/transcripts.fa".format(output_dir, locus)
-                    elif assembler == "basic":
-                        if locus == "BCR_H":
-                            trinity_file = "{}/Basic_output/basic_H.fa".format(output_dir)
-                        else:
-                            trinity_file = "{}/Basic_output/basic_L.fa".format(output_dir)
+                    if assembled_file is not None:
+                        trinity_file = "{}/Trinity_output/{}.fasta".format(output_dir, cell_name)
                     else:
                         trinity_file = "{output_dir}/Trinity_output/{cell_name}_{locus}.Trinity.fasta".format(
                         locus=locus, output_dir=output_dir, cell_name=cell_name)
+
                     with open(trinity_file, 'rU') as tf:
                         for record in SeqIO.parse(tf, 'fasta'):
                             if query_name in record.id:
-                    
                                 trinity_seq = record
-                                if "cell_id=" in query_name:
-                                    query_name = query_name.split("=")[1]
+
                     query_length = query_data["query_length"]
                     if query_length == None:
                         query_length = len(trinity_seq)
@@ -1739,113 +1730,12 @@ def assemble_with_trinity(trinity, receptor, loci, output_dir, cell_name, ncores
     return successful_files
 
 
-def run_oases(velveth, velvetg, oases, receptor, loci, output_dir, cell_name, ncores, should_resume, single_end, species):
-    locus_names = ["_".join([receptor,x]) for x in loci]    
-    
-    # Create single-k assemblies
-    for locus in locus_names:
-        print("##{}##".format(locus))
-        #Set hash lengths and output paths
-        oases_output_path = "{}/Oases_output/{}".format(output_dir, locus)
-        tracerlib.io.makeOutputDir(oases_output_path)
-        hash_lengths = ["15", "17", "19", "21", "23", "25", "27", "29", "31"]
-        hash_length_paths = []
-        for hash_length in hash_lengths:
-            path = "{}/directory{}".format(oases_output_path, hash_length)
-            hash_length_paths.append(path)
-            #oases_output = "{}/Oases_output/{}_{}".format(output_dir, cell_name, locus)
-            aligned_read_path = "{}/aligned_reads/{}_{}".format(output_dir, cell_name, locus)
-            velveth_commands = []
-            velvetg_commands = []
-            oases_commands = []
-        if not single_end:
-            file1 = "{}_1.fastq".format(aligned_read_path)
-            file2 = "{}_2.fastq".format(aligned_read_path)
-            # Create velveth, velvetg and oases commands
-            print("##### Creating velveth, velvetg and oases commands#####")
-            for i in range(len(hash_lengths)):
-                path = hash_length_paths[i]  
-                hash_length = hash_lengths[i]
-                velveth_command = [velveth, path, hash_length, '-fastq', '-shortPaired', '-separate', file1, file2]
-                velveth_commands.append(velveth_command) 
-                velvetg_command = [velvetg, path, '-read_trkg', 'yes', '-min_contig_lgth', '400']
-                velvetg_commands.append(velvetg_command)
-                oases_command = [oases, path, '-min_trans_lgth', '400'] 
-                oases_commands.append(oases_command)
-                
-
-        for command_list in [velveth_commands, velvetg_commands, oases_commands]:
-            for command in command_list:
-                if command_list == velveth_commands:
-                    program = "velveth"
-                elif command_list == velvetg_commands:
-                    program = "velvetg"
-                elif command_list == oases_commands:
-                    program = "oases"
-                try:    
-                    subprocess.check_call(command)
-                    """shutil.move('{}/Oases_output/pairedEnd*'.format(output_dir, cell_name, locus),
-                        '{}/Oases_output/{}_{}.Oases.fasta'.format(output_dir, cell_name, locus))"""
-                    print("Single k-mer assembly successful for locus when running {}".format(program))
-                except (subprocess.CalledProcessError, IOError):
-                    print("Single k-mer assembly failed for locus when running {}".format(program))
-
-    # Merge assemblies
-    #for locus in locus_names:
-    for locus in locus_names:
-        print("Merging assemblies for ##{}##".format(locus))
-        #oases_output = "{}/Oases_output/{}_{}".format(output_dir, cell_name, locus)
-        oases_output_path = "{}/Oases_output/{}/MergedAssembly".format(output_dir, locus)
-        #print("\n\n\n\n\n\n")
-        #print("oases output path")
-        #print(oases_output_path)
-        #print("locus transcript path")
-        #print(locus_transcript_path)
-        locus_transcript_path = []
-        for length in hash_lengths:
-            #if len(locus_transcript_path) == 0:
-                #locus_transcript_path = "{}/Oases_output/{}/directory{}/transcripts.fa".format(output_dir, locus, length)
-            to_append = "{}/Oases_output/{}/directory{}/transcripts.fa".format(output_dir, locus, length)
-            locus_transcript_path.append(to_append) 
-        
-        #locus_transcript_path = "{}/Oases_output/{}/directory*/transcripts.fa".format(output_dir, locus)
-        #print(locus_transcript_path)
-        commands = []
-        if not single_end:
-            
-            velveth_command = [velveth, oases_output_path, '27', '-long']
-            for i in range(len(locus_transcript_path)):
-                to_append = locus_transcript_path[i]
-                velveth_command.append(to_append)
-            #print(velveth_command)
-                
-            velvetg_command = [velvetg, oases_output_path, '-read_trkg', 'yes', '-conserveLong', 'yes', '-exp_cov', 'auto']
-            oases_command = [oases, oases_output_path, '-merge', 'yes']
-            commands.append(velveth_command)
-            commands.append(velvetg_command)
-            commands.append(oases_command)
-
-        for command in commands:
-            if command == velveth_command:
-                program = "velveth"
-            elif command == velvetg_command:
-                program = "velvetg"
-            elif command == oases_command:
-                program = "oases"
-            print("Running {}".format(program))
-            try:
-                subprocess.check_call(command)
-                """shutil.move('{}/Oases_output/pairedEnd*'.format(output_dir, cell_name, locus),
-                        '{}/Oases_output/{}_{}.Oases.fasta'.format(output_dir, cell_name, locus))"""
-            except (subprocess.CalledProcessError, IOError):
-                print("Merging of assemblies failed for locus when running {}".format(program))   
-
-
 
 def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, ig_seqtype, species,
-                should_resume, assembler):
+                should_resume, assembled_file):
     print("##Running IgBLAST##")
-    print ("Ig_seqtype:", ig_seqtype)
+    if assembled_file is None:
+        print ("Ig_seqtype:", ig_seqtype)
     species_mapper = {
         'Mmus': 'mouse',
         'Hsap': 'human'
@@ -1885,18 +1775,16 @@ def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, 
         num_alignments_D = '5'
         num_alignments_J = '5'
     
-    
+    # Modify assembled_file to create unique fasta headers compatible with TraCeR
+    if assembled_file is not None:
+        #tracerlib.io.parse_assembled_file(output_dir, cell_name, assembled_file)
+        trinity_fasta = "{}/Trinity_output/{}.fasta".format(output_dir, cell_name)       
+
     for locus in locus_names:
-        print("##{}##".format(locus))
-        if assembler == "trinity":
+        if assembled_file is None:
+            print("##{}##".format(locus))
             trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(output_dir, cell_name, locus)
-        elif assembler == "basic":
-            if locus in ["BCR_K", "BCR_L"]:
-                trinity_fasta = "{}/Basic_output/basic_L.fa".format(output_dir, cell_name)
-            else:
-                trinity_fasta = "{}/Basic_output/basic_H.fa".format(output_dir, cell_name)
-        else:
-            trinity_fasta = "{}/Oases_output/{}/MergedAssembly/transcripts.fa".format(output_dir, locus)
+        
 
         ############### MOVE TO CONFIG FILE IF WORKS!! ####################
         auxiliary_data = "/nfs/team205/il5/software/human_gl.aux"
@@ -1905,24 +1793,26 @@ def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, 
                         databases['D'], '-domain_system', 'imgt', '-organism', igblast_species,
                        '-ig_seqtype', ig_seqtype, '-auxiliary_data', auxiliary_data, '-show_translation', '-num_alignments_V', num_alignments_V,
                        '-num_alignments_D', num_alignments_D, '-num_alignments_J', num_alignments_J, '-outfmt', '7', '-query', trinity_fasta]
-            
-            if assembler == "basic":
-                igblast_out = igblast_out = "{output_dir}/Basic_IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
-                                                                                              cell_name=cell_name,
-                                                                                              locus=locus)
-            else:
+            if assembled_file is None:
                 igblast_out = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
                                                                                               cell_name=cell_name,
                                                                                               locus=locus)
+            else:
+                igblast_out = "{output_dir}/IgBLAST_output/{cell_name}.IgBLASTOut".format(output_dir=output_dir,
+                                                                                              cell_name=cell_name)
+                                                                                              
+ 
             with open(igblast_out, 'w') as out:
                 # print(" ").join(pipes.quote(s) for s in command)
                 subprocess.check_call(command, stdout=out, stderr=DEVNULL)
+            if assembled_file is not None:
+                break
     DEVNULL.close()
 
 
 
 def run_Blast(blast, receptor, loci, output_dir, cell_name, index_location, species,
-                should_resume, assembler):
+                should_resume, assembler, assembled_file):
     print("##Running BLAST##") 
 
     species_mapper = {
@@ -1951,17 +1841,16 @@ def run_Blast(blast, receptor, loci, output_dir, cell_name, index_location, spec
     # Taken from http://stackoverflow.com/questions/11269575/how-to-hide-output-of-subprocess-in-python-2-7
     DEVNULL = open(os.devnull, 'wb')
   
+    if assembled_file is not None:
+        tracerlib.io.parse_assembled_file(output_dir, cell_name, assembled_file)
+        trinity_fasta = "{}/Trinity_output/{}.fasta".format(output_dir, cell_name)
+
     for locus in locus_names:
-        print("##{}##".format(locus))
-        if assembler == "trinity":
+        if assembled_file is None:
+            print("##{}##".format(locus))
             trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(output_dir, cell_name, locus)
-        elif assembler == "basic":
-            if locus in ["BCR_K", "BCR_L"]:
-                trinity_fasta = "{}/Basic_output/basic_L.fa".format(output_dir, cell_name)
-            else:
-                trinity_fasta = "{}/Basic_output/basic_H.fa".format(output_dir, cell_name)
-        else: 
-            trinity_fasta = "{}/Oases_output/{}/MergedAssembly/transcripts.fa".format(output_dir, locus)
+
+
         if os.path.isfile(trinity_fasta):
             command = [blast, '-db', database, '-evalue', '0.001',
                         '-num_alignments', '1', '-outfmt', '5', '-query', trinity_fasta]

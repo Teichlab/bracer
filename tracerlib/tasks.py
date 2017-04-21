@@ -224,6 +224,8 @@ class Assembler(TracerTask):
         self.config = self.read_config(config_file)
         
         self.assembler = "trinity"
+        if not self.assembled_file:
+            self.assembled_file = None
 
         #pdb.set_trace()
 
@@ -396,15 +398,15 @@ class Assembler(TracerTask):
 
 
         # IgBlast of assembled contigs
-        tracer_func.run_IgBlast(igblastn, self.receptor_name, self.loci, self.output_dir, self.cell_name, igblast_index_location,
-                                igblast_seqtype, self.species, self.resume_with_existing_files, self.assembler)
+        tracer_func.run_IgBlast(igblastn, self.receptor_name, self.loci, self.output_dir, self.cell_name, 
+           igblast_index_location, igblast_seqtype, self.species, self.resume_with_existing_files, self.assembled_file)
         print()
         
         
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             cell = io.parse_IgBLAST(self.receptor_name, self.loci, self.output_dir, self.cell_name, imgt_seq_location, 
-                                    self.species, self.seq_method, self.assembler, self.max_junc_len)
+                                    self.species, self.seq_method, self.assembler, self.assembled_file, self.max_junc_len)
             if cell.is_empty:
                 self.die_with_empty_cell(self.cell_name, self.output_dir, self.species, self.assembler)
 
@@ -420,7 +422,7 @@ class Assembler(TracerTask):
 
         # Blast of assembled contigs
         tracer_func.run_Blast(blastn, self.receptor_name, self.loci, self.output_dir, self.cell_name, blast_index_location,
-                                self.species, self.resume_with_existing_files, self.assembler)
+                                self.species, self.resume_with_existing_files, self.assembler, self.assembled_file)
         print()
 
 
@@ -683,7 +685,7 @@ class Summariser(TracerTask):
             outfile.write("\n\n#Cells with more than two recombinants for a locus#\n")
             found_multi = False
             for cell in cells.values():
-                if cell.has_excess_recombinants(2):
+                if cell.has_excess_recombinants:
                     outfile.write("###{}###\n".format(cell.name))
                     for l in self.loci:
                         count = cell.count_total_recombinants(self.receptor_name, l)
