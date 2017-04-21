@@ -10,7 +10,8 @@ from tracerlib import tracer_func
 
 class Cell(object):
 
-    """Class to describe T cells containing A and B loci and B cells containing H, K and L loci"""
+    """Class to describe T cells containing A and B loci and B cells containing 
+    H, K and L loci"""
 
     def __init__(self, cell_name, recombinants, is_empty=False, species="Mmus", 
                     receptor=None, loci=None):
@@ -19,41 +20,15 @@ class Cell(object):
         self.species = species
         self.receptor = receptor
         self.recombinants = self._process_recombinants(recombinants, receptor, loci)
-               
         self.is_empty = self._check_is_empty()
         self.two_most_common = self.find_two_most_common()
         self.ranked_recs = self.rank_recombinants()
         self.bgcolor = None
         self.isotype = None
-        #self.isotype = self.determine_isotype(loci, receptor, self.recombinants)
-        #self.bgcolor = self.assign_bgcolor(species, self.isotype)
         self.changeodict = self.get_changeo_db_for_locus(receptor, loci)
-        #self.print_dict = self.print_recombinants()
         self.detailed_identifier_dict = self.create_detailed_identifier_dict()
         self.cdr3_dict = self.find_recs_with_identical_cdr3()
-        
-        #self.rank_recs = self.rank_recombinants()
-        #self.two_most_common = self.find_n_most_common(2)
-        #self.identical = self.assert_two_most_common()
-        
-        #self.three_most_common = self.find_n_most_common(3)
-        #self.four_most_common = self.find_n_most_common(4)
-        #self.replacement_dict = self.assert_third_most_common()
-        #self.detailed_identifier_dict = self.create_detailed_identifier_dict()
-        #self.tpm_dict = self.create_tpm_dict(self.recombinants, loci)
-        #print(self.cdr3_dict)
-        #print(self.rank_recs)
-
-        #self.cdr3_comparisons = {'A': None, 'B': None, 'mean_both': None}
-        #invariant_types = []
-        #if invariant_cells is not None:
-        #    for ic in invariant_cells:
-        #        itype = ic.check_for_match(self)
-        #        if itype is not None:
-        #            invariant_types.append(itype)
-        
-
-        #self.is_inkt = self._check_if_inkt()
+        self.has_excess_recombinants = self.has_excess_recombinants()
     
     def _process_recombinants(self, recombinants, receptor, loci):
         recombinant_dict = defaultdict(dict)
@@ -88,10 +63,10 @@ class Cell(object):
         return(changeodict)
             
 
-
-
     def determine_isotype(self, ranked_recs):
-        #ranked_recs = self.ranked_recs
+        """Determines isotype of B cell based on isotype of the two highest ranking 
+        heavy chain recs if productive"""
+
         ranked_H = ranked_recs["H"][0:2]
         H_recombinants = self.recombinants[self.receptor]["H"]
         isotype = None
@@ -113,7 +88,6 @@ class Cell(object):
             iso_2 = isotype_list[1]
             if iso_1 is "IGHDM" or iso_2 is "IGHDM":
                 isotype = "IGHDM"
-
             elif iso_1 == iso_2:
                 isotype = iso_1
             elif iso_1 is not None and iso_2 is not None:
@@ -130,14 +104,18 @@ class Cell(object):
 
     def assign_bgcolor(self, isotype):
         """Assigns bgcolor for cell according to isotype (B cells)"""
+
         if self.species == "Mmus":
-            isotype_bgcolors = {"IGHD":'#e6f7ff', "IGHM":'#e5ffcc', "IGHA":'#ffe6e6', 
-                "IGHE":'#ffffcc', "IGHG1":'#f1e6ff', "IGHG2A":'#e2ccff', "IGHG2B":'#d4b3ff', "IGHG2C":'#c599ff',
+            isotype_bgcolors = {"IGHD":'#e6f7ff', "IGHM":'#e5ffcc', 
+                "IGHA":'#ffe6e6', "IGHE":'#ffffcc', "IGHG1":'#f1e6ff', 
+                "IGHG2A":'#e2ccff', "IGHG2B":'#d4b3ff', "IGHG2C":'#c599ff',
                 "IGHG3":'a866ff', "IGHDM":'#b3ffff'}
         else:
             # Isotype background colours for Hsap
-            isotype_bgcolors = {"IGHD":'#e6f7ff', "IGHM":'#e5ffcc', "IGHA1":'#ffe6e6', "IGHA2":'#ffcccc', 
-                "IGHE":'#ffffcc', "IGHG1":'#f1e6ff', "IGHG2":'#e2ccff', "IGHG3":'#d4b3ff', "IGHG4":'#c599ff', "IGHDM":'#b3ffff'}
+            isotype_bgcolors = {"IGHD":'#e6f7ff', "IGHM":'#e5ffcc', 
+                "IGHA1":'#ffe6e6', "IGHA2":'#ffcccc', "IGHE":'#ffffcc', 
+                "IGHG1":'#f1e6ff', "IGHG2":'#e2ccff', "IGHG3":'#d4b3ff', 
+                "IGHG4":'#c599ff', "IGHDM":'#b3ffff'}
 
         if isotype is None:
             bgcolor = None
@@ -206,13 +184,11 @@ class Cell(object):
                 final_string = final_string + id_string
         final_string = final_string + ">"
         return (final_string)
-        # return(self.name)
 
     def html_style_label_for_circles(self, receptor, loci, colours):
         
         recombinants = dict()
         final_string = '<<table cellspacing="6px" border="0" cellborder="0">'
-        # final_string = "<"
         for locus, recombinant_list in six.iteritems(self.recombinants[receptor]):
             recombinant_set = list()
             if recombinant_list is not None:
@@ -301,8 +277,7 @@ class Cell(object):
                 if recombinants is not None:
                     for rec in recombinants:
                         name = ">TRACER|{receptor}|{locus}|{contig_name}|{identifier}".format(contig_name=rec.contig_name,
-                                                                            receptor=receptor, locus=locus,
-                                                                            identifier=rec.identifier)
+                                                                receptor=receptor, locus=locus, identifier=rec.identifier)
                         seq = rec.dna_seq
                         seq_string.append("\n".join([name, seq]))
         
@@ -324,7 +299,6 @@ class Cell(object):
             return ("{}/{}".format(prod_count, total_count))
                 
 
-    #Code to detect recombinants with same VDJ rearrangement but different isotypes (naive B cells)
 
     def find_recs_with_identical_cdr3(self):
         for receptor, locus_dict in six.iteritems(self.recombinants):
@@ -342,7 +316,8 @@ class Cell(object):
         return (cdr3_dict)
 
     def rank_recombinants(self):
-        """Ranks recombinants from highest TPM to lowest in case of more than two recombinants for a locus"""
+        """Ranks recombinants from highest TPM to lowest in case of more than two 
+        recombinants for a locus"""
         ranked_recs = dict()
         for receptor, locus_dict in six.iteritems(self.recombinants):
             for locus, recombinants in six.iteritems(locus_dict):
@@ -357,35 +332,6 @@ class Cell(object):
                     ranked_recs[locus] = most_common
         return (ranked_recs)
 
-
-    """def find_n_most_common(self, n):
-        most_common_dict = dict()
-        for receptor, locus_dict in six.iteritems(self.recombinants):
-            for locus, recombinants in six.iteritems(locus_dict):
-                if recombinants is not None:
-                    most_common_dict[locus] = []
-                    most_common = []
-                    if len(recombinants) > 2:
-                        TPM_ranks = Counter()
-                        for rec in recombinants:
-                            TPM_ranks.update({rec.contig_name: rec.TPM})
-
-                        most_com = [x[0] for x in TPM_ranks.most_common(n)]
-                        #most_common = []
-                        for rec in recombinants:
-                            if rec.contig_name in most_com:
-                                name = rec.contig_name
-                                most_common.append(name)
-                        most_common_dict[locus] = most_common
-                    
-                    elif len(recombinants) >= 1:
-                        for rec in recombinants:
-                            name = rec.contig_name
-                            most_common.append(name)
-                            
-                        most_common_dict[locus] = most_common
-
-        return (most_common_dict)"""
 
 
     def find_two_most_common(self):
@@ -402,154 +348,6 @@ class Cell(object):
         return (two_most_common_dict)
 
 
-    def assert_two_most_common(self, ranked_recs):
-        pass      
-
-
-    """def assert_two_most_common(self):
-        two_identical = dict()
-        keep_one_rec = dict()
-        detailed_identifier_dict = self.create_detailed_identifier_dict()
-        two_most_common_dict = self.find_n_most_common(2)
-        for receptor, locus_dict in six.iteritems(self.recombinants):
-            for locus, recombinants in six.iteritems(locus_dict):
-                if recombinants is not None:
-                    two_identical[locus] = False
-                    keep_one_rec[locus] = False
-                    if len(recombinants) > 1:
-                        two_most_common = two_most_common_dict[locus]
-                        #print("PRINTING TWO MOST COMMON DICT")
-                        #print(locus)
-                        #print(two_most_common)
-                        
-                        rec1 = None
-                        rec2 = None
-                        #print("Should be None")
-                        #print(rec1)
-                        #print(rec2)
-                        
-                        for rec in recombinants:
-                            if rec.contig_name in two_most_common:
-                                if rec1 == None:
-                                    rec1 = rec.contig_name
-                                elif rec2 == None:
-                                    rec2 = rec.contig_name
-                            elif rec in two_most_common:
-                                if rec1 == None:
-                                    rec1 = rec.contig_name
-                                elif rec2 == None:
-                                    rec2 = rec.contig_name
-
-                        #for i in range(len(two_most_common)):
-                            #for rec in recombinants:
-                                #if rec.contig_name == two_most_common[i]:
-                                    #two_most_common[i] = rec
-                        #rec1 = two_most_common[0]
-                        #rec2 = two_most_common[1]
-                        #print("Should be two most common recs for locus")
-                        #print(rec1)
-                        #print(rec2)
-                        if detailed_identifier_dict[locus][rec1].split("*")[0] == detailed_identifier_dict[locus][rec2].split("*")[0]:
-                            two_identical[locus] = True
-                            isotype_rec1 = detailed_identifier_dict[locus][rec1].split("*")[1].split("_")[0]
-                            isotype_rec2 = detailed_identifier_dict[locus][rec2].split("*")[1].split("_")[0]
-                            full_length_rec1 = detailed_identifier_dict[locus][rec1].split("*")[1].split("_")[1]
-                            full_length_rec2 = detailed_identifier_dict[locus][rec2].split("*")[1].split("_")[1]
-                            if detailed_identifier_dict[locus][rec1].split("*")[1] == detailed_identifier_dict[locus][rec2].split("*")[1]:
-                                keep_rec = rec1
-                            elif full_length_rec1 == "true":
-                                keep_rec = rec1
-                            elif full_length_rec2 == "true":
-                                keep_rec = rec2
-                            if isotype_rec1 != isotype_rec2:
-                                if isotype_rec1 == "none":
-                                    keep_isotype = isotype_rec2
-                                elif isotype_rec2 == "none":
-                                    keep_isotype = isotype_rec1
-                                elif (isotype_rec1 and isotype_rec2) in ["IGHD", "IGHM"]:
-                                    keep_isotype = "IGHDM"
-                            keep_one_rec[locus] = (keep_rec, keep_isotype)
-        #print("KEEP ONE REC")
-        #print(keep_one_rec)
-        return (keep_one_rec)""" 
- 
-
-    """def assert_two_most_common(self):
-        two_identical = dict()
-        most_common_dict = self.two_most_common
-        for receptor, locus_dict in six.iteritems(self.recombinants):
-            for locus, recombinants in six.iteritems(locus_dict):
-                if recombinants is not None:
-                    two_identical [locus] = False
-                    if len(recombinants) > 1:
-                        most_common = most_common_dict[locus]
-                        for i in range(len(most_common)):
-                            for rec in recombinants:
-                                if rec.contig_name == most_common[i]:
-                                    most_common[i] = rec
-                        rec1 = most_common[0]
-                        rec2 = most_common[1]
-                        if rec1.cdr3 == rec2.cdr3:
-                            if (rec1.productive and rec2.productive) or not (rec1.productive and rec2.productive):
-                                two_identical[locus] = True
-                        
-        return (two_identical)"""
-
-    def assert_third_most_common(self):
-        three_most_common_dict = self.find_n_most_common(3)
-        replacement_rec_dict = dict()
-        for receptor, locus_dict in six.iteritems(self.recombinants):
-            for locus, recombinants in six.iteritems(locus_dict):
-                replacement_rec_dict[locus] = None
-                if self.identical[locus] is not False:
-                    if len(recombinants) > 2:
-                        three_most_common = three_most_common_dict[locus]
-                        for i in range(len(three_most_common)):
-                            for rec in recombinants:
-                                if rec.contig_name == three_most_common[i]:
-                                    three_most_common[i] = rec
-                                    if rec.contig_name in self.two_most_common[locus]:
-                                        comp_rec = rec
-                                    else:
-                                        third_rec = rec
-                        if comp_rec.cdr3 == third_rec.cdr3:
-                            replacement_rec = False
-                            
-                        else:
-                            replacement_rec = third_rec
-                        replacement_rec_dict[locus] = replacement_rec
-        return (replacement_rec_dict)
-                            
-
-    """def assert_two_most_common(self):
-        two_identical = dict()
-        for receptor, locus_dict in six.iteritems(self.recombinants):
-            for locus, recombinants in six.iteritems(locus_dict):
-                if recombinants is not None:
-                    two_identical[locus] = False
-                    if len(recombinants) > 1:
-                        TPM_ranks = Counter()
-                        for rec in recombinants:
-                            TPM_ranks.update({rec.contig_name: rec.TPM})
-
-                        most_common = [x[0] for x in TPM_ranks.most_common(2)]
-                        for i in range(len(most_common)):
-                            for rec in recombinants:
-                                if rec.contig_name == most_common[i]:
-                                    most_common[i] = rec
-                        for rec in most_common:
-                            print(rec.contig_name)
-                            print(rec.TPM)
-                            print(rec.cdr3)
-                        rec1 = most_common[0]
-                        rec2 = most_common[1]
-                        if rec1.cdr3 == rec2.cdr3:
-                            if (rec1.productive and rec2.productive) or not (rec1.productive and rec2.productive):
-                                two_identical[locus] = True
-
-        return (two_identical)"""
-
-
     def print_recombinants(self):
         print_dict = dict()
         for receptor, locus_dict in six.iteritems(self.recombinants):
@@ -562,12 +360,13 @@ class Cell(object):
                             C_gene = rec.C_gene.split("*")[0]
                         else:
                             C_gene = rec.C_gene
-                        print_dict[locus][rec] = [rec.contig_name, tpm, rec.cdr3, C_gene, rec.productive]
+                        print_dict[locus][rec] = [rec.contig_name, tpm, rec.cdr3, 
+                                                          C_gene, rec.productive]
 
         return (print_dict)
+
                            
     def create_detailed_identifier_dict(self):
-        #detailed identifier dict
         detailed_identifier_dict = dict()
         for receptor, locus_dict in six.iteritems(self.recombinants):
             for locus, recombinants in six.iteritems(locus_dict):
@@ -592,30 +391,6 @@ class Cell(object):
         return (tpm_dict)
 
 
-
-    def find_two_most_expressed_unique(self):
-
-        for receptor, locus_dict in six.iteritems(self.recombinants):
-            for locus, recombinants in six.iteritems(locus_dict):
-                if recombinants is not None:
-                    if len(recombinants) > 2:
-                        TPM_ranks = Counter()
-                        for rec in recombinants:
-                            TPM_ranks.update({rec.contig_name: rec.TPM})
-                        if receptor is "BCR":
-                            most_common = [x[0] for x in TPM_ranks.most_common()]
-                        for ranked_rec in most_common:
-                            for rec in recombinants:
-                                if rec.contig_name == ranked_rec:
-                                    ranked_rec = rec
-                        current_cells = most_common
-                        comparison_cells = most_common[1:]
-                        for current_cell in current_cells:
-                            for comparison_cell in comparison_cells:
-                                if current_cell.cdr3 == comparison_cell.cdr3:
-                                    pass
-
-
     def filter_recombinants(self):
         for receptor, locus_dict in six.iteritems(self.recombinants):
             for locus, recombinants in six.iteritems(locus_dict):
@@ -632,86 +407,6 @@ class Cell(object):
                         for rec in to_remove:
                              self.recombinants[receptor][locus].remove(rec)
 
-                        """if receptor == "BCR":
-                            two_most_common = [x[0] for x in TPM_ranks.most_common(2)]
-                            three_most_common = [x[0] for x in TPM_ranks.most_common(3)]
-                            rec1 = two_most_common[0][0]
-                            rec2 = two_most_common[1][0]
-                            to_remove = []
-                        
-                                    
-                            
-                            for rec in recombinants:
-                                rec.isotype = rec.isotype.split("*")[0]
-                                rec.J_gene = rec.J_gene.split("*")[0]
-                                if rec.C_gene:
-                                    rec.isotype = rec.C_gene.split("*")[0]
-                            keep_third = False
-                            naive = False
-                            for curr_rec in recombinants:
-                                if curr_rec.contig_name == rec1:
-                                    rec1 = curr_rec
-                                    for comp_rec in recombinants:
-                                        if comp_rec.contig_name == rec2:
-                                            rec2 = comp_rec
-                                            if (curr_rec.productive and comp_rec.productive) or not (curr_rec.productive and comp_rec.productive):
-                                                if curr_rec.cdr3 == comp_rec.cdr3:
-                                                    keep_third = True
-                                                    
-                                                    if curr_rec.tpm > comp_rec.tpm:
-                                                        to_remove.append(comp_rec)
-                                                    else:
-                                                        to_remove.append(curr_rec)
-                                                    if (curr_rec.isotype != comp_rec.isotype) and (curr_rec.isotype and comp_rec.isotype) in ["IGHM", "IGHD"]:
-                                                        if curr_rec.tpm > comp_rec.tpm:
-                                                            curr_rec.isotype = "IGHDM"
-                                                        else:
-                                                            comp_rec.isotype = "IGHDM"
-                                                        naive = True 
-                    
-                                for comparison_rec.contig_name in two_most_common:
-                                for current_rec in recombinants:
-                                
-                                    if current_rec.contig_name == comparison_rec.contig_name:
-                                        continue
-                                    elif (current_rec.contig_name and comparison_rec.contig_name) in two_most_common and keep_third == False:
-                                        # Comparing the two most highly expressed recs with each other
-                                        if len(current_rec.V_genes.intersection(comparison_rec.V_genes)) > 0:
-                                            if current_rec.J_gene == comparison_rec.J_gene:
-                                                if (current_rec.isotype and comparison_rec.isotype) in ["IGHM", "IGHD"]:
-                                                    if current_rec.isotype != comparison_rec.isotype:
-                                                        if (current_rec.productive and comparison_rec.productive) or not (current_rec.productive and comparison_rec.productive):
-                                                            if current_rec.TPM > comparison_rec.TPM:
-                                                                to_remove.append(comparison_rec)
-                                                            
-                                                            else:
-                                                                to_remove.append(current_rec)
-                                                             
-                                                            keep_third = True
-                                                            
-                                    elif current_rec not in two_most_common:
-           
-                                        if len(current_rec.V_genes.intersection(comparison_rec.V_genes)) > 0:
-                                            if current_rec.J_gene == comparison_rec.J_gene:
-                                                if (current_rec.isotype and comparison_rec.isotype) in ["IGHM", "IGHD"]:
-                                                    if current_rec.isotype != comparison_rec.isotype:
-                                                        if (current_rec.productive and comparison_rec.productive) or not (current_rec.productive and comparison_rec.productive):
-                                                           comparison_rec.isotype = "IGHDM
-                            
-                            for rec in recombinants:
-                                if keep_third == True:
-                                    if rec.contig_name not in three_most_common:
-                                        to_remove.append(rec)
-                                else:
-                                    if rec.contig_name not in two_most_common:
-                                        to_remove.append(rec)
-                            for rec in to_remove:
-                                self.recombinants[receptor][locus].remove(rec)
-                            for rec in recombinants:
-                                if keep_third == True:
-                                    if rec in two_most_common:
-                                        rec.isotype = "IGHDM" """
-                                   
 
  
     def count_productive_recombinants(self, receptor, locus):
@@ -812,7 +507,8 @@ class Recombinant(object):
         self.V_genes = V_genes
         self.J_genes = J_genes
         self.cdr3_seq = cdr3_seq
-        self.detailed_identifier = self.create_detailed_identifier(self.productive, self.cdr3, self.C_gene, self.full_length)        
+        self.detailed_identifier = self.create_detailed_identifier(self.productive, 
+                                         self.cdr3, self.C_gene, self.full_length)        
 
     def __str__(self):
         return ("{} {} {} {}".format(self.identifier, self.productive, self.TPM))
@@ -870,24 +566,27 @@ class Recombinant(object):
             D_segment = self.summary[1]
             J_segment = self.summary[2]
             C_segment = C_gene
-            segments_string = "V segment:\t{V_segment}\nD segment:\t{D_segment}\nJ segment:\t{J_segment}\nC segment:\t{C_segment}\n".format(
-                V_segment=V_segment, D_segment=D_segment, J_segment=J_segment, C_segment=C_segment)
+            segments_string = "V segment:\t{V_segment}\nD segment:\t{D_segment}\nJ segment:\t{J_segment}\
+                \nC segment:\t{C_segment}\n".format(V_segment=V_segment, D_segment=D_segment, J_segment=J_segment, 
+                                                                                              C_segment=C_segment)
 
         else:
             V_segment = self.summary[0]
             J_segment = self.summary[1]
             C_segment = C_gene
             segments_string = "V segment:\t{V_segment}\nJ segment:\t{J_segment}\nC segment:\t{C_segment}\n".format(
-                V_segment=V_segment, J_segment=J_segment, C_segment=C_segment)
+                                                     V_segment=V_segment, J_segment=J_segment, C_segment=C_segment)
 
 
         summary_string += segments_string
         summary_string += "ID:\t{}\n".format(self.identifier)
-        summary_string += "TPM:\t{TPM}\nProductive:\t{productive}\nStop codon:\t{stop_codon}\nIn frame:\t{in_frame}\nFull length:\t{full_length}\nSequence length: \t{query_length}\
-                           \nPossible V genes:\t{V_genes}\n\n".format(TPM=self.TPM, productive=self.productive, stop_codon=self.stop_codon, 
-                           in_frame=self.in_frame, full_length=self.full_length, query_length=self.query_length, V_genes=self.V_genes)
+        summary_string += "TPM:\t{TPM}\nProductive:\t{productive}\nStop codon:\t{stop_codon}\nIn frame:\t{in_frame}\
+            \nFull length:\t{full_length}\nSequence length: \t{query_length}\nPossible V genes:\t{V_genes}\\n\n".format(
+            TPM=self.TPM, productive=self.productive, stop_codon=self.stop_codon, in_frame=self.in_frame, 
+            full_length=self.full_length, query_length=self.query_length, V_genes=self.V_genes)
 
-        summary_string += 'Segment\tquery_id\tsubject_id\t% identity\talignment length\tmismatches\tgap opens\tgaps\tq start\tq end\ts start\ts end\te value\tbit score\n'
+        summary_string += 'Segment\tquery_id\tsubject_id\t% identity\talignment length\tmismatches\tgap opens\tgaps\
+            \tq start\tq end\ts start\ts end\te value\tbit score\n'
 
         for line in self.hit_table:
             summary_string = summary_string + "\t".join(line) + "\n"
@@ -925,7 +624,8 @@ class Recombinant(object):
             # Replace junction with CDR3 sequence
             junction = self.cdr3_seq
             junction_length = int(len(junction))
-            changeo_db_string = "{}_{}\t{}\t{}\t{}\t{}\t{}\t{}".format(self.contig_name, self.identifier, V_call, D_call, J_call, sequence_vdj, junction_length, junction)
+            changeo_db_string = "{}_{}\t{}\t{}\t{}\t{}\t{}\t{}".format(self.contig_name, self.identifier, 
+                                        V_call, D_call, J_call, sequence_vdj, junction_length, junction)
 
         return(changeo_db_string)
 
