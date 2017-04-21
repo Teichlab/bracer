@@ -299,12 +299,12 @@ class Assembler(TracerTask):
             io.makeOutputDir("{}/{}".format(self.output_dir, d))
 
         # Perform TraCeR's core functions
-        #if not self.assembler in ["basic", "oases"]:
-            #self.align()
+        if not self.assembler in ["basic", "oases"]:
+            self.align()
         if self.assembler == "oases":
             self.oases_assemble()
-        #elif not self.assembler == "basic":
-            #self.de_novo_assemble()
+        elif not self.assembler == "basic":
+            self.de_novo_assemble()
         self.blast()
         cell = self.ig_blast()
 
