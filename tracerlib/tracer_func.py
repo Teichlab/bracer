@@ -1,11 +1,11 @@
 ##############################################################################
 #                         Functions for use with                             #
-# TraCeR - a tool to reconstruct TCR sequences from single-cell RNA-seq data #    
+# BraCeR - a tool to reconstruct BCR sequences from single-cell RNA-seq data #    
 #                                                                            #
 # Please see README and LICENCE for details of use and licence conditions.   #
 # This software was written by Mike Stubbington (ms31@sanger.ac.uk) from the #
 # Teichmann Lab, EMBL-EBI and WTSI (www.teichlab.org). Latest versions are   #
-# available for download at www.github.com/teichlab/tracer.                  #
+# available for download at www.github.com/teichlab/bracer.                  #
 #                                                                            #
 #      Copyright (c) 2015, 2016 EMBL - European Bioinformatics Institute     #
 #      Copyright (c) 2016 Genome Research Ltd.                               #
@@ -31,7 +31,7 @@ from Bio.Alphabet import IUPAC
 from Bio.Alphabet import generic_dna
 from Bio.Seq import Seq
 
-from tracerlib.core import Cell, Recombinant, Invar_cell
+from tracerlib.core import Cell, Recombinant
 import tracerlib.io
 
 import copy
@@ -116,21 +116,26 @@ def extract_blast_info(line):
     info = info.split("<")[0]
     return (info)
 
-def get_C_gene(assembler, output_dir, locus, contig_name):
+def get_C_gene(output_dir, locus, contig_name):
     blast_dir = "BLAST_output"
 
     locus = locus.split("_")[1]
-    blast_summary_file = "{output_dir}/{blast_dir}/blastsummary_{locus}.txt".format(output_dir=output_dir, blast_dir=blast_dir, locus=locus)
+    blast_summary_file = "{output_dir}/{blast_dir}/blastsummary_{locus}.txt".format(
+                            output_dir=output_dir, blast_dir=blast_dir, locus=locus)
 
     store_details = False
     C_gene = None
     info_line = None
     start_position = None
+
     with open(blast_summary_file, 'r') as input:
         for line in input:
 
-            if line.startswith("C\t{contig_name}".format(contig_name=contig_name)) or line.startswith("C\treversed|{contig_name}".format(contig_name=contig_name)):
+            if line.startswith("C\t{contig_name}".format(
+                contig_name=contig_name)) or line.startswith("C\treversed|{contig_name}".format(
+                                                            contig_name=contig_name)):
                 C_gene = line.split("\t")[2]
+
                 if "_CH1" or "_C-REGION" in C_gene:
                     C_gene = C_gene.split("_")[0]
                 info_line = line
@@ -153,23 +158,28 @@ def parse_alignment_summary(alignment_summary):
             
     return (start, cdr3_start)    
 
-def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, output_dir, species, seq_method,
-                             invariant_seqs, loci_for_segments, receptor, loci, max_junc_string_length, assembler, assembled_file):
+def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, 
+                output_dir, species, loci_for_segments, receptor, loci, 
+                max_junc_string_length, assembled_file):
+
     alignment_dict = defaultdict(dict)
     recombinants = {}
+
     for locus in locus_names:
         recombinants[locus] = []
-    
-    for locus in locus_names:
         data_for_locus = sample_dict[locus]
+
         if data_for_locus is not None:
             for query_name, query_data in six.iteritems(data_for_locus):
-                processed_hit_table = process_hit_table(query_name, query_data, locus)
+                processed_hit_table = process_hit_table(query_name, query_data, 
+                                                                         locus)
                 if processed_hit_table is not None:
-                    (returned_locus, good_hits, rearrangement_summary) = processed_hit_table
+                    (returned_locus, good_hits, rearrangement_summary) = \
+                                                        processed_hit_table
                     junction_list = query_data['junction_details']
 
-                    best_V = remove_allele_stars(rearrangement_summary[0].split(",")[0])
+                    best_V = remove_allele_stars(
+                        rearrangement_summary[0].split(",")[0])
 
                     junc_string = "".join(junction_list)
                     junc_string = remove_NA(junc_string)
@@ -182,36 +192,46 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                         has_D = False
                     
                     if has_D:
-                        best_J = remove_allele_stars(rearrangement_summary[2].split(",")[0])
+                        best_J = remove_allele_stars(
+                                 rearrangement_summary[2].split(",")[0])
                     else:
-                        best_J = remove_allele_stars(rearrangement_summary[1].split(",")[0])
+                        best_J = remove_allele_stars(
+                                 rearrangement_summary[1].split(",")[0])
 
+
+                    
+                    #if query_name == "TRINITY_DN0_c0_g2_i1" and locus == "BCR_K":
+                        #pdb.set_trace()
 
                     identifier = best_V + "_" + junc_string + "_" + best_J
 
-                    ##line attempting to add alignment summary to data for use with PCR comparisons
+                    ##line attempting to add alignment summary to data for 
+                    #use with PCR comparisons
 
                     alignment_summary = query_data['alignment_summary']
                     (C_gene, C_info_line) = (None, None)
-                    if receptor == "BCR":
-                        align_start, cdr3_start = parse_alignment_summary(alignment_summary)
-                        (C_gene, C_info_line, C_start) = get_C_gene(assembler, output_dir, locus, query_name)
+
+                    align_start, cdr3_start = parse_alignment_summary(alignment_summary)
+                    (C_gene, C_info_line, C_start) = get_C_gene(output_dir, 
+                                                        locus, query_name)
                     
                     if has_D:
-                        all_J_names = [remove_allele_stars(x) for x in rearrangement_summary[2].split(',')]
+                        all_J_names = [remove_allele_stars(x) for x in 
+                        rearrangement_summary[2].split(',')]
                     else:
-                        all_J_names = [remove_allele_stars(x) for x in rearrangement_summary[1].split(',')]
-                    if receptor is not "BCR":
-                        all_V_names = [remove_allele_stars(x) for x in rearrangement_summary[0].split(',')]
+                        all_J_names = [remove_allele_stars(x) for x in 
+                        rearrangement_summary[1].split(',')]
 
 
-                    # get original sequence from Trinity/Oases/Basic file - needed for summary of reconstructed lengths.
+                    # get original sequence from Trinity file
+                    # needed for summary of reconstructed lengths.
                     # Only use the VDJ portion found by IgBLAST or trim for BCRs:
                     if assembled_file is not None:
-                        trinity_file = "{}/Trinity_output/{}.fasta".format(output_dir, cell_name)
+                        trinity_file = "{}/Trinity_output/{}.fasta".format(
+                                                    output_dir, cell_name)
                     else:
                         trinity_file = "{output_dir}/Trinity_output/{cell_name}_{locus}.Trinity.fasta".format(
-                        locus=locus, output_dir=output_dir, cell_name=cell_name)
+                                locus=locus, output_dir=output_dir, cell_name=cell_name)
 
                     with open(trinity_file, 'rU') as tf:
                         for record in SeqIO.parse(tf, 'fasta'):
@@ -221,108 +241,97 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, out
                     query_length = query_data["query_length"]
                     if query_length == None:
                         query_length = len(trinity_seq)
+                    if query_name == "TRINITY_DN0_c0_g2_i1" and locus == "BCR_K":
+                        pdb.set_trace()
                     if 'reversed' in good_hits[0][1]:
-                        trinity_seq = trinity_seq.reverse_complement().seq
+                        trinity_seq = str(trinity_seq.reverse_complement().seq)
                     else:
-                        trinity_seq = trinity_seq.seq
+                        trinity_seq = str(trinity_seq.seq)
 
                     start_coord, end_coord = get_coords(good_hits, receptor)
 
-                    if receptor == "BCR":
-                        if C_gene is not None:
-                            #Keep overlapping nt if end of J overlaps with beginning of C 
-                            #if (C_start - 1) == end_coord:
-                                #end_coord = end_coord + 1 
-                            if (C_start - 1) > end_coord:
-                                end_coord = C_start - 1
+                    if C_gene is not None:
+                        if (C_start - 1) > end_coord:
+                            end_coord = C_start - 1
                             
-                    trinity_seq = str(trinity_seq[start_coord:end_coord])
-                    (imgt_reconstructed_seq, is_productive, bestVJNames) = get_fasta_line_for_contig_imgt(
-                        rearrangement_summary, junction_list, good_hits, returned_locus, IMGT_seqs, cell_name,
-                        query_name, species, loci_for_segments)
-                    del (is_productive)
-                    del (bestVJNames)
 
-                    #Assess if rearrangement is full-length (from start of V gene to start of C gene)
-                    full_length = is_rearrangement_full_length(trinity_seq, query_data["hit_table"], query_name, query_length, assembler, output_dir, locus)
+                    #Assess if rearrangement is full-length 
+                    #(from start of V gene to start of C gene)
+                    full_length = is_rearrangement_full_length(trinity_seq, 
+                                  query_data["hit_table"], query_name, 
+                                  query_length, output_dir, locus)
+                    trinity_seq = trinity_seq[start_coord:end_coord]
+                    cdr3_seq = None
 
-
-                    if seq_method == 'imgt':
-                        (fasta_line_for_contig, is_productive, bestVJNames) = get_fasta_line_for_contig_imgt(
-                            rearrangement_summary, junction_list, good_hits, returned_locus, IMGT_seqs, cell_name,
-                            query_name, species, loci_for_segments)
-                        cdr3 = get_cdr3(seq, locus)
-                        cdr3_seq = None
-                        
-
-                    elif seq_method == 'assembly':
-                        fasta_line_for_contig = trinity_seq
-                        (is_productive, bestVJNames, cdr3, cdr3_seq) = get_fasta_line_for_contig_assembly(trinity_seq, good_hits,
-                                                                                          returned_locus, IMGT_seqs,
-                                                                                          cell_name, query_name,
-                                                                                          loci_for_segments, full_length, receptor, alignment_summary,
-                                                                                          rearrangement_summary)
                     
-                    #Identify the most likely V and J genes if receptor is BCR
-                    if receptor == "BCR":
-                        if locus in ["H", "BCR_H"]:
-                            threshold_percent = 0.05
-                        else:
-                            threshold_percent = 0.01
-                        all_V_names = find_V_genes_based_on_bit_score(trinity_seq, query_data["hit_table"], query_name, 
-                                                                      threshold_percent)
-                        all_J_names = find_J_genes_based_on_bit_score(trinity_seq, query_data["hit_table"], query_name, 
-                                                                      threshold_percent)
+                    fasta_line_for_contig = trinity_seq
+                    (is_productive, bestVJNames, cdr3, cdr3_seq) = (
+                        get_fasta_line_for_contig_assembly(trinity_seq, good_hits,
+                        returned_locus, IMGT_seqs, cell_name, query_name, 
+                        loci_for_segments, full_length, receptor, 
+                        alignment_summary, rearrangement_summary))
+                    
 
+                    #Identify the most likely V and J genes
+                    if locus in ["H", "BCR_H"]:
+                        threshold_percent = 0.05
+                    else:
+                        threshold_percent = 0.01
+                    all_V_names = find_V_genes_based_on_bit_score(trinity_seq, 
+                        query_data["hit_table"], query_name, threshold_percent)
+                    all_J_names = find_J_genes_based_on_bit_score(trinity_seq, 
+                        query_data["hit_table"], query_name, threshold_percent)
                                       
                     V_genes = all_V_names
                     J_genes = all_J_names
                     
                     all_poss_identifiers = set()
                     for V in all_V_names:
-                        for J in all_J_names:
-                            if receptor != "BCR":
-                                i = V + "_" + junc_string + "_" + J
-                            else:
-                                i = V + "_" + J
+                        for J in all_J_names:    
+                            i = V + "_" + J
                                 #i = V + "_" + str(len(junc_string)) + "_" + J
                             all_poss_identifiers.add(i)
 
                     if len(junc_string) < int(max_junc_string_length):
-                        rec = Recombinant(contig_name=query_name, locus=returned_locus, identifier=identifier,
-                                          all_poss_identifiers=all_poss_identifiers, productive=is_productive[0],
-                                          stop_codon=is_productive[1], in_frame=is_productive[2], TPM=0.0,
-                                          dna_seq=fasta_line_for_contig, hit_table=good_hits,
-                                          summary=rearrangement_summary, junction_details=junction_list,
-                                          best_VJ_names=bestVJNames, alignment_summary=alignment_summary,
-                                          trinity_seq=trinity_seq, imgt_reconstructed_seq=imgt_reconstructed_seq, 
-                                          has_D=has_D, output_dir=output_dir, full_length=full_length, query_length=query_length, 
-                                          V_genes=V_genes, J_genes=J_genes, cdr3=cdr3, assembler=assembler, C_gene=C_gene, 
-                                          C_info_line=C_info_line, cdr3_seq=cdr3_seq)
+                        rec = Recombinant(contig_name=query_name, 
+                                locus=returned_locus, identifier=identifier, 
+                                all_poss_identifiers=all_poss_identifiers, 
+                                productive=is_productive[0], 
+                                stop_codon=is_productive[1], 
+                                in_frame=is_productive[2], TPM=0.0, 
+                                dna_seq=fasta_line_for_contig, hit_table=good_hits, 
+                                summary=rearrangement_summary, 
+                                junction_details=junction_list, 
+                                best_VJ_names=bestVJNames, 
+                                alignment_summary=alignment_summary, 
+                                trinity_seq=trinity_seq, 
+                                has_D=has_D, output_dir=output_dir, 
+                                full_length=full_length, query_length=query_length, 
+                                V_genes=V_genes, J_genes=J_genes, cdr3=cdr3, 
+                                C_gene=C_gene, C_info_line=C_info_line, 
+                                cdr3_seq=cdr3_seq)
                         recombinants[locus].append(rec)
-                        print(query_name)
 
     if recombinants:
         for locus, rs in six.iteritems(recombinants):
-            # Adding code to collapse sequences with very low Levenshtein distances caused by confusion between
-            # TRAVxD and TRAVx segments with different alignment lengths from IgBlast.
-            if receptor == "TCR":
-                recombinants[locus] = collapse_close_sequences(rs, locus)
-            elif receptor == "BCR":
-                recombinants[locus] = collapse_close_BCR_sequences(rs, locus)
-        # cell_name, A_recombinants, B_recombinants, G_recombinants, D_recombinants, is_empty=False, species="Mmus")
-        cell = Cell(cell_name, recombinants, species=species, receptor=receptor, loci=loci)
+            # Collapse sequences with identical CDR3 nt sequence
+            # and overlapping V- and J segment assignments. 
+            recombinants[locus] = collapse_close_sequences(rs, locus)
+        cell = Cell(cell_name, recombinants, species=species, 
+                                receptor=receptor, loci=loci)
         
     else:
-        cell = Cell(cell_name, None, species=species, invariant_seqs=invariant_seqs, receptor=receptor, loci=loci)
+        cell = Cell(cell_name, None, species=species, invariant_seqs=invariant_seqs, 
+                                                      receptor=receptor, loci=loci)
 
-    # pdb.set_trace()
+    
     return (cell)
 
 
 
 def find_V_genes_based_on_bit_score(seq, hit_table, query_name, threshold_percent):
-    """Identifies the most likely V genes if receptor is BCR based on IgBlast bit scores"""
+    """Identifies the most likely V genes if receptor is BCR based on IgBlast 
+    bit scores"""
     found_V = False
     V_genes = []
     threshold = None
@@ -345,7 +354,8 @@ def find_V_genes_based_on_bit_score(seq, hit_table, query_name, threshold_percen
         
 
 def find_J_genes_based_on_bit_score(seq, hit_table, query_name, threshold_percent):
-    """Identifies the most likely J genes if receptor is BCR based on IgBlast bit scores"""
+    """Identifies the most likely J genes if receptor is BCR based on IgBlast 
+    bit scores"""
     found_J = False
     J_genes = []
     threshold = None
@@ -368,8 +378,10 @@ def find_J_genes_based_on_bit_score(seq, hit_table, query_name, threshold_percen
 
 
 def parse_rearrangement_summary(rearrangement_summary):
-    """Returns a tuple of (stop_codon, in_frame, productive) from IgBlast output for BCRs.
-    in_frame is not always correct, need to check ourselves if it says out-of-frame!"""
+    """Returns a tuple of (stop_codon, in_frame, productive) from IgBlast output.
+    in_frame is not always correct, need to determine ourselves if it says 
+    out-of-frame!"""
+    #NB change string
     i = 1
     chain_type = rearrangement_summary[0][0:4]
     if "IGH" in chain_type:
@@ -413,14 +425,14 @@ def get_coords(hit_table, receptor):
                 end = int(entry[9])
                 found_J = True
                 bitscore = float(entry[13])
-            # Look for other J gene hits with equal bitscore but higher J gene end position
-            if receptor == "BCR":
-                if found_J:
-                    next_bitscore = float(entry[13])
-                    if next_bitscore == bitscore:
-                        new_end = int(entry[9])
-                        if new_end > end:
-                            end = new_end
+            # Look for other J gene hits with equal bitscore but higher J gene 
+            #end position        
+            if found_J:
+                next_bitscore = float(entry[13])
+                if next_bitscore == bitscore:
+                    new_end = int(entry[9])
+                    if new_end > end:
+                        end = new_end
     return (start, end)
 
 
@@ -439,10 +451,11 @@ def process_hit_table(query_name, query_data, locus):
     hit_table = query_data['hit_table']
     rearrangement_summary = query_data['VDJ_rearrangement_summary']
 
-    e_value_cutoff = 5e-3
-    # Set lower e value cutoff for BCR H chain to avoid sequences with indeterminable V gene family
-    if locus in ["H", "BCR_H"]:
-        e_value_cutoff = 5e-4
+    #e_value_cutoff = 5e-3
+    # Set lower e value cutoff for BCR H chain to avoid sequences with 
+    #indeterminable V gene family
+    #if locus in ["H", "BCR_H"]:
+        #e_value_cutoff = 5e-4
 
     found_V = set()
     found_D = set()
@@ -450,8 +463,6 @@ def process_hit_table(query_name, query_data, locus):
 
     good_hits = []
 
-    segment_locus_pattern = re.compile(r"TRAV.+DV.+")
-    
     locus_name = locus.split("_")[1]
     
     for entry in hit_table:
@@ -459,13 +470,13 @@ def process_hit_table(query_name, query_data, locus):
           
             entry = entry.split("\t")
             segment = entry[2]
-            if segment_locus_pattern.search(segment):
-                segment_locus = "AD"
-            else:
-                segment_locus = segment[2]
+            segment_locus = segment[2]
             segment_type = segment[3]
             e_value = float(entry[12])
-            
+            if locus in ["H", "BCR_H"] and segment_type == "V":
+                e_value_cutoff = 5e-4
+            else:
+                e_value_cutoff = 5e-3
             if locus_name in segment_locus:
                 if e_value < e_value_cutoff:
                     if segment_type == "V":
@@ -485,109 +496,6 @@ def process_hit_table(query_name, query_data, locus):
         return (locus, good_hits, rearrangement_summary)
     else:
         return (None)
-
-
-
-def get_fasta_line_for_contig_imgt(rearrangement_summary, junction_details, hit_table, locus, IMGT_seqs,
-                                   sample_name, query_name, species, loci_for_segments):
-
-    # use first 258 bases of TRBC because they're the same between C1 and C2
-    # for TRGC use first 150 bases. Found by aligning the 4 C region transcripts and taking consensus. Ignored start of TCRG-C4-201 because it's only in that one.
-    # use first 360 nt of TRBC1 because they're very nearly the same between TRBC1 and TRBCC2
-
-    found_best_V = False
-    found_best_D = False
-    found_best_J = False
-    
-
-    
-    V_pattern = re.compile(r".+{potential_loci}V.+".format(potential_loci='[' + "".join(loci_for_segments['V']) + ']'))
-    D_pattern = re.compile(r".+{potential_loci}D.+".format(potential_loci='[' + "".join(loci_for_segments['D']) + ']'))
-    J_pattern = re.compile(r".+{potential_loci}J.+".format(potential_loci='[' + "".join(loci_for_segments['J']) + ']'))
-    
-
-    for hit in hit_table:
-        segment = hit[2]
-        V_match = V_pattern.search(segment)
-        J_match = J_pattern.search(segment)
-        if V_match and not found_best_V:
-            #V_locus_key = "TR{}V".format(segment[2])
-            V_locus_key = "_".join([locus, 'V'])
-            best_V_name = segment
-            # Remove forward slashes from shared A/D gene names to be the same as in the IMGT files.
-            #segment = segment.replace("/", "_")
-            best_V_seq = IMGT_seqs[V_locus_key][segment]
-
-            # hit[11] is the end of the V sequence
-            best_V_seq = best_V_seq[0:int(hit[11])]
-            found_best_V = True
-        elif J_match and not found_best_J:
-            #J_locus_key = "TR{}J".format(segment[2])
-            J_locus_key = "_".join([locus, 'J'])
-            best_J_name = segment
-            best_J_seq = IMGT_seqs[J_locus_key][segment]
-            # hit 10 is the start of the J sequence
-            best_J_seq = best_J_seq[int(hit[10]) - 1:]
-            found_best_J = True
-
-    junction = []
-
-    parens_pattern = re.compile(r"\([CAGT]+\)")
-    
-    locus_letter = locus.split("_")[1]
-    
-    if locus_letter in loci_for_segments['D']:
-        # junc_seqs = junction_details[1:3]
-        VD_junc = junction_details[1]
-        D_region = junction_details[2]
-        DJ_junc = junction_details[3]
-        if parens_pattern.search(VD_junc):
-            VD_junc = re.sub(r'[\(\)]', '', VD_junc)
-            length_in_parens = len(VD_junc)
-            best_V_seq = best_V_seq[: -length_in_parens]
-        if parens_pattern.search(DJ_junc):
-            DJ_junc = re.sub(r'[\(\)]', '', DJ_junc)
-            length_in_parens = len(DJ_junc)
-            best_J_seq = best_J_seq[length_in_parens:]
-        junc_seqs = [VD_junc, D_region, DJ_junc]
-
-
-    else:
-        VJ_junc = junction_details[1]
-        # junctions in parentheses are represented in the coordinates of the matched segments.
-        # Need to trim them then include the NTs in the junction
-        if parens_pattern.search(VJ_junc):
-            VJ_junc = re.sub(r'[\(\)]', '', VJ_junc)
-            length_in_parens = len(VJ_junc)
-            best_V_seq = best_V_seq[: -length_in_parens]
-            best_J_seq = best_J_seq[length_in_parens:]
-        junc_seqs = [VJ_junc]
-
-    for seq in junc_seqs:
-        seq = re.sub(r'[\(\)]', '', seq)
-        if seq != "N/A":
-            junction.append(seq)
-
-    junction = "".join(junction)
-    
-    constant_seq = list(IMGT_seqs["_".join([locus, 'C'])].values())[0]
-
-    # Editing IMGT V and J sequences to include any alterations from the junction details
-    V_end_seq = junction_details[0]
-    J_start_seq = junction_details[-1]
-    best_V_seq = best_V_seq[:-(len(V_end_seq))]
-    
-    best_V_seq = best_V_seq + V_end_seq
-    best_J_seq = best_J_seq[len(J_start_seq):]
-    best_J_seq = J_start_seq + best_J_seq
-
-    full_rearrangement = best_V_seq + junction + best_J_seq + constant_seq
-    productive_rearrangement = is_rearrangement_productive(best_V_seq + junction + best_J_seq + constant_seq[0:2])
-    # fasta_line = ">chr={}__TCR{}_{}\n{}\n".format(sample_name, locus, query_name, full_rearrangement)
-
-    bestVJ = [best_V_name, best_J_name]
-
-    return (full_rearrangement, productive_rearrangement, bestVJ)
 
 
 def is_rearrangement_productive(seq):
@@ -611,7 +519,8 @@ def is_rearrangement_productive(seq):
 
  
 
-def is_rearrangement_full_length(seq, hit_table, query_name, query_length, assembler, output_dir, locus):
+def is_rearrangement_full_length(seq, hit_table, query_name, query_length, 
+                                                        output_dir, locus):
     found_V = False
     found_J = False
     full_5_prime = False
@@ -620,10 +529,12 @@ def is_rearrangement_full_length(seq, hit_table, query_name, query_length, assem
     J_end_pos = None
     V_hit = None
     J_hit = None
-    (C_gene, C_info_line, C_position) = get_C_gene(assembler, output_dir, locus, query_name)
+    (C_gene, C_info_line, C_position) = get_C_gene(output_dir, locus, query_name)
     del (C_info_line)
     del (C_position)
    
+    full_length = False
+
     for hit in hit_table:
         info = hit.split()
         segment = info[0]
@@ -641,22 +552,15 @@ def is_rearrangement_full_length(seq, hit_table, query_name, query_length, assem
             full_5_prime = True
         if C_gene is not None:
             full_3_prime = True
-
         if full_5_prime and full_3_prime:
             full_length = True
-        else:
-            if full_5_prime == False:
-                full_length = False
-            else:
-                if J_end_pos is not None:
-           
-                    if ("HJ" in J_hit and J_ref_end_pos > 40) or (("KJ" or "LJ") in J_hit and J_ref_end_pos > 30):
-                        if int(query_length)>= (J_end_pos - 1):
-                            full_length = True
-                    else:
-                        full_length = False
-                else:
-                    full_length = False
+        elif full_5_prime == True:
+            if J_end_pos is not None:
+                if ("HJ" in J_hit and J_ref_end_pos > 40) \
+                    or (("KJ" or "LJ") in J_hit and J_ref_end_pos > 30):
+                    if int(query_length)>= (J_end_pos - 1):
+                        full_length = True
+                    
     return (full_length)
 
 
@@ -670,23 +574,26 @@ def get_segment_name(name, pattern):
     return (number)
 
 
-def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs, sample_name, 
-                                        query_name, loci_for_segments, full_length, receptor, alignment_summary, rearrangement_summary):
+def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, 
+    IMGT_seqs, sample_name, query_name, loci_for_segments, full_length, 
+    receptor, alignment_summary, rearrangement_summary):
+
     found_best_V = False
     found_best_D = False
     found_best_J = False
 
-    V_pattern = re.compile(r".+{potential_loci}V.+".format(potential_loci='[' + "".join(loci_for_segments['V']) + ']'))
-    D_pattern = re.compile(r".+{potential_loci}D.+".format(potential_loci='[' + "".join(loci_for_segments['D']) + ']'))
-    J_pattern = re.compile(r".+{potential_loci}J.+".format(potential_loci='[' + "".join(loci_for_segments['J']) + ']'))
+    V_pattern = re.compile(r".+{potential_loci}V.+".format(
+                potential_loci='[' + "".join(loci_for_segments['V']) + ']'))
+    D_pattern = re.compile(r".+{potential_loci}D.+".format(
+                potential_loci='[' + "".join(loci_for_segments['D']) + ']'))
+    J_pattern = re.compile(r".+{potential_loci}J.+".format(
+                potential_loci='[' + "".join(loci_for_segments['J']) + ']'))
 
     for hit in hit_table:
         segment = hit[2]
         if V_pattern.search(segment) and not found_best_V:
             V_locus_key = V_locus_key = "_".join([locus, 'V'])
             best_V_name = segment
-            # Remove forward slashes from shared A/D gene names to be the same as in the IMGT files.
-            segment = segment.replace("/", "_")
             ref_V_seq = IMGT_seqs[V_locus_key][segment]
             found_best_V = True
         elif J_pattern.search(segment) and not found_best_J:
@@ -709,104 +616,58 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus, IMGT_seqs,
                 J_end = int(entry[9])
                 found_J = True
                 bitscore = float(entry[13])
-            if receptor == "BCR":
-                if found_J:
-                    next_bitscore = float(entry[13])
-                    if next_bitscore == bitscore:
-                        new_J_end = int(entry[9])
-                        if new_J_end > J_end:
-                            ref_J_end = int(entry[11])
+            if found_J:
+                next_bitscore = float(entry[13])
+                if next_bitscore == bitscore:
+                    new_J_end = int(entry[9])
+                    if new_J_end > J_end:
+                        ref_J_end = int(entry[11])
 
     start_padding = ref_V_start - 1
     ref_J_length = len(ref_J_seq)
     cdr3_length = None
     cdr3_seq = None
     
-    if receptor == "TCR":
-        cdr3 = get_cdr3(trinity_seq, locus)
-        end_padding = (ref_J_length - ref_J_end)
-        full_effective_length = start_padding + len(
-        trinity_seq) + end_padding + 2  # add two because need first two bases of constant region to put in frame.
-        if full_effective_length % 3 == 0:
-            in_frame = True
-        else:
-            in_frame = False
-    
-        # remove the minimal nucleotides from the trinity sequence to check for stop codons
-        start_base_removal_count = (3 - (new_V_start - 1)) % 3
-        end_base_removal_count = (1 - end_padding) % 3
-    
-        seq = trinity_seq[start_base_removal_count:-end_base_removal_count]
-        seq = Seq(seq, IUPAC.unambiguous_dna)
 
-        aa_seq = seq.translate()
-        contains_stop = "*" in aa_seq
+    (contains_stop, in_frame, productive) = parse_rearrangement_summary(
+                                                    rearrangement_summary)
+    (start, stop) = get_coords(hit_table, receptor)
+    del (stop)
+ 
+    (align_start, cdr3_start) = parse_alignment_summary(alignment_summary)
 
-        if in_frame == True and not contains_stop:
-            productive = True
-        else:
-            productive = False
-
+    if cdr3_start is None:
+        cdr3 = "Couldn't find CDR3"
+        in_frame = False
+        
     else:
-        (contains_stop, in_frame, productive) = parse_rearrangement_summary(rearrangement_summary)
-        (start, stop) = get_coords(hit_table, receptor)
-        del (stop)
- 
-        (align_start, cdr3_start) = parse_alignment_summary(alignment_summary)
+        cdr3_start = cdr3_start - start
+        in_frame = True
 
-        if cdr3_start is None:
-            cdr3 = "Couldn't find CDR3"
+    # Trim sequence to look for CDR3 in correct region
+    if in_frame:
+        seq = trinity_seq[cdr3_start - 7:]
+        cdr3 = get_cdr3(seq, locus)
+        if "Couldn't" in cdr3:
+            cdr3_length = None
             in_frame = False
-        
-        else:
-            cdr3_start = cdr3_start - start
-            in_frame = True
+        else:    
+            cdr3_length = len(cdr3)
+             # Get CDR3 nt sequence excluding conserved Cys and XGXG motif
+            cdr3_seq = trinity_seq[cdr3_start-1:cdr3_length*3+cdr3_start-16]
+            in_frame = is_cdr3_in_frame(cdr3, locus)
 
-        
-        
-        # remove the minimal nucleotides from the trinity sequence to check for stop codons, working from the position at which the cdr3 region starts (first nt in frame)
-        """start_base_removal_count = (cdr3_start - 1) % 3   # There are cdr3_start - 1 nt before beginning of CDR3. These need to be in same reading frame as CDR3.
-        print("remove start")
-        print(start_base_removal_count)
- 
-        seq = trinity_seq[start_base_removal_count:]
-        print("trimmed start")
-        print(seq)
-        end_base_removal_count = len(seq) % 3
-        print("seq length")
-        print(len(seq))
-        print("remove end")
-        print(end_base_removal_count)
-        if end_base_removal_count != 0:
-            seq = seq[:-end_base_removal_count]
-        print(seq)"""
-
-        # Trim sequence to look for CDR3 in correct region
-        if in_frame:
-            seq = trinity_seq[cdr3_start - 7:]
-            cdr3 = get_cdr3(seq, locus)
-            if "Couldn't" in cdr3:
-                cdr3_length = None
-                in_frame = False
-            else:    
-                cdr3_length = len(cdr3)
-                # Get CDR3 nt sequence excluding conserved Cys and XGXG motif
-                cdr3_seq = trinity_seq[cdr3_start-1:cdr3_length*3+cdr3_start-16]
-                in_frame = is_cdr3_in_frame(cdr3, locus)
-
-        if in_frame and not contains_stop:
-            productive = True
-        else:
-            productive = False
-
-    #seq = Seq(seq, IUPAC.unambiguous_dna)
-    #aa_seq = seq.translate()
+    if in_frame and not contains_stop:
+        productive = True
+    else:
+        productive = False
 
     
     print()
 
     productive_rearrangement = (productive, contains_stop, in_frame)
     bestVJ = [best_V_name, best_J_name]
+    
 
     return (productive_rearrangement, bestVJ, cdr3, cdr3_seq)
 
@@ -854,7 +715,6 @@ def get_cdr3(dna_seq, locus):
         else:
             cdr3 = "Couldn't find conserved cysteine"
                         
-
     
     elif re.findall("FSDG", str(aaseq)) and re.findall('C', str(aaseq)):
         indices = [i for i, x in enumerate(aaseq) if x == 'C']
@@ -886,14 +746,11 @@ def is_cdr3_in_frame(cdr3, locus):
     return (cdr3_in_frame)
 
 
-def collapse_close_BCR_sequences(recombinants, locus):
+def collapse_close_sequences(recombinants, locus):
     #if locus == "BCR_H":
         #pdb.set_trace()
     contig_names = [r.contig_name for r in recombinants]
     filtered_contig_names = [r.contig_name for r in recombinants]
-    print("Recs before collapsing close sequences")
-    for r in filtered_contig_names:
-        print(r)
 
     uncollapsible_contigs = []
     C_genes = dict()
@@ -932,60 +789,61 @@ def collapse_close_BCR_sequences(recombinants, locus):
                         comp_C_gene = comp_C_gene.split("*")[0]
                 comp_full_length = recombinants[i].full_length
                 comp_e_value = float(recombinants[j].hit_table[0][-2])
-                if base_full_length and comp_full_length:
-                    lev_dist = Levenshtein.distance(base_seq, comp_seq)
 
-                else:
-                    lev_dist = None
 
                 attempt_collapse = False
                 #if base_cdr3 == comp_cdr3:
                     #pdb.set_trace()
 
-                if base_seq in comp_seq or comp_seq in base_seq and (base_name and comp_name) in filtered_contig_names:
+                if (base_seq in comp_seq) or (comp_seq in base_seq) \
+                        and (base_name and comp_name) in filtered_contig_names:
                     attempt_collapse = True 
                 elif base_cdr3 is not None and comp_cdr3 is not None:                
-
                     if base_cdr3 == comp_cdr3 and base_name in filtered_contig_names \
                             and comp_name in filtered_contig_names:
-                        if len(base_V_segment.intersection(comp_V_segment)) > 0 and len(base_J_segment.intersection(comp_J_segment)) > 0:
+                        if len(base_V_segment.intersection(comp_V_segment)) > 0 \
+                                and len(base_J_segment.intersection(comp_J_segment)) > 0:
                             attempt_collapse = True
                 elif base_cdr3 is None or comp_cdr3 is None:
                     if base_junc == comp_junc and base_name in filtered_contig_names \
                             and comp_name in filtered_contig_names:
-                        if len(base_V_segment.intersection(comp_V_segment)) > 0 and len(base_J_segment.intersection(comp_J_segment)) > 0:
+                        if len(base_V_segment.intersection(comp_V_segment)) > 0 \
+                                and len(base_J_segment.intersection(comp_J_segment)) > 0:
                             attempt_collapse = True
 
                 if attempt_collapse is False:
                     uncollapsible_contigs.append("{}_vs_{}".format(base_name, comp_name))
-                C_gene = None       
+                C_gene = None   
+
                 if attempt_collapse:
                     # Assert isotype
                     if locus == "BCR_H":
                         if not base_C_gene == comp_C_gene:
-                            if base_C_gene in ["IGHD", "IGHM"] and comp_C_gene in ["IGHD", "IGHM"]:
+                            if base_C_gene in ["IGHD", "IGHM"] and \
+                            comp_C_gene in ["IGHD", "IGHM"]:
                                 C_gene = "IGHDM"
                     # find alignment with lowest E value for V match
-                    if (base_e_value <= comp_e_value or comp_seq in base_seq) and comp_name in filtered_contig_names \
-                                            and base_name in filtered_contig_names:
+                    if (base_e_value <= comp_e_value or comp_seq in base_seq) \
+                        and comp_name in filtered_contig_names \
+                        and base_name in filtered_contig_names:
                         filtered_contig_names.remove(comp_name)
                         if C_gene is not None:
                             C_genes[base_name] = C_gene
                         elif base_C_gene is None and comp_C_gene:
                             C_genes[base_name] = recombinants[j].C_gene
                     else:
-                        if comp_name in filtered_contig_names and base_name in filtered_contig_names:
+                        if comp_name in filtered_contig_names and \
+                            base_name in filtered_contig_names:
                             filtered_contig_names.remove(base_name)
                             if C_gene is not None:
                                 C_genes[comp_name] = C_gene
                             elif comp_C_gene is None and base_C_gene:
                                 C_genes[comp_name] = recombinants[i].C_gene
-                            
           
                 else:
-                    uncollapsible_contigs.append("{}_vs_{}".format(base_name, comp_name))
+                    uncollapsible_contigs.append("{}_vs_{}".format(base_name, 
+                                                                  comp_name))
 
-                # print("{}\t{}\t{}".format(base_id, comp_id, lev_dist))
     recombinants_to_delete = []
 
     for r in recombinants:
@@ -996,128 +854,17 @@ def collapse_close_BCR_sequences(recombinants, locus):
                 r.C_gene = C_genes[r.contig_name]
 
     [recombinants.remove(r) for r in recombinants_to_delete]
-    print("Recs after collapsing close sequences")
-    for r in recombinants:
-        print(r.contig_name)
-        print(r.C_gene)
 
 
     return (recombinants)
-def collapse_close_sequences(recombinants, locus):
-    # pdb.set_trace()
-    contig_names = [r.contig_name for r in recombinants]
-    filtered_contig_names = [r.contig_name for r in recombinants]
-    #print("Recs before collapsing close sequences")
-    #for r in filtered_contig_names:
-        #print(r)
-    
-    uncollapsible_contigs = []
-    if len(recombinants) > 1:
-        for i in range(len(recombinants) - 1):
-            base_name = recombinants[i].contig_name
-            base_seq = recombinants[i].imgt_reconstructed_seq
-            base_V_segment = recombinants[i].best_VJ_names[0]
-            base_J_segment = recombinants[i].best_VJ_names[1]
 
-            base_id = recombinants[i].identifier
-            base_junc = base_id.split("_")[1]
-            base_e_value = float(recombinants[i].hit_table[0][-2])
-
-            for j in range(i + 1, len(recombinants)):
-                comp_name = recombinants[j].contig_name
-                comp_seq = recombinants[j].imgt_reconstructed_seq
-                comp_V_segment = recombinants[j].best_VJ_names[0]
-                comp_J_segment = recombinants[j].best_VJ_names[1]
-                comp_id = recombinants[j].identifier
-                comp_junc = comp_id.split("_")[1]
-                comp_e_value = float(recombinants[j].hit_table[0][-2])
-                lev_dist = Levenshtein.distance(base_seq, comp_seq)
-                # print("{}\t{}\t{}".format(base_id, comp_id, lev_dist))
-                if lev_dist < 35 and not base_id == comp_id and base_name in filtered_contig_names \
-                        and comp_name in filtered_contig_names:
-                    # pdb.set_trace()
-                    # define re pattern here to find TRAVx[DN] or TRDVx[DN] depending on locus
-                    if locus == "TCR_A":
-                        duplicate_pattern = re.compile(r"TRAV\d+[DN]")
-                        segment_pattern = re.compile(r"TRAV(\d+)([DN])?(-\d)?.+")
-                        attempt_collapse = True
-                    elif locus == "TCR_D":
-                        duplicate_pattern = re.compile(r"DV\d+[DN]")
-                        segment_pattern = re.compile(r"DV(\d+)([DN])?(-\d)?.+")
-                        attempt_collapse = True
-                    else:
-                        uncollapsible_contigs.append("{}_vs_{}".format(base_name, comp_name))
-                        attempt_collapse = False
-                    if attempt_collapse and (
-                        duplicate_pattern.search(base_V_segment) or duplicate_pattern.search(comp_V_segment)):
-                        base_segment = get_segment_name(base_V_segment, segment_pattern)
-                        comp_segment = get_segment_name(comp_V_segment, segment_pattern)
-                        if base_segment == comp_segment:
-                            # find alignment with lowest E value for V match
-                            if base_e_value <= comp_e_value:
-                                filtered_contig_names.remove(comp_name)
-                            else:
-                                filtered_contig_names.remove(base_name)
-                        else:
-                            uncollapsible_contigs.append("{}_vs_{}".format(base_name, comp_name))
-
-                    else:
-                        uncollapsible_contigs.append("{}_vs_{}".format(base_name, comp_name))
-
-                elif lev_dist < 75 and not base_id == comp_id and base_name in filtered_contig_names \
-                        and comp_name in filtered_contig_names:
-                    if locus == "TCR_A":
-                        duplicate_pattern = re.compile(r"TRAV\d+[DN]")
-                        segment_pattern = re.compile(r"TRAV(\d+)([DN])?(-\d)?.+")
-                        attempt_collapse = True
-                    elif locus == "TCR_D":
-                        duplicate_pattern = re.compile(r"DV\d+[DN]")
-                        segment_pattern = re.compile(r"DV(\d+)([DN])?(-\d)?.+")
-                        attempt_collapse = True
-                    else:
-                        uncollapsible_contigs.append("{}_vs_{}".format(base_name, comp_name))
-                        attempt_collapse = False
-
-                    if attempt_collapse and (
-                        duplicate_pattern.search(base_V_segment) or duplicate_pattern.search(comp_V_segment)):
-                        base_segment = get_segment_name(base_V_segment, segment_pattern)
-                        comp_segment = get_segment_name(comp_V_segment, segment_pattern)
-                        if (base_segment == comp_segment) and (base_junc == comp_junc) and (
-                            base_J_segment == comp_J_segment):
-                            # find alignment with lowest E value for V match
-                            if base_e_value <= comp_e_value:
-                                filtered_contig_names.remove(comp_name)
-                            else:
-                                filtered_contig_names.remove(base_name)
-                        else:
-                            uncollapsible_contigs.append("{}_vs_{}".format(base_name, comp_name))
-
-                elif base_id == comp_id and base_name in filtered_contig_names and comp_name in filtered_contig_names:
-                    if base_e_value <= comp_e_value:
-                        filtered_contig_names.remove(comp_name)
-                    else:
-                        filtered_contig_names.remove(base_name)
-
-    recombinants_to_delete = []
-
-    for r in recombinants:
-        if not r.contig_name in filtered_contig_names:
-            recombinants_to_delete.append(r)
-
-    [recombinants.remove(r) for r in recombinants_to_delete]
-    #print("Recs after collapsing close sequences")
-    #for r in recombinants:
-        #print(r.contig_name)
-       
-
-    return (recombinants)
 
 
 def load_kallisto_counts(tsv_file):
     counts = defaultdict(lambda: defaultdict(dict))
     with open(tsv_file) as tsvh:
         for line in tsvh:
-            if "TRACER" in line:
+            if "BRACER" in line:
                 line = line.rstrip()
                 line = line.split("\t")
                 tags = line[0].split("|")
@@ -1131,32 +878,36 @@ def load_kallisto_counts(tsv_file):
 
 
 
-def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, receptor, loci,
-                               network_colours, cell_contig_clones, cells_with_clonal_H):
+def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato, 
+                   receptor, loci, network_colours, cell_contig_clones, 
+                   cells_with_clonal_H, no_duplets):
     G = nx.MultiGraph()
 
-    print(cell_contig_clones)    
     # initialise all cells as nodes
 
     if shape == 'circle':
         for cell in cells:
-            G.add_node(cell, shape=shape, label=cell.html_style_label_for_circles(receptor, loci, network_colours),
-                        sep=0.4, fontname="helvetica neue")
+            if no_duplets is False or (no_duplets is True 
+                and not cell.has_excess_recombinants):
+                G.add_node(cell, shape=shape, 
+                        label=cell.html_style_label_for_circles(receptor, loci, 
+                        network_colours), sep=0.4, fontname="helvetica neue")
 
-            if cell.bgcolor is not None:
-                G.node[cell]['style'] = 'filled'
-
-                G.node[cell]['fillcolor'] = cell.bgcolor
-            
+                if cell.bgcolor is not None:
+                    G.node[cell]['style'] = 'filled'
+                    G.node[cell]['fillcolor'] = cell.bgcolor
 
     else:
         for cell in cells:
-            G.add_node(cell, shape=shape, label=cell.html_style_label_dna(receptor, loci, network_colours),
-                        fontname="helvetica neue")
-            if cell.bgcolor is not None:
-                G.node[cell]['style'] = 'filled'
+            if no_duplets is False or (no_duplets is True 
+                and not cell.has_excess_recombinants):
 
-                G.node[cell]['fillcolor'] = cell.bgcolor
+                G.add_node(cell, shape=shape, 
+                           label=cell.html_style_label_dna(receptor, loci, 
+                           network_colours),fontname="helvetica neue")
+                if cell.bgcolor is not None:
+                    G.node[cell]['style'] = 'filled'
+                    G.node[cell]['fillcolor'] = cell.bgcolor
 
     # Create list of cells belonging to a heavy chain clone group
     cell_names = cells_with_clonal_H
@@ -1170,7 +921,6 @@ def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, 
         for locus in loci:
             col = network_colours[receptor][locus][0]
 
-           
             for comparison_cell in comparison_cells:
                 shared_identifiers = 0
 
@@ -1181,34 +931,40 @@ def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, 
                         comparison_cell = cell
                 current_contigs = []
                 comparison_contigs = []
-                if current_cell.name in cell_contig_clones[locus].keys() and comparison_cell.name in cell_contig_clones[locus].keys():
+                if current_cell.name in cell_contig_clones[locus].keys() \
+                        and comparison_cell.name in cell_contig_clones[locus].keys():
               
-                    for contig_name, clone_group in six.iteritems(cell_contig_clones[locus][current_cell.name]):
+                    for contig_name, clone_group in six.iteritems(
+                            cell_contig_clones[locus][current_cell.name]):
                         current_contigs.append(contig_name)
-                    for contig_name, clone_group in six.iteritems(cell_contig_clones[locus][comparison_cell.name]):
+                    for contig_name, clone_group in six.iteritems(
+                            cell_contig_clones[locus][comparison_cell.name]):
                         comparison_contigs.append(contig_name)
 
                 if locus == "H":
                     clonal_H = False
 
                     # Check if cells share a clonal H chain
-                   
                     for current_contig in current_contigs:
                         for comparison_contig in comparison_contigs:
-                            if cell_contig_clones["H"][comparison_cell.name][comparison_contig] == cell_contig_clones["H"][current_cell.name][current_contig]:
+                            if cell_contig_clones["H"][comparison_cell.name][comparison_contig] == \
+                                cell_contig_clones["H"][current_cell.name][current_contig]:
                                 clonal_H = True
                                 shared_identifiers += 1 
 
 
                     # Check if cells share nonfunctional chains
-                    if len(current_cell.recombinants[receptor][locus]) > 1 and len(comparison_cell.recombinants[receptor][locus]) > 1:
+                    if len(current_cell.recombinants[receptor][locus]) > 1 \
+                        and len(comparison_cell.recombinants[receptor][locus]) > 1:
                         for current_recombinant in current_cell.recombinants[receptor][locus]:
                             if not current_recombinant.productive:
                                 current_id_set = current_recombinant.all_poss_identifiers
 
-                                for comparison_recombinant in comparison_cell.recombinants[receptor][locus]:
+                                for comparison_recombinant in \
+                                    comparison_cell.recombinants[receptor][locus]:
                                     if not comparison_recombinant.productive:
-                                        comparison_id_set = comparison_recombinant.all_poss_identifiers
+                                        comparison_id_set = \
+                                        comparison_recombinant.all_poss_identifiers
                                         if len(current_id_set.intersection(comparison_id_set)) > 0:
                                             if shared_identifiers > 0:
                                                 shared_identifiers += 1
@@ -1254,29 +1010,30 @@ def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, 
                     shared_identifiers = 0
                     col = network_colours[receptor][locus][0]
 
-                    if len(current_cell.recombinants[receptor][locus]) > 0 and len(comparison_cell.recombinants[receptor][locus]) > 0:
-                        for current_recombinant in current_cell.recombinants[receptor][locus]:
+                    if len(current_cell.recombinants[receptor][locus]) > 0 \
+                        and len(comparison_cell.recombinants[receptor][locus]) > 0:
+                        for current_recombinant in \
+                            current_cell.recombinants[receptor][locus]:
                             if not current_recombinant.productive:
                                 current_id_set = current_recombinant.all_poss_identifiers
 
                                 for comparison_recombinant in comparison_cell.recombinants[receptor][locus]:
                                     if not comparison_recombinant.productive:
                                         comparison_id_set = comparison_recombinant.all_poss_identifiers
-                                        print(locus)
-                                        print(current_recombinant.contig_name, comparison_recombinant.contig_name)
                                         if len(current_id_set.intersection(comparison_id_set)) > 0:
-                                            print(current_id_set.intersection(comparison_id_set))
                                             shared_identifiers += 1
                         if shared_identifiers > 0:
                             edge_dict = G.get_edge_data(current_cell, comparison_cell)
                                          
                             if locus in edge_dict.keys():
                                 width = 4
-                                G.add_edge(current_cell, comparison_cell, locus, penwidth=width, color=col)
+                                G.add_edge(current_cell, comparison_cell, locus, 
+                                                      penwidth=width, color=col)
                                 
                             else:
                                 width = 2 * shared_identifiers
-                                G.add_edge(current_cell, comparison_cell, locus, penwidth=width, color=col)
+                                G.add_edge(current_cell, comparison_cell, locus, 
+                                                      penwidth=width, color=col)
 
 
     deg = G.degree()
@@ -1313,108 +1070,32 @@ def make_cell_network_from_dna_B_cells(cells, keep_unlinked, shape, dot, neato, 
 
 
 
-def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato, receptor, loci, 
-                               network_colours):
-    G = nx.MultiGraph()
-    # initialise all cells as nodes
 
-    if shape == 'circle':
-        for cell in cells:
-            G.add_node(cell, shape=shape, label=cell.html_style_label_for_circles(receptor, loci, network_colours), 
-                        sep=0.4, fontname="helvetica neue")
-    else:
-        for cell in cells:
-            G.add_node(cell, shape=shape, label=cell.html_style_label_dna(receptor, loci, network_colours), 
-                        fontname="helvetica neue")
-    # make edges:
-    for i in range(len(cells)):
-        current_cell = cells[i]
-        comparison_cells = cells[i + 1:]
-
-        for locus in loci:
-            col = network_colours[receptor][locus][0]
-
-            # current_identifiers = current_cell.getMainRecombinantIdentifiersForLocus(locus)
-            for comparison_cell in comparison_cells:
-                shared_identifiers = 0
-                if current_cell.recombinants[receptor][locus] is not None:
-                    for current_recombinant in current_cell.recombinants[receptor][locus]:
-                        current_id_set = current_recombinant.all_poss_identifiers
-                        if comparison_cell.recombinants[receptor][locus] is not None:
-                            for comparison_recombinant in comparison_cell.recombinants[receptor][locus]:
-                                comparison_id_set = comparison_recombinant.all_poss_identifiers
-                                if len(current_id_set.intersection(comparison_id_set)) > 0:
-                                    shared_identifiers += 1
-
-                if shared_identifiers > 0:
-                    width = shared_identifiers * 2
-                    G.add_edge(current_cell, comparison_cell, locus, penwidth=width, color=col,
-                               weight=shared_identifiers)
-
-    deg = G.degree()
-
-    to_remove = [n for n in deg if deg[n] == 0]
-
-    if len(to_remove) < len(G.nodes()):
-        if not shape == 'circle':
-            G.remove_nodes_from(to_remove)
-            drawing_tool = [dot, '-Gsplines=true', '-Goverlap=false', '-Gsep=0.4']
-        else:
-            drawing_tool = [dot, '-Gsplines=true', '-Goverlap=false']
-    else:
-        drawing_tool = [neato, '-Gsplines=true', '-Goverlap=false']
-
-    bgcolors = ['#8dd3c720', '#ffffb320', '#bebada20', '#fb807220', '#80b1d320', '#fdb46220', '#b3de6920', '#fccde520',
-                '#d9d9d920', '#bc80bd20', '#ccebc520', '#ffed6f20']
-    component_counter = 0
-    component_groups = list()
-    j = 0
-    components = nx.connected_components(G)
-
-    for component in components:
-        members = list()
-        if len(component) > 1:
-            for cell in component:
-                members.append(cell.name)
-                G.node[cell]['style'] = 'filled'
-                G.node[cell]['fillcolor'] = bgcolors[j]
-                cell.bgcolor = bgcolors[j]
-
-            if j < 11:
-                j += 1
-            else:
-                component_counter += 1
-                j = 0
-
-        component_groups.append(members)
-
-    return (G, drawing_tool, component_groups)
-
-
-def draw_network_from_cells(cells, output_dir, output_format, dot, neato, draw_graphs, receptor, loci, network_colours, cell_contig_clones, cells_with_clonal_H):
+def draw_network_from_cells(cells, output_dir, output_format, dot, neato, 
+                           draw_graphs, receptor, loci, network_colours, 
+                           cell_contig_clones, cells_with_clonal_H, no_duplets):
     cells = list(cells.values())
-    if not receptor == "BCR":
-        network, draw_tool, component_groups = make_cell_network_from_dna(cells, False, "box", dot,
-                                                                      neato, receptor, loci, network_colours)
-    else:
-        network, draw_tool, component_groups = make_cell_network_from_dna_B_cells(cells, False, "box", dot,
-                                                                      neato, receptor, loci, network_colours, cell_contig_clones, cells_with_clonal_H)
+    
+    network, draw_tool, component_groups = make_cell_network_from_dna_B_cells(cells, 
+                            False, "box", dot, neato, receptor, loci, network_colours, 
+                                  cell_contig_clones, cells_with_clonal_H, no_duplets)
+
     network_file = "{}/clonotype_network_with_identifiers.dot".format(output_dir)
+
     try:
         nx.write_dot(network, network_file)
     except AttributeError:
         import pydotplus
         nx.drawing.nx_pydot.write_dot(network, network_file)
     if draw_graphs:
-        command = draw_tool + ['-o', "{output_dir}/clonotype_network_with_identifiers.{output_format}".format(
-            output_dir=output_dir, output_format=output_format), "-T", output_format, network_file]
+        command = draw_tool + ['-o', "{output_dir}/clonotype_network_with_\
+                 identifiers.{output_format}".format(output_dir=output_dir, 
+                 output_format=output_format), "-T", output_format, network_file]
         subprocess.check_call(command)
-    if not receptor == "BCR":
-        network, draw_tool, cgx = make_cell_network_from_dna(cells, False, "circle", dot, 
-                                                         neato, receptor, loci, network_colours)
-    else:
-        network, draw_tool, cgx = make_cell_network_from_dna_B_cells(cells, False, "circle", dot,
-                                                         neato, receptor, loci, network_colours, cell_contig_clones, cells_with_clonal_H)
+    
+    network, draw_tool, cgx = make_cell_network_from_dna_B_cells(cells, False, 
+                        "circle", dot, neato, receptor, loci, network_colours, 
+                          cell_contig_clones, cells_with_clonal_H, no_duplets)
 
     network_file = "{}/clonotype_network_without_identifiers.dot".format(output_dir)
     try:
@@ -1424,65 +1105,17 @@ def draw_network_from_cells(cells, output_dir, output_format, dot, neato, draw_g
         import pydotplus
         nx.drawing.nx_pydot.write_dot(network, network_file)
     if draw_graphs:
-        command = draw_tool + ['-o', "{output_dir}/clonotype_network_without_identifiers.{output_format}".format(
-            output_dir=output_dir, output_format=output_format), "-T", output_format, network_file]
+        command = draw_tool + ['-o', "{output_dir}/clonotype_network_without_\
+                  identifiers.{output_format}".format(output_dir=output_dir, 
+                  output_format=output_format), "-T", output_format, network_file]
         subprocess.check_call(command)
-    return (component_groups)
+    return (component_groups, network)
 
 
-def get_component_groups_sizes(cells, receptor, loci):
+def get_component_groups_sizes(cells, receptor, loci, G):
+    # Should provide G from make_cell_network_from_dna?
     cells = list(cells.values())
-    G = nx.MultiGraph()
-    # initialise all cells as nodes
-    for cell in cells:
-        G.add_node(cell)
-    # make edges:
-    for i in range(len(cells)):
-        current_cell = cells[i]
-        comparison_cells = cells[i + 1:]
-        clonality = False
-        for locus in loci:
-            
-            # current_identifiers = current_cell.getMainRecombinantIdentifiersForLocus(locus)
-            for comparison_cell in comparison_cells:
-                shared_identifiers = 0
-                if current_cell.recombinants[receptor][locus] is not None:
-                    for current_recombinant in current_cell.recombinants[receptor][locus]:
-                        current_id_set = current_recombinant.all_poss_identifiers
-                        if comparison_cell.recombinants[receptor][locus] is not None:
-                            for comparison_recombinant in comparison_cell.recombinants[receptor][locus]:
-                                comparison_id_set = comparison_recombinant.all_poss_identifiers
-                                if len(current_id_set.intersection(comparison_id_set)) > 0:
-                                    shared_identifiers += 1
-
-                # comparison_identifiers = comparison_cell.getAllRecombinantIdentifiersForLocus(locus)
-                # common_identifiers = current_identifiers.intersection(comparison_identifiers)
-                
-                if shared_identifiers > 0:
-                    width = shared_identifiers * 2
-                    if receptor != "BCR":
-                        G.add_edge(current_cell, comparison_cell, locus, penwidth=width, weight=shared_identifiers)
-                    if receptor == "BCR":
-                        if G.has_edge(current_cell, comparison_cell):
-                            clonality = True
-                        if locus == "H" or G.has_edge(current_cell, comparison_cell):
-                    #print("Shared identifiers")
-                    #print(shared_identifiers)
-
-
-                            G.add_edge(current_cell, comparison_cell, locus, penwidth=width, weight=shared_identifiers)
-                        
-
-
-    deg = G.degree()
-
-    to_remove = [n for n in deg if deg[n] == 0]
-
-    # if len(to_remove) < len(G.nodes()):
-    #    G.remove_nodes_from(to_remove)
-
     components = nx.connected_components(G)
-
     component_groups = list()
 
     singlets = []
@@ -1581,15 +1214,13 @@ def bowtie2_alignment(bowtie2, ncores, receptor, loci, output_dir, cell_name, sy
                             if mate_flag == "1":
                                 name_ending = "/1"
                                 fastq_lines_1.append(
-                                    "@{name}{name_ending}\n{seq}\n+\n{qual}\n".format(name=name, seq=seq,
-                                                                                      name_ending=name_ending,
-                                                                                      qual=qual))
+                                    "@{name}{name_ending}\n{seq}\n+\n{qual}\n".format(name=name, 
+                                                    seq=seq, name_ending=name_ending, qual=qual))
                             else:
                                 name_ending = "/2"
                                 fastq_lines_2.append(
-                                    "@{name}{name_ending}\n{seq}\n+\n{qual}\n".format(name=name, seq=seq,
-                                                                                      name_ending=name_ending,
-                                                                                      qual=qual))
+                                    "@{name}{name_ending}\n{seq}\n+\n{qual}\n".format(name=name, 
+                                                    seq=seq, name_ending=name_ending, qual=qual))
 
             for line in fastq_lines_1:
                 fastq_out_1.write(line)
@@ -1600,8 +1231,9 @@ def bowtie2_alignment(bowtie2, ncores, receptor, loci, output_dir, cell_name, sy
             fastq_out_2.close()
         else:
             fastq_out = open("{}/aligned_reads/{}_{}.fastq".format(output_dir, cell_name, locus), 'w')
-            command = [bowtie2, '--no-unal', '-p', ncores, '-k', '1', '--np', '0', '--rdg', '1,1', '--rfg', '1,1',
-                       '-x', "/".join([synthetic_genome_path, locus]), '-U', fastq1, '-S', sam_file]
+            command = [bowtie2, '--no-unal', '-p', ncores, '-k', '1', '--np', '0', '--rdg', '1,1', 
+                      '--rfg', '1,1', '-x', "/".join([synthetic_genome_path, locus]), '-U', fastq1, 
+                      '-S', sam_file]
 
             subprocess.check_call(command)
 
@@ -1630,8 +1262,8 @@ def bowtie2_alignment(bowtie2, ncores, receptor, loci, output_dir, cell_name, sy
                 fastq_out.close()
 
 
-def assemble_with_trinity(trinity, receptor, loci, output_dir, cell_name, ncores, trinity_grid_conf, JM,
-                          version, should_resume, single_end, species):
+def assemble_with_trinity(trinity, receptor, loci, output_dir, cell_name, ncores, trinity_grid_conf, 
+                          JM, version, should_resume, single_end, species):
     print("##Assembling Trinity Contigs##")
 
     if should_resume:
@@ -1747,8 +1379,7 @@ def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, 
     if should_resume:
         for locus in initial_locus_names:
             igblast_out = "{output_dir}/IgBLAST_output/{cell_name}_{receptor}_{locus}.IgBLASTOut".format(
-                                                        output_dir=output_dir,cell_name=cell_name, 
-                                                        receptor=receptor, locus=locus)
+                        output_dir=output_dir,cell_name=cell_name, receptor=receptor, locus=locus)
             if (os.path.isfile(igblast_out) and os.path.getsize(igblast_out) > 0):
                 locus_names.remove(locus)
                 print("Resuming with existing IgBLAST output for {locus}".format(locus=locus))
@@ -1766,18 +1397,12 @@ def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, 
     # Taken from http://stackoverflow.com/questions/11269575/how-to-hide-output-of-subprocess-in-python-2-7
     DEVNULL = open(os.devnull, 'wb')
 
-    if receptor == "BCR":
-        num_alignments_V = '20'
-        num_alignments_D = '3'
-        num_alignments_J = '5'
-    else:
-        num_alignments_V = '5'
-        num_alignments_D = '5'
-        num_alignments_J = '5'
+    num_alignments_V = '20'
+    num_alignments_D = '3'
+    num_alignments_J = '5'
     
-    # Modify assembled_file to create unique fasta headers compatible with TraCeR
+    # Modify assembled_file to create unique fasta headers compatible with BraCeR
     if assembled_file is not None:
-        #tracerlib.io.parse_assembled_file(output_dir, cell_name, assembled_file)
         trinity_fasta = "{}/Trinity_output/{}.fasta".format(output_dir, cell_name)       
 
     for locus in locus_names:
@@ -1787,19 +1412,22 @@ def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, 
         
 
         ############### MOVE TO CONFIG FILE IF WORKS!! ####################
-        auxiliary_data = "/nfs/team205/il5/software/human_gl.aux"
+        #auxiliary_data = "/nfs/team205/il5/software/human_gl.aux"
+        #'-auxiliary_data', auxiliary_data
         if os.path.isfile(trinity_fasta):
-            command = [igblast, '-germline_db_V', databases['V'], '-germline_db_J', databases['J'], '-germline_db_D', 
-                        databases['D'], '-domain_system', 'imgt', '-organism', igblast_species,
-                       '-ig_seqtype', ig_seqtype, '-auxiliary_data', auxiliary_data, '-show_translation', '-num_alignments_V', num_alignments_V,
-                       '-num_alignments_D', num_alignments_D, '-num_alignments_J', num_alignments_J, '-outfmt', '7', '-query', trinity_fasta]
+            command = [igblast, '-germline_db_V', databases['V'], '-germline_db_J', 
+                      databases['J'], '-germline_db_D', databases['D'], '-domain_system', 
+                      'imgt', '-organism', igblast_species, '-ig_seqtype', ig_seqtype, 
+                      '-show_translation', '-num_alignments_V', num_alignments_V,
+                       '-num_alignments_D', num_alignments_D, '-num_alignments_J', 
+                       num_alignments_J, '-outfmt', '7', '-query', trinity_fasta]
+
             if assembled_file is None:
-                igblast_out = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
-                                                                                              cell_name=cell_name,
-                                                                                              locus=locus)
+                igblast_out = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(
+                               output_dir=output_dir, cell_name=cell_name, locus=locus)
             else:
-                igblast_out = "{output_dir}/IgBLAST_output/{cell_name}.IgBLASTOut".format(output_dir=output_dir,
-                                                                                              cell_name=cell_name)
+                igblast_out = "{output_dir}/IgBLAST_output/{cell_name}.IgBLASTOut".format(
+                               output_dir=output_dir, cell_name=cell_name)
                                                                                               
  
             with open(igblast_out, 'w') as out:
@@ -1812,7 +1440,7 @@ def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, 
 
 
 def run_Blast(blast, receptor, loci, output_dir, cell_name, index_location, species,
-                should_resume, assembler, assembled_file):
+                should_resume, assembled_file):
     print("##Running BLAST##") 
 
     species_mapper = {
@@ -1832,7 +1460,8 @@ def run_Blast(blast, receptor, loci, output_dir, cell_name, index_location, spec
     for segment in ['c', 'C']:
         databases[segment] = "{}/{}_{}.fa".format(index_location, receptor, segment)
     
-    if (os.path.isfile("{}/{}_c.fa".format(index_location, receptor)) and os.path.getsize("{}/{}_c.fa".format(index_location, receptor)) > 0):
+    if (os.path.isfile("{}/{}_c.fa".format(index_location, receptor)) and \
+        os.path.getsize("{}/{}_c.fa".format(index_location, receptor)) > 0):
         database = databases['c']
     else:
         database = databases['C']
@@ -1854,13 +1483,10 @@ def run_Blast(blast, receptor, loci, output_dir, cell_name, index_location, spec
         if os.path.isfile(trinity_fasta):
             command = [blast, '-db', database, '-evalue', '0.001',
                         '-num_alignments', '1', '-outfmt', '5', '-query', trinity_fasta]
-            if assembler == "basic":
-                blast_out = "{output_dir}/Basic_BLAST_output/{cell_name}_{locus}.xml".format(output_dir=output_dir, cell_name=cell_name,
-                                                                                              locus=locus)
-            else:
-                blast_out = "{output_dir}/BLAST_output/{cell_name}_{locus}.xml".format(output_dir=output_dir,
-                                                                                              cell_name=cell_name,
-                                                                                              locus=locus)
+                            
+            blast_out = "{output_dir}/BLAST_output/{cell_name}_{locus}.xml".format(
+                            output_dir=output_dir, cell_name=cell_name, locus=locus)
+
             with open(blast_out, 'w') as out:
                 # print(" ").join(pipes.quote(s) for s in command)
                 subprocess.check_call(command, stdout=out, stderr=DEVNULL)

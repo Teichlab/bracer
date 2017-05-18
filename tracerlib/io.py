@@ -15,7 +15,6 @@ from Bio import SeqIO
 #from Bio.Blast import NCBIXML, Record
 
 from tracerlib.tracer_func import process_chunk, find_possible_alignments, extract_blast_info
-from tracerlib.core import Invar_cell
 import glob
 import pdb
 
@@ -67,8 +66,8 @@ def load_IMGT_seqs(file):
 
 def parse_assembled_file(output_dir, cell_name, assembled_file):
     if os.path.exists(assembled_file):
-        outfile = "{output_dir}/Trinity_output/{cell_name}.fasta".format(output_dir=output_dir,
-                                                                           cell_name=cell_name)
+        outfile = "{output_dir}/Trinity_output/{cell_name}.fasta".format(
+                   output_dir=output_dir, cell_name=cell_name)
     write = False
     count = 0    
     with open(assembled_file, "r") as input:
@@ -85,23 +84,19 @@ def parse_assembled_file(output_dir, cell_name, assembled_file):
                         output.write(line)
 
 
-def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species, seq_method, assembler, assembled_file, max_junc_len=50, invariant_seqs=None):
+def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species, 
+                  assembled_file, max_junc_len=100, invariant_seqs=None):
     
     IMGT_seqs = dict()
-    
     loci_for_segments = defaultdict(list)
     
-    #if assembled_file is not None:
-        #parse_assembled_file(output_dir, cell_name, assembled_file)
 
     for locus in loci:
-        seq_files = glob.glob(os.path.join(raw_seq_dir, "{receptor}_{locus}_*.fa".format(receptor=receptor, 
-                                                                                    locus=locus)))
+        seq_files = glob.glob(os.path.join(raw_seq_dir, "{receptor}_{locus}_*.fa".format(
+                                                        receptor=receptor, locus=locus)))
         for f in seq_files:
             segment_name = os.path.splitext(os.path.split(f)[1])[0]
             IMGT_seqs[segment_name] = load_IMGT_seqs(f)
-            #if segment_name.split("_")[2] == 'D':
-            #    expecting_D[locus] = True
             loci_for_segments[segment_name.split("_")[2]].append(locus)
                     
     
@@ -109,11 +104,11 @@ def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species, s
     all_locus_data = defaultdict(dict)
     for locus in locus_names:
         if assembled_file is not None:
-            file = "{output_dir}/IgBLAST_output/{cell_name}.IgBLASTOut".format(output_dir=output_dir,
-                                                                                      cell_name=cell_name)
+            file = "{output_dir}/IgBLAST_output/{cell_name}.IgBLASTOut".format(
+                                    output_dir=output_dir, cell_name=cell_name)
         else:    
-            file = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(output_dir=output_dir,
-                                                                                   cell_name=cell_name, locus=locus)
+            file = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(
+                                output_dir=output_dir, cell_name=cell_name, locus=locus)
         if os.path.isfile(file):
             igblast_result_chunks = split_igblast_file(file)
          
@@ -123,36 +118,36 @@ def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species, s
                     if "cell_id=" in query_name:
                         query_name = query_name.split("=")[1]
                 all_locus_data[locus][query_name] = chunk_details
-                print("parse igblast query name")
-                print(query_name)
                 
         else:
             all_locus_data[locus] = None
 
              
 
-    cell = find_possible_alignments(all_locus_data, locus_names, cell_name, IMGT_seqs, output_dir, species, seq_method,
-                                     invariant_seqs, loci_for_segments, receptor, loci, max_junc_len, assembler, assembled_file)
+    cell = find_possible_alignments(all_locus_data, locus_names, cell_name, IMGT_seqs, 
+                                    output_dir, species, loci_for_segments, receptor, 
+                                    loci, max_junc_len, assembled_file)
     return (cell)
 
 
-def parse_BLAST(receptor, loci, output_dir, cell_name, species, assembler):
-    """Parses BLAST output from output files and writes formatted output to BLAST output summary files"""
+def parse_BLAST(receptor, loci, output_dir, cell_name, species, assembled_file):
+    """Parses BLAST output from output files and writes formatted output to BLAST 
+    output summary files"""
 
     locus_names = ["_".join([receptor,x]) for x in loci]    
 
     for locus in loci:
-        if assembler == "basic":
-            blast_dir = "Basic_BLAST_output"
-        else:
-            blast_dir = "BLAST_output"
         
-        output_file = "{outdir}/{blast_dir}/blastsummary_{locus}.txt".format(outdir=output_dir, blast_dir=blast_dir, locus=locus)
-        input_file =  "{output_dir}/{blast_dir}/{cell_name}_{receptor}_{locus}.xml".format(output_dir=output_dir, blast_dir=blast_dir, 
-                                                                                   cell_name=cell_name, locus=locus, receptor=receptor)
+        blast_dir = "BLAST_output"
+        output_file = "{outdir}/{blast_dir}/blastsummary_{locus}.txt".format(
+                       outdir=output_dir, blast_dir=blast_dir, locus=locus)
+        input_file = "{output_dir}/{blast_dir}/{cell_name}_{receptor}_{locus}.xml".format(
+                      output_dir=output_dir, blast_dir=blast_dir, cell_name=cell_name, 
+                      locus=locus, receptor=receptor)
 
         with open(output_file, 'w') as outfile:
-            outfile.write("------------------\n##{}##\n------------------\n\n#{}_{}#\n\n".format(cell_name, receptor, locus))
+            outfile.write("------------------\n##{}##\n------------------\n\n#{}_{}#\n\n".format(
+                                                                    cell_name, receptor, locus))
         
             #Split result file into chunks corresponding to results for each query sequence.
             if os.path.isfile(input_file):
@@ -166,8 +161,9 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species, assembler):
                         if line_x.startswith("<Iteration_query-def>"):
                             line = line_x.split(">")[1]
                             blast_query_name = line.split("<")[0]
-                            if assembler == "trinity":
-                                blast_query_name = blast_query_name.split()[0] 
+                            if assembled_file == True or " " in blast_query_name:
+                                blast_query_name = blast_query_name.split()[0]
+                            
                         elif line_x.startswith("<Hsp_evalue>"):
                             evalue = extract_blast_info(line_x)
                             evalue = format(float(evalue), '.0e')
@@ -205,10 +201,12 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species, assembler):
 
                         elif line_x.startswith("<Iteration_message>No hits found"):
                             message = True
-                            out_string = "##{blast_query_name}##\nNo C segment found\n\n".format(blast_query_name=blast_query_name)
+                            out_string = "##{blast_query_name}##\nNo C segment found\n\n".format(
+                                                                blast_query_name=blast_query_name)
                             outfile.write(out_string)
                         
-                        #Create output string when reaching end of BLAST iteration result (marked by </Iteration>) and write to BLAST summary file
+                        #Create output string when reaching end of BLAST iteration result (marked by </Iteration>) 
+                        #and write to BLAST summary file
                         elif line_x.startswith("</Iteration>") and message is not True:
                             identity_pro = float(identity)/int(align_length)*100
                             identity_pro = format(identity_pro, '.2f')
@@ -222,17 +220,22 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species, assembler):
                                 q_end = int(query_length) - x + 1
                                 s_start, s_end = s_end, s_start
                                
-                            intro_string = "##{blast_query_name}##\nC segment:\t{C_segment}\n\n".format(blast_query_name=blast_query_name, C_segment=C_segment)
-                            header_string = "Segment\tquery_id\tsubject_id\t% identity\talignment length\tmismatches\tgap opens\tgaps\tq start\tq end\ts start\ts end\tevalue\tbit score\n"
-                            out_string = "C\t{blast_query_name}\t{C_segment}\t{identity_pro}\t{align_length}\t{mismatches}\tNA\t{gaps}\t{q_start}\t{q_end}\t{s_start}\t{s_end}\t{evalue}\t{bit_score}\n\n".format(
-                                          blast_query_name=blast_query_name, C_segment=C_segment, identity_pro=identity_pro, align_length=align_length, evalue=evalue, mismatches=mismatches, gaps=gaps, 
-                                          q_start=q_start, q_end=q_end, s_start=s_start, s_end=s_end, bit_score=bit_score)
+                            intro_string = "##{blast_query_name}##\nC segment:\t{C_segment}\n\n".format(
+                                            blast_query_name=blast_query_name, C_segment=C_segment)
+                            header_string = ("Segment\tquery_id\tsubject_id\t% identity\talignment length\t"
+                                            "mismatches\tgap opens\tgaps\tq start\tq end\ts start\ts end\t"
+                                            "evalue\tbit score\n")
+                            out_string = ("C\t{blast_query_name}\t{C_segment}\t{identity_pro}\t{align_length}\t{mismatches}\tNA\t{gaps}\t{q_start}\t{q_end}\t{s_start}\t{s_end}\t{evalue}\t{bit_score}\n\n").format(blast_query_name=blast_query_name, 
+                                            C_segment=C_segment, identity_pro=identity_pro, align_length=align_length, 
+                                            evalue=evalue, mismatches=mismatches, gaps=gaps, q_start=q_start, 
+                                            q_end=q_end, s_start=s_start, s_end=s_end, bit_score=bit_score)
                             string_to_write = intro_string + header_string + out_string
                             outfile.write(string_to_write)                           
                                   
 
 def split_igblast_file(filename):
-    # code adapted from http://stackoverflow.com/questions/19575702/pythonhow-to-split-file-into-chunks-by-the-occurrence-of-the-header-word
+    # code adapted from http://stackoverflow.com/questions/19575702/pythonhow-to-split-file-into-chunks-by-the-
+    #occurrence-of-the-header-word
     token = '# IGBLASTN'
     chunks = []
     current_chunk = []
@@ -254,7 +257,8 @@ def split_igblast_file(filename):
 
 
 def split_blast_file(filename):
-    # code adapted from http://stackoverflow.com/questions/19575702/pythonhow-to-split-file-into-chunks-by-the-occurrence-of-the-header-word
+    # code adapted from http://stackoverflow.com/questions/19575702/pythonhow-to-split-file-into-chunks-by-the-
+    #occurrence-of-the-header-word
     token = '<Iteration>'
     chunks = []
     current_chunk = []
@@ -273,22 +277,6 @@ def split_blast_file(filename):
     return (chunks)
 
 
-# def check_binary(name, user_path=None):
-#     if user_path:
-#         if not is_exe(user_path):
-#             print("The user provided path for {name} is not executable {user_path}. "
-#                   "Checking PATH for alternative... ".format(name=name, user_path=user_path))
-#         else:
-#             return user_path
-#     if sys.version_info[0] < 3:
-#         binary_path = distutils.spawn.find_executable(name)
-#     else:
-#         binary_path = shutil.which(name)
-#     if not binary_path:
-#     else:
-#         print("Binary for {name} found at {binary_path}.".format(name=name, binary_path=binary_path))
-#         return binary_path
-
 def check_binary(name, user_path=None):
     def is_exe(fpath):
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
@@ -306,15 +294,6 @@ def check_binary(name, user_path=None):
     raise OSError("Required binary not found: {name}. Please add to PATH or specify location in config file."
                   .format(name=name))
 
-
-def parse_invariant_cells(filename):
-
-    invariant_cells = []
-    with open(filename) as fh:
-        json_dict = json.load(fh)
-        for c in json_dict:
-            invariant_cells.append(Invar_cell(c))
-    return invariant_cells
 
 def read_colour_file(filename, return_used_list=False, receptor_name=None):
     colour_map = dict()
