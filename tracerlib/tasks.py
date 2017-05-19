@@ -171,8 +171,8 @@ class Assembler(TracerTask):
             # get list of all available species in resources
             
             parser = argparse.ArgumentParser(
-                description="Reconstruct BCR sequences from RNAseq reads for a \
-                            single cell", parents=[self.base_parser], 
+                description='Reconstruct BCR sequences from RNAseq reads for a '
+                            'single cell', parents=[self.base_parser], 
                             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
             parser.add_argument('--resume_with_existing_files', '-r',
                                 help='look for existing intermediate files and '
@@ -541,17 +541,18 @@ class Summariser(TracerTask):
                                 summarise for receptor", default=['H','K', 'L'], 
                                 nargs = '+')
             parser.add_argument('--use_unfiltered', '-u', 
-                                help='use unfiltered recombinants', action="store_true")
+                                help='Use unfiltered recombinants', action="store_true")
             parser.add_argument('--graph_format', '-f', metavar="<GRAPH_FORMAT>", 
-                                help='graphviz output format [pdf]', default='pdf')
-            parser.add_argument('--no_networks', help='skip attempts to draw network \
+                                help='Graphviz output format [pdf]', default='svg')
+            parser.add_argument('--no_networks', help='Skip attempts to draw network \
                                 graphs', action = "store_true")
-            parser.add_argument('--IGH_networks', help='base clonality only on \
-                                IGH chains', action = "store_true")
-            parser.add_argument('--no_duplets', help='exclude cells containing \
-                                more than two recombinants for a locus from networks \
-                                and clonotype analysis', action = "store_true")
-            parser.add_argument('dir', metavar="<DIR>", help='directory containing \
+            parser.add_argument('--IGH_networks', help='Only require shared clonal heavy \
+                                chain to be determined clonal', action = "store_true")
+            parser.add_argument('--no_duplets', help='Exclude cells containing \
+                                more than two recombinants for a locus from downstream \
+                                analyses, including networks and clonotype analysis', 
+                                action = "store_true")
+            parser.add_argument('dir', metavar="<DIR>", help='Directory containing \
                                 subdirectories for each cell to be summarised')
             args = parser.parse_args(sys.argv[2:])
 
@@ -833,7 +834,8 @@ class Summariser(TracerTask):
             # Create input file for ChangeO
             self.make_changeo_input(outdir, locus, self.receptor_name, cells)
             # Run ChangeO
-            changeo = self.get_binary('changeo')
+            #changeo = self.get_binary('changeo')
+            changeo = "DefineClones.py"
             tracer_func.run_changeo(changeo, locus, outdir, self.species)
             print()
             with warnings.catch_warnings():
