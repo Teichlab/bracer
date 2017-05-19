@@ -581,6 +581,8 @@ class Summariser(TracerTask):
         self.config = self.read_config(config_file)
         
         self.species_dir = self.get_resources_root(self.species)
+        if self.no_duplets:
+            self.use_unfiltered = True
         
 
         
@@ -599,8 +601,8 @@ class Summariser(TracerTask):
                     not_executable.append((name, x))
             if len(not_executable) > 0:
                 print()
-                print("Could not execute the following required tools. \
-                      Check your configuration file.")
+                print("Could not execute the following required tools. "
+                      "Check your configuration file.")
                 for t in not_executable:
                     print( t[0], t[1])
                 print()
@@ -670,22 +672,21 @@ class Summariser(TracerTask):
         for l in self.loci:
             count = cell_recovery_count[l]
             pc = round((count/float(total_cells))*100, 1)
-            outfile.write("{receptor}_{locus} reconstruction:\t{count} / {total}\
-                          ({pc}%)\n".format(receptor=self.receptor_name, locus=l, 
-                                          count=count, total=total_cells, pc=pc))
+            outfile.write("{receptor}_{locus} reconstruction:\t{count} / {total} ({pc}%)\n".format(
+                    receptor=self.receptor_name, locus=l, count=count, total=total_cells, pc=pc))
         outfile.write("\n")
         
         for p in possible_pairs:
             count = cell_recovery_count[p]
             pc = round((count/float(total_cells))*100, 1)
             if pc == "KL":
-                outfile.write("Productive reconstruction of K and L:\t{count} \
-                             / {total} ({pc}%)\n".format(p=p, count=count, 
-                                                  total=total_cells, pc=pc))
+                outfile.write(
+                    "Productive reconstruction of K and L:\t{count} / {total} ({pc}%)\n".format(
+                                                    p=p, count=count, total=total_cells, pc=pc))
             else:
-                outfile.write("Paired {p} productive reconstruction:\t{count} \
-                             / {total} ({pc}%)\n".format(p=p, count=count, 
-                                                  total=total_cells, pc=pc))
+                outfile.write(
+                    "Paired {p} productive reconstruction:\t{count} / {total} ({pc}%)\n".format(
+                                                    p=p, count=count, total=total_cells, pc=pc))
         outfile.write("\n")
         
         
@@ -749,12 +750,19 @@ class Summariser(TracerTask):
         outfile.write("\n")
 
         # If using unfiltered, name cells with more than two recombinants#
+        duplets = []
         if self.use_unfiltered:
-            outfile.write("\n\n#Cells with more than two recombinants for a locus#\n")
+            outfile.write("\n\n##Cells with more than two recombinants for a locus##\n")
+            if self.no_duplets:
+                outfile.write("\nThe following cells are likely duplets as they contain "
+                                "more than two recombinants for a locus, "
+                                "and were excluded from downstream analyses.\n")
+                                
             found_multi = False
             for cell in cells.values():
                 if cell.has_excess_recombinants:
-                    outfile.write("###{}###\n".format(cell.name))
+                    outfile.write("*{}*\n".format(cell.name))
+                    duplets.append(cell.name)
                     for l in self.loci:
                         count = cell.count_total_recombinants(self.receptor_name, l)
                         outfile.write("{receptor}_{l}:\t{count}\n".format(
@@ -763,7 +771,35 @@ class Summariser(TracerTask):
                     found_multi = True
             if not found_multi:
                 outfile.write("None\n\n")
-      
+
+
+
+        # Write recombinant details of filtered duplets
+        if len(duplets) > 0:
+            with open("{}/duplet_recombinants.txt".format(outdir), 'w') as f:
+                f.write("cell_name\tlocus\trecombinant_id\tproductive\treconstructed_length\n")
+                sorted_cell_names = sorted(duplets)
+                for cell_name in sorted_cell_names:
+                    cell = cells[cell_name]
+                    for locus in self.loci:
+                        recombinants = cell.recombinants[self.receptor_name][locus]
+                        
+                        for r in recombinants:
+                            f.write("{name}\t{locus}\t{ident}\t{productive}\t{length}\n".format(
+                                                    name=cell_name, locus=locus, ident=r.identifier,
+                                                productive=r.productive, length=len(r.trinity_seq)))
+
+                    f.write("\n")
+                f.write("\n\n")
+
+        # Delete likely multiplets from downstream analyses if --no_multiplets option is given
+
+        if self.no_duplets:
+            if len(duplets) > 0:
+                for cell_name in duplets:
+                    del cells[cell_name]
+
+
         # Make full length statistics table and plot proportion of sequences 
         #that are full-length
         (full_length_counter, full_length_prod_counter, productive_counter, 
@@ -835,7 +871,7 @@ class Summariser(TracerTask):
         for cell in cells.values():
             for l in self.loci:
                 lengths[l].extend(cell.get_trinity_lengths(self.receptor_name, l))
-
+        #pdb.set_trace()
         # plot length distributions
         quartiles = dict()
         for l in self.loci:
@@ -867,8 +903,8 @@ class Summariser(TracerTask):
 
         # Write recombinant details
         with open("{}/recombinants.txt".format(outdir), 'w') as f:
-            f.write("cell_name\tlocus\trecombinant_id\tproductive\t\
-                    reconstructed_length\n")
+            f.write("cell_name\tlocus\trecombinant_id\tproductive\t"
+                    "reconstructed_length\n")
             sorted_cell_names = sorted(list(cells.keys()))
             for cell_name in sorted_cell_names:
                 cell = cells[cell_name]
@@ -876,10 +912,9 @@ class Summariser(TracerTask):
                     recombinants = cell.recombinants[self.receptor_name][locus]
                     if recombinants is not None:
                         for r in recombinants:
-                            f.write("{name}\t{locus}\t{ident}\t{productive}\t\
-                                    {length}\n".format(name=cell_name, locus=locus, 
-                                    ident=r.identifier, productive=r.productive, 
-                                    length=len(r.trinity_seq)))
+                            f.write("{name}\t{locus}\t{ident}\t{productive}\t{length}\n".format(
+                                    name=cell_name, locus=locus, ident=r.identifier, 
+                                    productive=r.productive, length=len(r.trinity_seq)))
                 f.write("\n")
             f.write("\n\n")
             for cell_name in empty_cells:
@@ -898,9 +933,9 @@ class Summariser(TracerTask):
         # Print component groups to the summary#
         outfile.write(
             "\n#Clonotype groups#\n"
-            "This is a text representation of the groups shown in clonotype_\
-             network_with_identifiers.pdf.\n"
-            "It does not exclude cells that only share beta and not alpha.\n\n")
+            "This is a text representation of the groups shown in clonotype_"
+             "network_with_identifiers.pdf.\n"
+            "It does not exclude cells that only share heavy chain and not light chain.\n\n")
         for g in component_groups:
             outfile.write(", ".join(g))
             outfile.write("\n\n")
@@ -954,7 +989,7 @@ class Summariser(TracerTask):
             
         
     def two_productive_chains_per_locus(self, loci, cells, receptor):
-        """#Report cells with two productive chains from same locus"""
+        """Report cells with two (or more) productive chains from same locus"""
         outstring = ""
         for l in loci:
             double_rec = []
@@ -963,16 +998,16 @@ class Summariser(TracerTask):
                 prod_counts = dict()
                 prod_counts[l] = cell.count_productive_recombinants(
                                               self.receptor_name, l)
-                if prod_counts[l] == 2:
+                if prod_counts[l] > 1:
                     double_rec.append(cell_name)
             if len(double_rec) > 0 :
                 cells_string = ', '.join(double_rec)
-                locus_string = "Cells with two productive {} chains: \n".format(l) \
-                                + cells_string + "\n\n"
+                locus_string = ("Cells with two productive {} chains: \n".format(l) +
+                                cells_string + "\n\n")
                 outstring += locus_string
         if len(outstring) != 0:
-            outstring = "\n\n#Cells with two productive recombinants for a \
-                         locus#\n\n" + outstring
+            outstring = ("\n\n##Cells with two (or more) productive recombinants for a locus##\n\n"
+                        + outstring)
 
         return (outstring)
 
@@ -994,16 +1029,16 @@ class Summariser(TracerTask):
                 kappa_lambda.append(cell_name)
         if len(kappa_lambda) > 0 :
             cells_string = ', '.join(kappa_lambda)
-            outstring = "\n\n#Cells with productive K and L chain#\n\n" \
-                        + cells_string + "\n\n"
+            outstring = ("\n\n##Cells with productive K and L chain##\n\n" +
+                        cells_string + "\n\n")
         return(outstring)
 
 
     def make_changeo_input(self, outdir, locus, receptor, cells):
         """Creates input file for each locus compatible with ChangeO"""
         
-        changeo_string = "SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\t\
-                          JUNCTION_LENGTH\tJUNCTION\n"
+        changeo_string = ("SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\t" + 
+                          "JUNCTION_LENGTH\tJUNCTION\n")
         changeo_input = "{}/changeo_input_{}.tab".format(outdir, locus)
         with open(changeo_input, 'w') as output:
             empty = True
@@ -1134,8 +1169,8 @@ class Summariser(TracerTask):
         productive_counter, full_length_counter, full_length_prod_counter):
         """ Make full length statistics table"""
 
-        header = "##Proportion of full-length sequences of all recovered \
-                  sequences##\n\n\t"
+        header = ("##Proportion of full-length sequences of all recovered " +
+                  "sequences##\n\n\t")
         all_outstring = "all\t"
         prod_outstring = "prod\t"
         all_dict = dict()
@@ -1252,8 +1287,8 @@ class Summariser(TracerTask):
 
     def make_isotype_table(self, cell_recovery_count, isotype_counter):
         prod_H = cell_recovery_count["H"]
-        header = "##Isotype of cells with productive heavy chain##\n\nIsotype\t\
-                 cells\t% of cells\n"
+        header = ("##Isotype of cells with productive heavy chain##\n\n"
+                 + "Isotype\tcells\t% of cells\n")
         outstring = ""
         for isotype, number in six.iteritems(isotype_counter):
             number = str(number)
@@ -1351,15 +1386,15 @@ class Tester(TracerTask):
 
     def __init__(self, **kwargs):
         if not kwargs:
-            parser = argparse.ArgumentParser(description="Test BraCeR installation \
-                              with small dataset", parents=[self.base_parser])
+            parser = argparse.ArgumentParser(description="Test BraCeR installation"
+                              "with small dataset", parents=[self.base_parser])
             parser.add_argument('--graph_format', '-f', metavar="<GRAPH_FORMAT>", 
                                 help='graphviz output format [pdf]', default='pdf')
-            parser.add_argument('--no_networks', help='skip attempts to draw \
-                                network graphs', action="store_true")
+            parser.add_argument('--no_networks', help='skip attempts to draw '
+                                'network graphs', action="store_true")
             parser.add_argument('--resume_with_existing_files', '-r',
-                                help='look for existing intermediate files \
-                                and use those instead of starting from scratch',
+                                help='look for existing intermediate files '
+                                'and use those instead of starting from scratch',
                                 action="store_true")
             args = parser.parse_args(sys.argv[2:])
 
@@ -1413,8 +1448,8 @@ class Builder(TracerTask):
             parser.add_argument('N_padding', metavar="<N_PADDING>", 
                                  help='number of ambiguous N nucleotides between V and J', type=int)
             parser.add_argument('colour', metavar="<COLOUR>", default = 'random', 
-                                help='colour for productive recombinants. Specify as HTML (eg E41A1C)\
-                                or use "random"', type = self.check_colour)
+                                help='colour for productive recombinants. Specify as HTML (eg E41A1C) '
+                                'or use "random"', type = self.check_colour)
             parser.add_argument('V_seqs', metavar="<V_SEQS>", help='fasta file containing V gene sequences')
             parser.add_argument('J_seqs', metavar="<J_SEQS>", help='fasta file containing J gene sequences')
             parser.add_argument('C_seqs', metavar="<C_SEQS>", 
@@ -1484,9 +1519,10 @@ class Builder(TracerTask):
         self.make_bowtie2_index(recombinome_fasta)
         missing_dbs = self.make_igblast_db(VDJC_files)
         for s in missing_dbs:
-            print("\nIMPORTANT: there is no IgBLAST database for {receptor}_{segment}\n"\
-                  "Run build with {segment} segments for {receptor} before using tracer assemble\n"
-                  .format(receptor = self.receptor_name, segment=s))
+            print("\nIMPORTANT: there is no IgBLAST database for {receptor}_{segment}\n".format(
+                    receptor=self.receptor_name, segment=s))
+            print("Run build with {segment} segments for {receptor} before using tracer assemble\n".format(
+                    segment=s, receptor=self.receptor_name))
     
     def check_colour(self, c):
         if c == 'random':
@@ -1554,9 +1590,8 @@ class Builder(TracerTask):
         return(new_v)
 
     def check_duplicate(self, new_path, segment=None, descriptor="Resource"):
-        error_string = "{descriptor} already exists for {receptor}_{locus}" \
-            .format(descriptor=descriptor, receptor=self.receptor_name,
-                    locus=self.locus_name)
+        error_string = "{descriptor} already exists for {receptor}_{locus}".format(
+            descriptor=descriptor, receptor=self.receptor_name, locus=self.locus_name)
         if segment:
             error_string += "_" + segment
         error_string += ". Use --force_overwrite to replace existing file."
@@ -1639,10 +1674,10 @@ class Builder(TracerTask):
                 for J_name, J_seq in six.iteritems(seqs['J']):
                     chr_name = ">chr={V_name}_{J_name}".format(J_name=J_name,
                                                            V_name=V_name)
-                    seq = N_leader_string + V_seq.lower() + N_junction_string + \
-                      J_seq.lower() + const_seq
-                    seqs_to_write.append("{chr_name}\n{seq}\n"
-                                     .format(seq=seq, chr_name=chr_name))
+                    seq = (N_leader_string + V_seq.lower() + N_junction_string + 
+                      J_seq.lower() + const_seq)
+                    seqs_to_write.append("{chr_name}\n{seq}\n".format(
+                                            seq=seq, chr_name=chr_name))
         
         elif len(seqs['C']) > 1:
             for V_name, V_seq in six.iteritems(seqs['V']):
@@ -1724,9 +1759,8 @@ class Builder(TracerTask):
             
                 if len(non_overwritten_seqs) > 0:
                     print('The follwing IgBLAST DB sequences for '
-                          '{receptor}_{segment} already found in {file}.'
-                          .format(receptor=self.receptor_name, segment=s,
-                                  file=fasta_file))
+                          '{receptor}_{segment} already found in {file}.'.format(
+                          receptor=self.receptor_name, segment=s, file=fasta_file))
                     print('These sequences were not overwritten. '
                           'Use --force_overwrite to replace with new ones')
                     for seq in non_overwritten_seqs:

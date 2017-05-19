@@ -200,8 +200,6 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
 
 
                     
-                    #if query_name == "TRINITY_DN0_c0_g2_i1" and locus == "BCR_K":
-                        #pdb.set_trace()
 
                     identifier = best_V + "_" + junc_string + "_" + best_J
 
@@ -241,8 +239,6 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
                     query_length = query_data["query_length"]
                     if query_length == None:
                         query_length = len(trinity_seq)
-                    if query_name == "TRINITY_DN0_c0_g2_i1" and locus == "BCR_K":
-                        pdb.set_trace()
                     if 'reversed' in good_hits[0][1]:
                         trinity_seq = str(trinity_seq.reverse_complement().seq)
                     else:
@@ -274,7 +270,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
 
                     #Identify the most likely V and J genes
                     if locus in ["H", "BCR_H"]:
-                        threshold_percent = 0.05
+                        threshold_percent = 0.04
                     else:
                         threshold_percent = 0.01
                     all_V_names = find_V_genes_based_on_bit_score(trinity_seq, 
@@ -451,11 +447,6 @@ def process_hit_table(query_name, query_data, locus):
     hit_table = query_data['hit_table']
     rearrangement_summary = query_data['VDJ_rearrangement_summary']
 
-    #e_value_cutoff = 5e-3
-    # Set lower e value cutoff for BCR H chain to avoid sequences with 
-    #indeterminable V gene family
-    #if locus in ["H", "BCR_H"]:
-        #e_value_cutoff = 5e-4
 
     found_V = set()
     found_D = set()
@@ -1076,7 +1067,7 @@ def draw_network_from_cells(cells, output_dir, output_format, dot, neato,
                            cell_contig_clones, cells_with_clonal_H, no_duplets):
     cells = list(cells.values())
     
-    network, draw_tool, component_groups = make_cell_network_from_dna_B_cells(cells, 
+    network, draw_tool, component_groups = make_cell_network_from_dna(cells, 
                             False, "box", dot, neato, receptor, loci, network_colours, 
                                   cell_contig_clones, cells_with_clonal_H, no_duplets)
 
@@ -1088,12 +1079,13 @@ def draw_network_from_cells(cells, output_dir, output_format, dot, neato,
         import pydotplus
         nx.drawing.nx_pydot.write_dot(network, network_file)
     if draw_graphs:
-        command = draw_tool + ['-o', "{output_dir}/clonotype_network_with_\
-                 identifiers.{output_format}".format(output_dir=output_dir, 
-                 output_format=output_format), "-T", output_format, network_file]
+        command = draw_tool + ['-o', 
+                "{output_dir}/clonotype_network_with_identifiers.{output_format}".format(
+                output_dir=output_dir, output_format=output_format), "-T", 
+                output_format, network_file]
         subprocess.check_call(command)
     
-    network, draw_tool, cgx = make_cell_network_from_dna_B_cells(cells, False, 
+    network, draw_tool, cgx = make_cell_network_from_dna(cells, False, 
                         "circle", dot, neato, receptor, loci, network_colours, 
                           cell_contig_clones, cells_with_clonal_H, no_duplets)
 
@@ -1105,9 +1097,10 @@ def draw_network_from_cells(cells, output_dir, output_format, dot, neato,
         import pydotplus
         nx.drawing.nx_pydot.write_dot(network, network_file)
     if draw_graphs:
-        command = draw_tool + ['-o', "{output_dir}/clonotype_network_without_\
-                  identifiers.{output_format}".format(output_dir=output_dir, 
-                  output_format=output_format), "-T", output_format, network_file]
+        command = draw_tool + ['-o', 
+                "{output_dir}/clonotype_network_without_identifiers.{output_format}".format(
+                output_dir=output_dir, output_format=output_format), "-T", 
+                output_format, network_file]
         subprocess.check_call(command)
     return (component_groups, network)
 
@@ -1553,8 +1546,8 @@ def run_changeo(changeo, locus, outdir, species):
       
     # Set model to Hamming distance if species is not Mmus or Hsap 
     if species == "Mmus": 
-        model = "m1n" 
-        dist = "0.2" 
+        model = "mk_rs5nf" 
+        dist = "0.15" 
     elif species == "Hsap": 
         model = "hs5f" 
         dist = "0.2" 
