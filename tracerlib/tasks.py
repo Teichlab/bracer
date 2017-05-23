@@ -548,6 +548,11 @@ class Summariser(TracerTask):
                                 graphs', action = "store_true")
             parser.add_argument('--IGH_networks', help='Only require shared clonal heavy \
                                 chain to be determined clonal', action = "store_true")
+            parser.add_argument('--dist', metavar="<DISTANCE>",
+                                help='Distance value to use for clonal inference. ' \
+                                'Heavily mutated datasets may require a higher distance value, ' \
+                                'whereas datasets enriched in naive B cells may require ' \
+                                'a lower distance value.', default='0.2')
             parser.add_argument('--no_duplets', help='Exclude cells containing \
                                 more than two recombinants for a locus from downstream \
                                 analyses, including networks and clonotype analysis', 
@@ -566,6 +571,7 @@ class Summariser(TracerTask):
             self.loci = args.loci
             self.species = args.species
             config_file = args.config_file
+            self.dist = args.dist
         else:
             self.use_unfiltered = kwargs.get('use_unfiltered')
             self.root_dir = os.path.abspath(kwargs.get('root_dir'))
@@ -577,6 +583,7 @@ class Summariser(TracerTask):
             self.loci = kwargs.get('loci')
             self.species = kwargs.get('species')
             config_file = kwargs.get('config_file')
+            self.dist = kwargs.get('dist')
 
         # Read config file
         self.config = self.read_config(config_file)
@@ -775,7 +782,7 @@ class Summariser(TracerTask):
 
 
 
-        # Write recombinant details of filtered duplets
+        # Write recombinant details of filtered duplets if --no_duplets option is given
         if len(duplets) > 0:
             with open("{}/duplet_recombinants.txt".format(outdir), 'w') as f:
                 f.write("cell_name\tlocus\trecombinant_id\tproductive\treconstructed_length\n")
@@ -793,7 +800,7 @@ class Summariser(TracerTask):
                     f.write("\n")
                 f.write("\n\n")
 
-        # Delete likely multiplets from downstream analyses if --no_multiplets option is given
+        # Delete likely multiplets from downstream analyses if --no_duplets option is given
 
         if self.no_duplets:
             if len(duplets) > 0:
@@ -836,7 +843,7 @@ class Summariser(TracerTask):
             # Run ChangeO
             #changeo = self.get_binary('changeo')
             changeo = "DefineClones.py"
-            tracer_func.run_changeo(changeo, locus, outdir, self.species)
+            tracer_func.run_changeo(changeo, locus, outdir, self.species, self.dist)
             print()
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
@@ -1275,10 +1282,12 @@ class Summariser(TracerTask):
         cell_isotypes = []
         isotype_counter = dict()
         for cell in cells.values():
-            isotype = cell.isotype
-            if isotype == None:
-                isotype = "None"
-            cell_isotypes.append(isotype)
+            productive = cell.count_productive_recombinants(self.receptor_name, "H")
+            if productive > 0:
+                isotype = cell.isotype
+                if isotype == None:
+                    isotype = "Unknown"
+                cell_isotypes.append(isotype)
         for isotype in cell_isotypes:
             if not isotype in isotype_counter:
                 isotype_counter[isotype] = 1
@@ -1294,8 +1303,6 @@ class Summariser(TracerTask):
         outstring = ""
         for isotype, number in six.iteritems(isotype_counter):
             number = str(number)
-            if isotype == "None":
-                isotype = "Unknown"
             percent = float(number)/int(prod_H)*100
             percent = format(percent, '.2f')
             string = "{isotype}\t{number}\t{percent}\n".format(isotype=isotype, 

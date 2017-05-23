@@ -1542,19 +1542,21 @@ def quantify_with_kallisto(kallisto, cell, output_dir, cell_name, kallisto_base_
 
 
 
-def run_changeo(changeo, locus, outdir, species): 
+def run_changeo(changeo, locus, outdir, species, distance): 
       
     # Set model to Hamming distance if species is not Mmus or Hsap 
     if species == "Mmus": 
         model = "mk_rs5nf" 
-        dist = "0.15" 
+        dist = "0.13" 
     elif species == "Hsap": 
-        model = "hs5f" 
-        dist = "0.2" 
+        model = "hh_s5f" 
+        dist = "0.20" 
     else: 
         model = "ham" 
         dist = "0.2" 
  
+    if distance:
+        dist = distance
       
     changeo_input = "{}/changeo_input_{}.tab".format(outdir, locus) 
     if os.path.isfile(changeo_input) and os.path.getsize(changeo_input) > 0: 
