@@ -323,15 +323,15 @@ class Assembler(TracerTask):
             io.makeOutputDir("{}/{}".format(self.output_dir, d))
 
         # Perform BraCeR's core functions
-        if not self.assembled_file:
-            self.align()
-            self.de_novo_assemble()
+        #if not self.assembled_file:
+            #self.align()
+            #self.de_novo_assemble()
 
         self.blast()
         cell = self.ig_blast()
 
-        if self.fastq1:
-            self.quantify(cell)
+        #if self.fastq1:
+            #self.quantify(cell)
         
         
         unfiltered_fasta_filename = \

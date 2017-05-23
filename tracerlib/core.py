@@ -48,13 +48,14 @@ class Cell(object):
             changeodict[l] = None
             changeo_string = ""
             recombinants = self.recombinants[receptor][l]
-            for rec in recombinants:
-                if rec.productive:
-                    string = rec.create_changeo_db_string()
-                    string = self.name + "_" + string
-                    changeo_string += string + "\n"
-                else:
-                    changeo_string = changeo_string
+            if not recombinants is None:
+                for rec in recombinants:
+                    if rec.productive:
+                        string = rec.create_changeo_db_string()
+                        string = self.name + "_" + string
+                        changeo_string += string + "\n"
+                    else:
+                        changeo_string = changeo_string
             changeodict[l] = changeo_string
         return(changeodict)
             
@@ -459,10 +460,15 @@ class Recombinant(object):
 
         summary_string += segments_string
         summary_string += "ID:\t{}\n".format(self.identifier)
-        summary_string += "TPM:\t{TPM}\nProductive:\t{productive}\nStop codon:\t{stop_codon}\nIn frame:\t{in_frame}\nFull length:\t{full_length}\nSequence length: \t{query_length}\nPossible V genes:\t{V_genes}\n\n".format(TPM=self.TPM, productive=self.productive, 
-                        stop_codon=self.stop_codon, in_frame=self.in_frame, 
-                        full_length=self.full_length, query_length=self.query_length, 
-                        V_genes=self.V_genes)
+        summary_string += "TPM:\t{TPM}\nProductive:\t{productive}\nStop codon:\t{stop_codon}\n".format(
+                                    TPM=self.TPM, productive=self.productive, stop_codon=self.stop_codon)
+        summary_string += "In frame:\t{in_frame}\n""Full length:\t{full_length}\nSequence length: \t{query_length}\n".format(
+                                        in_frame=self.in_frame, full_length=self.full_length, query_length=self.query_length)
+        V_genes = ", ".join(self.V_genes)
+        J_genes = ", ".join(self.J_genes)
+
+        summary_string += "All possible V genes:\t{V_genes}\nAll possible J genes:\t{J_genes}\n\n".format(
+                        V_genes=V_genes, J_genes=J_genes)
 
         summary_string += ("Segment\tquery_id\tsubject_id\t% identity"
             "\talignment length\tmismatches\tgap opens\tgaps\tq start"
