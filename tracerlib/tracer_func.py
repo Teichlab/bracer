@@ -1443,12 +1443,12 @@ def run_IgBlast_for_lineage_reconstruction(igblast, receptor, locus, output_dir,
 
     databases = {}
     for segment in ['V', 'D', 'J']:
-        databases[segment] = "{}/human_ig_{}".format(index_location, segment.lower())
+        databases[segment] = "{}/{}_ig_{}".format(index_location, igblast_species, segment.lower())
     
     auxiliary_data = "{}/{}_gl.aux".format(index_location, igblast_species)
     
     sequence_file = "{}/igblast_input_{}.fa".format(output_dir, locus)
-    output_file = "{}/igblast_{}.fa".format(output_dir, locus)
+    output_file = "{}/igblast_{}.fmt7".format(output_dir, locus)
     if os.path.isfile(sequence_file):
         
         command = [igblast, '-germline_db_V', databases['V'], '-germline_db_J',
@@ -1598,4 +1598,28 @@ def run_changeo(changeo, locus, outdir, species, distance):
  
         subprocess.check_call(command) 
 
+
+def run_MakeDb(MakeDb, locus, outdir, species, gapped_seq_location):
+    """Runs MakeDb of Change-O"""
+    species_mapper = {
+        'Mmus': 'mouse',
+        'Hsap': 'human'
+                    }
+    igblast_species = species_mapper[species]
+
+    gapped_seqs = {}
+    for segment in ['V', 'D', 'J']:
+        gapped_seqs[segment] = "{}/IG{}.fasta".format(gapped_seq_location, segment)
+
+    makedb_input =  "{}/igblast_{}.fmt7".format(outdir, locus)
+    seq_file = "{}/igblast_input_{}.fa".format(outdir, locus)
+    
+    if os.path.isfile(makedb_input) and os.path.getsize(makedb_input) > 0:
+        if os.path.isfile(seq_file) and os.path.getsize(seq_file) > 0:
+            command = [MakeDb, 'igblast', '-i', makedb_input, '-s', seq_file, 
+                            '-r', gapped_seqs["V"], gapped_seqs["D"],
+                            gapped_seqs["J"], '--regions', '--scores']
+
+            subprocess.check_call(command)
+                
 

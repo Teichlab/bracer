@@ -852,9 +852,21 @@ class Summariser(TracerTask):
         (clones, cell_clones, cell_contig_clones) = self.read_changeo_results(
                                                             self.loci, outdir)
 
-        for locus in self.loci:
-            self.make_clone_igblast_input(outdir, locus, self.receptor_name, cells)
-            self.IgBlast_germline_reconstruction(outdir, locus, self.receptor_name, cells)
+        # Tasks specific for lineage reconstruction - should be optional
+        lineage_reconstruction = True
+        if lineage_reconstruction == True:
+            # Align sequences against imgt-gapped references using IgBlast
+            for locus in self.loci:
+                self.make_clone_igblast_input(outdir, locus, self.receptor_name, cells)
+                self.IgBlast_germline_reconstruction(outdir, locus, self.receptor_name, cells)
+                # Create Change-O database for reconstruction of germline sequences
+                """This step uses MakeDb and CreateGermlines of the Change-O toolkit. 
+                Change-O reference: Gupta NT*, Vander Heiden JA*, Uduman M, Gadala-Maria D, 
+                Yaari G, Kleinstein SH. Change-O: a toolkit for analyzing large-scale B cell 
+                immunoglobulin repertoire sequencing data. Bioinformatics 2015; 
+                doi: 10.1093/bioinformatics/btv359"""
+                self.create_changeo_db(outdir, locus, self.receptor_name, cells)
+                self.modify_changeo_db(outdir, locus, self.receptor_name, cells, cell_contig_clones)
 
 
         # Get H clone groups consisting of 2 or more cells
@@ -1049,7 +1061,7 @@ class Summariser(TracerTask):
 
 
     def make_changeo_input(self, outdir, locus, receptor, cells):
-        """Creates input file for each locus compatible with ChangeO"""
+        """Creates input file for each locus compatible with Change-O"""
         
         changeo_string = ("SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\t" + 
                           "JUNCTION_LENGTH\tJUNCTION\tCELL\tISOTYPE\n")
@@ -1130,7 +1142,7 @@ class Summariser(TracerTask):
             with open(changeo_result, 'r') as input_file:
                 with open(igblast_input, "w") as output:
                     for line in input_file:
-                        if not line.startswith("SEQUENCE_ID"):
+                        if len(line) > 0 and not line.startswith("SEQUENCE_ID"):
                             fields = line.split("\t")
                             name = fields[0]
                             cell = fields[0].split("_TRINITY")[0]
@@ -1145,14 +1157,7 @@ class Summariser(TracerTask):
         igblastn = self.get_binary('igblastn')
 
         # Reference data locations
-
-                        
         resource_root = self.get_resources_root(self.species)
-        #gapped_igblast_index_location = self.resolve_relative_path(self.config.get(
-        #gapped_igblast_index_location = os.path.join(base_dir, 'resources', self.species, name)
-        #self.get_index_location('igblast_dbs')
-        #gapped_imgt_seq_location = self.get_index_location('raw_seqs')
-        
         gapped_igblast_index_location = self.config.get(
                                                 'IgBlast_options', 'gapped_igblast_index_location')
         igblast_seqtype = self.config.get('IgBlast_options', 'igblast_seqtype')
@@ -1162,15 +1167,64 @@ class Summariser(TracerTask):
         tracer_func.run_IgBlast_for_lineage_reconstruction(igblastn, self.receptor_name, 
                 locus, outdir, gapped_igblast_index_location, igblast_seqtype, 
                 self.species)
-        print()
+        
 
+    def create_changeo_db(self, outdir, locus, receptor, cells):
+        """Creates Change-O database from IgBlast result files after alignment
+        to imgt-gapped sequences for germline reconstruction"""
 
+        MakeDb = "MakeDb.py"
 
-    def modify_changeo_db(self, outdir, locus, receptor, cells):
+        gapped_seq_location = self.config.get(
+                        'IgBlast_options', 'gapped_imgt_seq_location')
+        igblast_seqtype = self.config.get('IgBlast_options', 'igblast_seqtype')
+
+        tracer_func.run_MakeDb(MakeDb, locus, outdir, self.species, gapped_seq_location)
+
+        
+
+    def modify_changeo_db(self, outdir, locus, receptor, cells, cell_contig_clones):
         """Adds CLONE and ISOTYPE columns to ChangeO database files before germline
         reconstruction"""
-        pass
+        
+        input_file = "{}/igblast_{}_db-pass.tab".format(outdir, locus)
+        output_file = "{}/igblast_{}_db-modified.tab".format(outdir, locus)
+        with open(input_file, "r") as input:
+            with open(output_file, "w") as output:
+                for line in input:
+                    if line.startswith("SEQUENCE_ID"):
+                        header = line.rstrip()
+                        header += "\tISOTYPE\tCLONE\n"
+                        output.write(header)
+                    elif (len(line) > 0 and not line == "\n"):
+                        #pdb.set_trace()
+                        fields = line.split("\t")
+                        name = fields[0]
+                        cell_name = fields[0].split("_TRINITY")[0]
+                        full_contig_name = fields[0].split("{}_".format(cell_name))[1]
+                        contig_name = full_contig_name.split("_IG")[0]
+                        
 
+                        for cell in cells.values():
+                            if cell.name == cell_name:
+                                #pdb.set_trace()
+                                recs = cell.recombinants["BCR"][locus]
+
+                                for rec in recs:
+                                    if contig_name == rec.contig_name:
+                                        C_gene = rec.C_gene
+                                        if C_gene == None:
+                                            C_gene = "None"
+                                        if "*" in C_gene:
+                                            C_gene = C_gene.split("*")[0]
+                                        isotype = C_gene
+                                        clone = cell_contig_clones[locus][cell.name][full_contig_name]
+                                        line = line.rstrip() + "\t{}\t{}\n".format(isotype, clone)
+                                        output.write(line)
+
+        # Remove old database file
+        if os.path.exists(output_file):
+            os.remove(input_file)
 
 
     def count_full_length_sequences(self, loci, cells, receptor):
