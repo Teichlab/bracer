@@ -323,15 +323,15 @@ class Assembler(TracerTask):
             io.makeOutputDir("{}/{}".format(self.output_dir, d))
 
         # Perform BraCeR's core functions
-        #if not self.assembled_file:
-            #self.align()
-            #self.de_novo_assemble()
+        if not self.assembled_file:
+            self.align()
+            self.de_novo_assemble()
 
         self.blast()
         cell = self.ig_blast()
 
-        #if self.fastq1:
-            #self.quantify(cell)
+        if self.fastq1:
+            self.quantify(cell)
         
         
         unfiltered_fasta_filename = \
@@ -852,6 +852,11 @@ class Summariser(TracerTask):
         (clones, cell_clones, cell_contig_clones) = self.read_changeo_results(
                                                             self.loci, outdir)
 
+        for locus in self.loci:
+            self.make_clone_igblast_input(outdir, locus, self.receptor_name, cells)
+            self.IgBlast_germline_reconstruction(outdir, locus, self.receptor_name, cells)
+
+
         # Get H clone groups consisting of 2 or more cells
         multiple_clones_H = dict()
         for clone, cells_info in six.iteritems(clones["H"]):
@@ -1047,7 +1052,7 @@ class Summariser(TracerTask):
         """Creates input file for each locus compatible with ChangeO"""
         
         changeo_string = ("SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\t" + 
-                          "JUNCTION_LENGTH\tJUNCTION\n")
+                          "JUNCTION_LENGTH\tJUNCTION\tCELL\tISOTYPE\n")
         changeo_input = "{}/changeo_input_{}.tab".format(outdir, locus)
         with open(changeo_input, 'w') as output:
             empty = True
@@ -1058,7 +1063,8 @@ class Summariser(TracerTask):
                     if empty == True:
                         output.write(changeo_string)
                         empty = False
-                    output.write(cell.changeodict[locus])
+                    write_string = cell.changeodict[locus].rstrip() + "\t{}\t{}\n".format(cell.name, cell.isotype)
+                    output.write(write_string)
         
 
     def read_changeo_results(self, loci, outdir):
@@ -1106,6 +1112,64 @@ class Summariser(TracerTask):
                             cell_contig_clones[l][cell][contig_name] = clone
 
         return (clones, cell_clones, cell_contig_clones)
+
+    def make_clone_igblast_input(self, outdir, locus, receptor, cells):
+        """Creates input file for each locus containing sequences belonging to a clone
+        group to use as input for IgBlast in order to obtain
+        gapped references for germline sequence assignment by ChangeO"""
+
+        igblast_input = "{}/igblast_input_{}.fa".format(outdir, locus)
+
+        
+        changeo_result = "{}/changeo_input_{}_clone-pass.tab".format(outdir, locus)
+        if not os.path.exists(changeo_result) \
+            or not os.path.getsize(changeo_result) > 0:
+            pass
+        
+        else:
+            with open(changeo_result, 'r') as input_file:
+                with open(igblast_input, "w") as output:
+                    for line in input_file:
+                        if not line.startswith("SEQUENCE_ID"):
+                            fields = line.split("\t")
+                            name = fields[0]
+                            cell = fields[0].split("_TRINITY")[0]
+                            contig_name = fields[0].split("{}_".format(cell))[1]
+                            seq = fields[4] + "\n"
+                            header = ">" + name + "\n"
+                            output.write(header)
+                            output.write(seq)
+
+    def IgBlast_germline_reconstruction(self, outdir, locus, receptor, cells):
+         
+        igblastn = self.get_binary('igblastn')
+
+        # Reference data locations
+
+                        
+        resource_root = self.get_resources_root(self.species)
+        #gapped_igblast_index_location = self.resolve_relative_path(self.config.get(
+        #gapped_igblast_index_location = os.path.join(base_dir, 'resources', self.species, name)
+        #self.get_index_location('igblast_dbs')
+        #gapped_imgt_seq_location = self.get_index_location('raw_seqs')
+        
+        gapped_igblast_index_location = self.config.get(
+                                                'IgBlast_options', 'gapped_igblast_index_location')
+        igblast_seqtype = self.config.get('IgBlast_options', 'igblast_seqtype')
+
+
+        # IgBlast of sequences
+        tracer_func.run_IgBlast_for_lineage_reconstruction(igblastn, self.receptor_name, 
+                locus, outdir, gapped_igblast_index_location, igblast_seqtype, 
+                self.species)
+        print()
+
+
+
+    def modify_changeo_db(self, outdir, locus, receptor, cells):
+        """Adds CLONE and ISOTYPE columns to ChangeO database files before germline
+        reconstruction"""
+        pass
 
 
 

@@ -1274,7 +1274,7 @@ def assemble_with_trinity(trinity, receptor, loci, output_dir, cell_name, ncores
         base_command = base_command + ['--grid_conf', trinity_grid_conf]
 
     memory_string = '--max_memory' if (version == '2') else '--JM'
-    base_command = base_command + ['--seqType', 'fq', memory_string, JM, '--CPU', ncores, '--full_cleanup']
+    base_command = base_command + ['--seqType', 'fq', memory_string, JM, '--CPU', ncores, '--full_cleanup', '--no_normalize_reads']
     
     locus_names = ["_".join([receptor,x]) for x in loci]
     
@@ -1404,9 +1404,6 @@ def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, 
             trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(output_dir, cell_name, locus)
         
 
-        ############### MOVE TO CONFIG FILE IF WORKS!! ####################
-        #auxiliary_data = "/nfs/team205/il5/software/human_gl.aux"
-        #'-auxiliary_data', auxiliary_data
         if os.path.isfile(trinity_fasta):
             command = [igblast, '-germline_db_V', databases['V'], '-germline_db_J', 
                       databases['J'], '-germline_db_D', databases['D'], '-domain_system', 
@@ -1430,7 +1427,42 @@ def run_IgBlast(igblast, receptor, loci, output_dir, cell_name, index_location, 
                 break
     DEVNULL.close()
 
+def run_IgBlast_for_lineage_reconstruction(igblast, receptor, locus, output_dir, index_location, ig_seqtype, species):
+    """Runs IgBlast using databases constructed from imgt-gapped sequences. Needed for germline
+    reconstruction and lineage reconstruction"""
 
+    species_mapper = {
+        'Mmus': 'mouse',
+        'Hsap': 'human'
+    }
+
+    igblast_species = species_mapper[species]
+                        
+
+
+
+    databases = {}
+    for segment in ['V', 'D', 'J']:
+        databases[segment] = "{}/human_ig_{}".format(index_location, segment.lower())
+    
+    auxiliary_data = "{}/{}_gl.aux".format(index_location, igblast_species)
+    
+    sequence_file = "{}/igblast_input_{}.fa".format(output_dir, locus)
+    output_file = "{}/igblast_{}.fa".format(output_dir, locus)
+    if os.path.isfile(sequence_file):
+        
+        command = [igblast, '-germline_db_V', databases['V'], '-germline_db_J',
+                    databases['J'], '-germline_db_D', databases['D'], 
+                    '-auxiliary_data', auxiliary_data, 
+                    '-domain_system', 'imgt', 
+                    '-organism', igblast_species, '-ig_seqtype', ig_seqtype,
+                    '-outfmt', '7 std qseq sseq btop', '-query', sequence_file]
+        
+        
+
+    with open(output_file, 'w') as out:
+                
+        subprocess.check_call(command, stdout=out)
 
 def run_Blast(blast, receptor, loci, output_dir, cell_name, index_location, species,
                 should_resume, assembled_file):
