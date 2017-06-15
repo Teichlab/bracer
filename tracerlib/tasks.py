@@ -156,7 +156,11 @@ class TracerTask(object):
         resources_dir = os.path.join(base_dir, 'resources')
         resources_root = os.path.join(resources_dir, species)
         return(resources_root)
-    
+
+    def get_rscript_path(self):
+        rscript_path = os.path.join(base_dir, 'tracerlib/lineage.R')
+        return(rscript_path)
+        
     def get_available_species(self):
         resources_dir = os.path.join(base_dir, 'resources')
         species_dirs = next(os.walk(resources_dir))[1]
@@ -836,7 +840,7 @@ class Summariser(TracerTask):
         if len(outstring) > 0:
             outfile.write(outstring)
 
-        # Make initial clonal assignments for B cells using ChangeO DefineClones bygroup
+        # Make initial clonal assignments for B cells using Change-O DefineClones bygroup
         for locus in self.loci:
             # Create input file for ChangeO
             self.make_changeo_input(outdir, locus, self.receptor_name, cells)
@@ -852,23 +856,6 @@ class Summariser(TracerTask):
         (clones, cell_clones, cell_contig_clones) = self.read_changeo_results(
                                                             self.loci, outdir)
 
-        # Tasks specific for lineage reconstruction - should be optional
-        lineage_reconstruction = True
-        if lineage_reconstruction == True:
-            # Align sequences against imgt-gapped references using IgBlast
-            for locus in self.loci:
-                self.make_clone_igblast_input(outdir, locus, self.receptor_name, cells)
-                self.IgBlast_germline_reconstruction(outdir, locus, self.receptor_name, cells)
-                # Create Change-O database for reconstruction of germline sequences
-                """This step uses MakeDb and CreateGermlines of the Change-O toolkit. 
-                Change-O reference: Gupta NT*, Vander Heiden JA*, Uduman M, Gadala-Maria D, 
-                Yaari G, Kleinstein SH. Change-O: a toolkit for analyzing large-scale B cell 
-                immunoglobulin repertoire sequencing data. Bioinformatics 2015; 
-                doi: 10.1093/bioinformatics/btv359"""
-                self.create_changeo_db(outdir, locus, self.receptor_name, cells)
-                self.modify_changeo_db(outdir, locus, self.receptor_name, cells, cell_contig_clones)
-
-
         # Get H clone groups consisting of 2 or more cells
         multiple_clones_H = dict()
         for clone, cells_info in six.iteritems(clones["H"]):
@@ -880,6 +867,37 @@ class Summariser(TracerTask):
             for cell_name, contig_name in six.iteritems(multiple_clones_H[clone]):
                 if not cell_name in cells_with_clonal_H:
                     cells_with_clonal_H.append(cell_name)
+
+        # Tasks specific for lineage reconstruction - should be optional
+        """These steps use MakeDb and CreateGermlines of the Change-O toolkit.
+        Change-O reference: Gupta NT*, Vander Heiden JA*, Uduman M, Gadala-Maria D,
+        Yaari G, Kleinstein SH. Change-O: a toolkit for analyzing large-scale B cell
+        immunoglobulin repertoire sequencing data. Bioinformatics 2015;
+        doi: 10.1093/bioinformatics/btv359"""
+
+        lineage_reconstruction = True
+        if lineage_reconstruction == True:
+            
+            for locus in self.loci:
+                # Align sequences using IgBlast and imgt-gapped references
+                self.make_clone_igblast_input(outdir, locus, self.receptor_name, cells)
+                self.IgBlast_germline_reconstruction(outdir, locus, self.receptor_name, cells)
+                
+                # Create Change-O database from IgBlast results for reconstruction 
+                #of germline sequences
+                self.create_changeo_db(outdir, locus, self.receptor_name, cells)
+
+                # Modify database to include ISOTYPE and CLONE columns
+                self.modify_changeo_db(outdir, locus, self.receptor_name, cells, cell_contig_clones)
+                self.create_germline_sequences(outdir, locus, self.receptor_name, cells)
+   
+            # Run lineage reconstruction
+            self.create_lineage_trees(outdir)
+
+
+
+        ### SUMMARISE BCR REPERTOIRE ###
+
                
         
         # Make isotype usage table and plot isotype distributions
@@ -1174,13 +1192,10 @@ class Summariser(TracerTask):
         to imgt-gapped sequences for germline reconstruction"""
 
         MakeDb = "MakeDb.py"
-
-        gapped_seq_location = self.config.get(
-                        'IgBlast_options', 'gapped_imgt_seq_location')
+        gapped_seq_location = self.config.get('IgBlast_options', 'gapped_imgt_seq_location')
         igblast_seqtype = self.config.get('IgBlast_options', 'igblast_seqtype')
-
+        # Run MakeDb from Change-O toolkit
         tracer_func.run_MakeDb(MakeDb, locus, outdir, self.species, gapped_seq_location)
-
         
 
     def modify_changeo_db(self, outdir, locus, receptor, cells, cell_contig_clones):
@@ -1194,16 +1209,14 @@ class Summariser(TracerTask):
                 for line in input:
                     if line.startswith("SEQUENCE_ID"):
                         header = line.rstrip()
-                        header += "\tISOTYPE\tCLONE\n"
+                        header += "\tISOTYPE\tCLONE\tCELL\n"
                         output.write(header)
                     elif (len(line) > 0 and not line == "\n"):
-                        #pdb.set_trace()
                         fields = line.split("\t")
                         name = fields[0]
                         cell_name = fields[0].split("_TRINITY")[0]
                         full_contig_name = fields[0].split("{}_".format(cell_name))[1]
                         contig_name = full_contig_name.split("_IG")[0]
-                        
 
                         for cell in cells.values():
                             if cell.name == cell_name:
@@ -1219,12 +1232,29 @@ class Summariser(TracerTask):
                                             C_gene = C_gene.split("*")[0]
                                         isotype = C_gene
                                         clone = cell_contig_clones[locus][cell.name][full_contig_name]
-                                        line = line.rstrip() + "\t{}\t{}\n".format(isotype, clone)
+                                        line = line.rstrip() + "\t{}\t{}\t{}\n".format(isotype, clone, cell_name)
                                         output.write(line)
 
         # Remove old database file
         if os.path.exists(output_file):
             os.remove(input_file)
+
+    def create_germline_sequences(self, outdir, locus, receptor, cells):
+        """Runs CreateGermlines from Change-O toolkit to infer germline sequences from clonal sequences"""
+        CreateGermlines = "CreateGermlines.py"
+        gapped_seq_location = self.config.get('IgBlast_options', 'gapped_imgt_seq_location')
+        igblast_seqtype = self.config.get('IgBlast_options', 'igblast_seqtype')
+        tracer_func.run_CreateGermlines(CreateGermlines, locus, outdir, self.species, gapped_seq_location)
+
+    def create_lineage_trees(self, outdir):
+
+        Rscript =  self.config.get('tool_locations', 'rscript_path')
+        dnapars = self.get_binary('dnapars')
+        script = self.get_rscript_path()
+        #rscript = "/nfs/users/nfs_i/il5/software/bracer/tracerlib/lineage.R"
+        command = Rscript + " " + script + " {} {}".format(outdir, dnapars) 
+        subprocess.check_call(command, shell=True)
+
 
 
     def count_full_length_sequences(self, loci, cells, receptor):

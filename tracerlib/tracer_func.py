@@ -1437,8 +1437,6 @@ def run_IgBlast_for_lineage_reconstruction(igblast, receptor, locus, output_dir,
     }
 
     igblast_species = species_mapper[species]
-                        
-
 
 
     databases = {}
@@ -1457,7 +1455,6 @@ def run_IgBlast_for_lineage_reconstruction(igblast, receptor, locus, output_dir,
                     '-domain_system', 'imgt', 
                     '-organism', igblast_species, '-ig_seqtype', ig_seqtype,
                     '-outfmt', '7 std qseq sseq btop', '-query', sequence_file]
-        
         
 
     with open(output_file, 'w') as out:
@@ -1572,8 +1569,6 @@ def quantify_with_kallisto(kallisto, cell, output_dir, cell_name, kallisto_base_
     shutil.rmtree("{}/expression_quantification/kallisto_index/".format(output_dir)) 
 
 
-
-
 def run_changeo(changeo, locus, outdir, species, distance): 
       
     # Set model to Hamming distance if species is not Mmus or Hsap 
@@ -1594,7 +1589,6 @@ def run_changeo(changeo, locus, outdir, species, distance):
     if os.path.isfile(changeo_input) and os.path.getsize(changeo_input) > 0: 
         command = [changeo, "bygroup", '-d', changeo_input, '--mode', 'gene', '--act', 'set',  
                         '--model', model, '--dist', dist, '--sf', "JUNCTION", '--norm', 'len'] 
-
  
         subprocess.check_call(command) 
 
@@ -1605,7 +1599,7 @@ def run_MakeDb(MakeDb, locus, outdir, species, gapped_seq_location):
         'Mmus': 'mouse',
         'Hsap': 'human'
                     }
-    igblast_species = species_mapper[species]
+    #igblast_species = species_mapper[species]
 
     gapped_seqs = {}
     for segment in ['V', 'D', 'J']:
@@ -1623,3 +1617,21 @@ def run_MakeDb(MakeDb, locus, outdir, species, gapped_seq_location):
             subprocess.check_call(command)
                 
 
+def run_CreateGermlines(CreateGermlines, locus, outdir, species, gapped_seq_location):
+    """Runs CreateGermlines of Change-O"""
+
+    species_mapper = {
+        'Mmus': 'mouse',
+        'Hsap': 'human'
+                    }
+    gapped_seqs = {}
+    for segment in ['V', 'D', 'J']:
+        gapped_seqs[segment] = "{}/IG{}.fasta".format(gapped_seq_location, segment)
+
+    creategermlines_input = "{}/igblast_{}_db-modified.tab".format(outdir, locus)
+    if os.path.isfile(creategermlines_input) and os.path.getsize(creategermlines_input) > 0:
+        
+        command = [CreateGermlines, '-d', creategermlines_input, '-r', gapped_seqs["V"], 
+                    gapped_seqs["D"], gapped_seqs["J"], '-g', 'dmask', '--cloned']
+
+        subprocess.check_call(command)
