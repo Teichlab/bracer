@@ -561,6 +561,8 @@ class Summariser(TracerTask):
                                 more than two recombinants for a locus from downstream \
                                 analyses, including networks and clonotype analysis', 
                                 action = "store_true")
+            parser.add_argument('--infer_lineage', help='Construct lineage trees for clone groups \
+                                shown in clonal network', action = "store_true")
             parser.add_argument('dir', metavar="<DIR>", help='Directory containing \
                                 subdirectories for each cell to be summarised')
             args = parser.parse_args(sys.argv[2:])
@@ -576,6 +578,7 @@ class Summariser(TracerTask):
             self.species = args.species
             config_file = args.config_file
             self.dist = args.dist
+            self.infer_lineage = args.infer_lineage
         else:
             self.use_unfiltered = kwargs.get('use_unfiltered')
             self.root_dir = os.path.abspath(kwargs.get('root_dir'))
@@ -588,6 +591,7 @@ class Summariser(TracerTask):
             self.species = kwargs.get('species')
             config_file = kwargs.get('config_file')
             self.dist = kwargs.get('dist')
+            self.infer_lineage = kwargs.get('infer_lineage')
 
         # Read config file
         self.config = self.read_config(config_file)
@@ -637,6 +641,9 @@ class Summariser(TracerTask):
 
         io.makeOutputDir(outdir)
 
+        if self.infer_lineage:
+            lineage_dir = "{}/lineage_trees".format(outdir)
+            io.makeOutputDir(lineage_dir)
 
         outfile = open("{}/{}_summary.txt".format(outdir, self.receptor_name), 'w')
         length_filename_root = "{}/reconstructed_lengths_{}".format(outdir, 
@@ -707,7 +714,7 @@ class Summariser(TracerTask):
 
         
         isotype_counters = defaultdict(Counter)
-        possible_isotypes = ["IGHM", "IGHG1", "IGHG2A", "IGHG2B", "IGHG2C", "IGHG3", 
+        possible_isotypes = ["IGHM", "IGHG1", "IGHG2A", "IGHG2B", "IGHG2C", "IGHG2", "IGHG3", 
                             "IGHG4", "IGHA", "IGHA1", "IGHA2", "IGHE", "IGHD"]
         
         for cell in cells.values():
@@ -868,15 +875,15 @@ class Summariser(TracerTask):
                 if not cell_name in cells_with_clonal_H:
                     cells_with_clonal_H.append(cell_name)
 
-        # Tasks specific for lineage reconstruction - should be optional
+        # Tasks specific for lineage reconstruction - optional
         """These steps use MakeDb and CreateGermlines of the Change-O toolkit.
         Change-O reference: Gupta NT*, Vander Heiden JA*, Uduman M, Gadala-Maria D,
         Yaari G, Kleinstein SH. Change-O: a toolkit for analyzing large-scale B cell
         immunoglobulin repertoire sequencing data. Bioinformatics 2015;
         doi: 10.1093/bioinformatics/btv359"""
 
-        lineage_reconstruction = True
-        if lineage_reconstruction == True:
+        
+        if self.infer_lineage:
             
             for locus in self.loci:
                 # Align sequences using IgBlast and imgt-gapped references
@@ -972,7 +979,8 @@ class Summariser(TracerTask):
         component_groups, G = tracer_func.draw_network_from_cells(cells, outdir, 
                            self.graph_format, dot, neato, self.draw_graphs, 
                            self.receptor_name, self.loci, network_colours, 
-                           cell_contig_clones, cells_with_clonal_H, self.no_duplets)
+                           cell_contig_clones, cells_with_clonal_H, self.no_duplets,
+                           self.IGH_networks)
         
         # Print component groups to the summary#
         outfile.write(
@@ -1367,63 +1375,6 @@ class Summariser(TracerTask):
         return (full_length_statistics_table, all_dict, prod_dict)
 
 
-    def make_full_length_plots(self):
-        # Plot proportions of sequences that are full-length
-
-        """D_prod = prod_cdr3_counter
-        highest = None
-        lowest = None
-
-        H_values = int(D_prod["H"])
-        K_values = int(D_prod["K"])
-        L_values = int(D_prod["L"])
-        all_values = H_values + K_values + L_values
-        highest = max(all_values)
-        lowest = min(all_values)
-
-        n_groups = len(range(lowest, highest+1))
-
-        fig, ax = plt.subplots()
-        x_ticks = tuple(range(lowest, highest+1, 1))
-        index = np.arange(n_groups)
-        bar_width = 0.25
-        opacity = 0.2
-
-        rects1 = plt.bar(index, tuple(H_values), bar_width, color='#000000', label='H')
-        rects2 = plt.bar(index + bar_width, tuple(K_values), bar_width, color='#cccccc', label='K')
-        rects3 = plt.bar(index + bar_width + bar_width, tuple(L_values), bar_width, color='#cccccc', label='L')
-
-        plt.xlabel('Locus')
-        plt.ylabel('Frequency')
-        plt.title('CDR3 length distribution (aa)')
-        plt.xticks(index + bar_width, x_ticks)
-        plt.legend()
-
-        #plt.tight_layout()
-        plt.savefig("{}/full_length_seqs.pdf".format(outdir))
-
-
-        #D = prod_cdr3_counter
-        #for l in self.loci:
-            #D = dictionary[l]
-            #lengths = []
-            #counts = []
-
-
-        for l in self.loci:
-            lns = lengths[l]
-            if len(lns) > 1:
-                plt.figure()
-                sns.distplot(lns)
-                sns.despine()
-                plt.xlabel("{receptor}_{locus} CDR3 length (aa)".format(receptor=self.receptor_name,
-                                                                                 locus=l))
-                plt.ylabel("Density")
-                plt.savefig("{}_{}.pdf".format(cdr3_filename_root, l))
-            if len(lns) > 0:
-                with open("{}_{}.txt".format(cdr3_filename_root,l), 'w') as f:
-                        for l in sorted(lns):
-                            f.write("{}\n".format(l))"""
 
     def count_isotype_usage(self, cells):
         prod_counters = defaultdict(Counter)
@@ -1812,12 +1763,6 @@ class Builder(TracerTask):
             in_file = VDJC_files[s]
             seqs[s] = self.load_segment_seqs(in_file)
 
-        """# Logical check for C region
-        if len(seqs['C']) > 1:
-            print("\nMore than one constant region sequence included in {C_file}." \
-                  .format(self.raw_seq_files['C']))
-            print("Please only provide one constant sequence.\n")
-            sys.exit(1)"""
 
         const_seq = list(seqs['C'].values())[0].upper()
         N_junction_string = "N" * self.N_padding

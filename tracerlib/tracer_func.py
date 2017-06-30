@@ -871,7 +871,7 @@ def load_kallisto_counts(tsv_file):
 
 def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato, 
                    receptor, loci, network_colours, cell_contig_clones, 
-                   cells_with_clonal_H, no_duplets):
+                   cells_with_clonal_H, no_duplets, IGH_networks):
     G = nx.MultiGraph()
 
     # initialise all cells as nodes
@@ -899,132 +899,147 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato,
                 if cell.bgcolor is not None:
                     G.node[cell]['style'] = 'filled'
                     G.node[cell]['fillcolor'] = cell.bgcolor
-
+    #pdb.set_trace()
     # Create list of cells belonging to a heavy chain clone group
     cell_names = cells_with_clonal_H
-
+   
     # make edges:
     loci = ["H", "K", "L"]
-    for i in range(len(cell_names)):
-        current_cell = cell_names[i]
-        comparison_cells = cell_names[i + 1:]
+    if len(cells) > 1:
+        for i in range(len(cell_names)):
+            current_cell = cell_names[i]
+            comparison_cells = cell_names[i + 1:]
 
-        for locus in loci:
-            col = network_colours[receptor][locus][0]
+            for locus in loci:
+                col = network_colours[receptor][locus][0]
+
+                for comparison_cell in comparison_cells:
+                    shared_identifiers = 0
+
+                    for cell in cells:
+                        if current_cell == cell.name:
+                            current_cell = cell
+                        elif comparison_cell == cell.name:
+                            comparison_cell = cell
+                    current_contigs = []
+                    comparison_contigs = []
+                    if current_cell.name in cell_contig_clones[locus].keys() \
+                        and comparison_cell.name in cell_contig_clones[locus].keys():
+              
+                        for contig_name, clone_group in six.iteritems(
+                                cell_contig_clones[locus][current_cell.name]):
+                            current_contigs.append(contig_name)
+                        for contig_name, clone_group in six.iteritems(
+                                cell_contig_clones[locus][comparison_cell.name]):
+                            comparison_contigs.append(contig_name)
+
+                    if locus == "H":
+                        clonal_H = False
+
+                        # Check if cells share a clonal H chain
+                        for current_contig in current_contigs:
+                            for comparison_contig in comparison_contigs:
+                                if cell_contig_clones["H"][comparison_cell.name][comparison_contig] == \
+                                    cell_contig_clones["H"][current_cell.name][current_contig]:
+                                    clonal_H = True
+                                    shared_identifiers += 1 
+
+
+                        # Check if cells share nonfunctional chains
+                        if len(current_cell.recombinants[receptor][locus]) > 1 \
+                            and len(comparison_cell.recombinants[receptor][locus]) > 1:
+                            for current_recombinant in current_cell.recombinants[receptor][locus]:
+                                if not current_recombinant.productive:
+                                    current_id_set = current_recombinant.all_poss_identifiers
+
+                                    for comparison_recombinant in \
+                                        comparison_cell.recombinants[receptor][locus]:
+                                        if not comparison_recombinant.productive:
+                                            comparison_id_set = \
+                                            comparison_recombinant.all_poss_identifiers
+                                            if len(current_id_set.intersection(comparison_id_set)) > 0:
+                                                if shared_identifiers > 0:
+                                                    shared_identifiers += 1
+                  
+                        if shared_identifiers > 0:
+                            width = shared_identifiers * 2
+                            G.add_edge(current_cell, comparison_cell, locus, penwidth=width, color=col)    
+
+                    else:
+
+                        # Check if cells share clonal H chain
+                        if G.number_of_edges(current_cell, comparison_cell) > 0:
+ 
+                            if len(current_contigs) > 0 and len(comparison_contigs) > 0:
+                                for current_contig in current_contigs:
+                                    for comparison_contig in comparison_contigs:
+                                        if cell_contig_clones[locus][comparison_cell.name][comparison_contig] \
+                                            == cell_contig_clones[locus][current_cell.name][current_contig]:
+                                            shared_identifiers += 1                          
+                        
+                        if shared_identifiers > 0:
+                            width = shared_identifiers * 2
+                            G.add_edge(current_cell, comparison_cell, locus, penwidth=width, color=col)
+
+                    
+        # Check if cells sharing at least one functional H 
+        # chain also share a nonfunctional light chain
+        for i in range(len(cell_names)):
+            current_cell = cell_names[i]
+            comparison_cells = cell_names[i + 1:]
 
             for comparison_cell in comparison_cells:
-                shared_identifiers = 0
 
                 for cell in cells:
                     if current_cell == cell.name:
                         current_cell = cell
                     elif comparison_cell == cell.name:
                         comparison_cell = cell
-                current_contigs = []
-                comparison_contigs = []
-                if current_cell.name in cell_contig_clones[locus].keys() \
-                        and comparison_cell.name in cell_contig_clones[locus].keys():
-              
-                    for contig_name, clone_group in six.iteritems(
-                            cell_contig_clones[locus][current_cell.name]):
-                        current_contigs.append(contig_name)
-                    for contig_name, clone_group in six.iteritems(
-                            cell_contig_clones[locus][comparison_cell.name]):
-                        comparison_contigs.append(contig_name)
 
-                if locus == "H":
-                    clonal_H = False
+                if G.number_of_edges(current_cell, comparison_cell) > 0:
 
-                    # Check if cells share a clonal H chain
-                    for current_contig in current_contigs:
-                        for comparison_contig in comparison_contigs:
-                            if cell_contig_clones["H"][comparison_cell.name][comparison_contig] == \
-                                cell_contig_clones["H"][current_cell.name][current_contig]:
-                                clonal_H = True
-                                shared_identifiers += 1 
+                    for locus in ["K", "L"]:
+                        shared_identifiers = 0
+                        col = network_colours[receptor][locus][0]
 
+                        if len(current_cell.recombinants[receptor][locus]) > 0 \
+                            and len(comparison_cell.recombinants[receptor][locus]) > 0:
+                            for current_recombinant in \
+                                current_cell.recombinants[receptor][locus]:
+                                if not current_recombinant.productive:
+                                    current_id_set = current_recombinant.all_poss_identifiers
 
-                    # Check if cells share nonfunctional chains
-                    if len(current_cell.recombinants[receptor][locus]) > 1 \
-                        and len(comparison_cell.recombinants[receptor][locus]) > 1:
-                        for current_recombinant in current_cell.recombinants[receptor][locus]:
-                            if not current_recombinant.productive:
-                                current_id_set = current_recombinant.all_poss_identifiers
-
-                                for comparison_recombinant in \
-                                    comparison_cell.recombinants[receptor][locus]:
-                                    if not comparison_recombinant.productive:
-                                        comparison_id_set = \
-                                        comparison_recombinant.all_poss_identifiers
-                                        if len(current_id_set.intersection(comparison_id_set)) > 0:
-                                            if shared_identifiers > 0:
+                                    for comparison_recombinant in comparison_cell.recombinants[receptor][locus]:
+                                        if not comparison_recombinant.productive:
+                                            comparison_id_set = comparison_recombinant.all_poss_identifiers
+                                            if len(current_id_set.intersection(comparison_id_set)) > 0:
                                                 shared_identifiers += 1
-                  
-                    if shared_identifiers > 0:
-                        width = shared_identifiers * 2
-                        G.add_edge(current_cell, comparison_cell, locus, penwidth=width, color=col)    
-
-                else:
-
-                    # Check if cells share clonal H chain
-                    if G.number_of_edges(current_cell, comparison_cell) > 0:
- 
-                        if len(current_contigs) > 0 and len(comparison_contigs) > 0:
-                            for current_contig in current_contigs:
-                                for comparison_contig in comparison_contigs:
-                                    if cell_contig_clones[locus][comparison_cell.name][comparison_contig] \
-                                        == cell_contig_clones[locus][current_cell.name][current_contig]:
-                                        shared_identifiers += 1                          
-                        
-                    if shared_identifiers > 0:
-                        width = shared_identifiers * 2
-                        G.add_edge(current_cell, comparison_cell, locus, penwidth=width, color=col)
-
-                    
-    # Check if cells sharing at least one functional H and one functional light 
-    # chain also share a nonfunctional light chain
-    for i in range(len(cell_names)):
-        current_cell = cell_names[i]
-        comparison_cells = cell_names[i + 1:]
-
-        for comparison_cell in comparison_cells:
-
-            for cell in cells:
-                if current_cell == cell.name:
-                    current_cell = cell
-                elif comparison_cell == cell.name:
-                    comparison_cell = cell
-
-            if G.number_of_edges(current_cell, comparison_cell) > 1:
-
-                for locus in ["K", "L"]:
-                    shared_identifiers = 0
-                    col = network_colours[receptor][locus][0]
-
-                    if len(current_cell.recombinants[receptor][locus]) > 0 \
-                        and len(comparison_cell.recombinants[receptor][locus]) > 0:
-                        for current_recombinant in \
-                            current_cell.recombinants[receptor][locus]:
-                            if not current_recombinant.productive:
-                                current_id_set = current_recombinant.all_poss_identifiers
-
-                                for comparison_recombinant in comparison_cell.recombinants[receptor][locus]:
-                                    if not comparison_recombinant.productive:
-                                        comparison_id_set = comparison_recombinant.all_poss_identifiers
-                                        if len(current_id_set.intersection(comparison_id_set)) > 0:
-                                            shared_identifiers += 1
-                        if shared_identifiers > 0:
-                            edge_dict = G.get_edge_data(current_cell, comparison_cell)
+                            if shared_identifiers > 0:
+                                edge_dict = G.get_edge_data(current_cell, comparison_cell)
                                          
-                            if locus in edge_dict.keys():
-                                width = 4
-                                G.add_edge(current_cell, comparison_cell, locus, 
+                                if locus in edge_dict.keys():
+                                    width = 4
+                                    G.add_edge(current_cell, comparison_cell, locus, 
                                                       penwidth=width, color=col)
                                 
-                            else:
-                                width = 2 * shared_identifiers
-                                G.add_edge(current_cell, comparison_cell, locus, 
-                                                      penwidth=width, color=col)
+                                else:
+                                    width = 2 * shared_identifiers
+                                    G.add_edge(current_cell, comparison_cell, locus, 
+                                                      penwidth=width, color=col, style="dashed")
+
+        # Remove edges between cells that only share clonal heavy chain if --IGH_networks flag is not provided
+        if not IGH_networks:
+            for i in range(len(cell_names)):
+                current_cell = cell_names[i]
+                comparison_cells = cell_names[i + 1:]
+                for comparison_cell in comparison_cells:
+                    for cell in cells:
+                        if current_cell == cell.name:
+                            current_cell = cell
+                        elif comparison_cell == cell.name:
+                            comparison_cell = cell
+                    if G.number_of_edges(current_cell, comparison_cell) == 1:
+                        G.remove_edge(current_cell, comparison_cell)
 
 
     deg = G.degree()
@@ -1064,12 +1079,14 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato,
 
 def draw_network_from_cells(cells, output_dir, output_format, dot, neato, 
                            draw_graphs, receptor, loci, network_colours, 
-                           cell_contig_clones, cells_with_clonal_H, no_duplets):
+                           cell_contig_clones, cells_with_clonal_H, 
+                           no_duplets, IGH_networks):
     cells = list(cells.values())
     
     network, draw_tool, component_groups = make_cell_network_from_dna(cells, 
                             False, "box", dot, neato, receptor, loci, network_colours, 
-                                  cell_contig_clones, cells_with_clonal_H, no_duplets)
+                                  cell_contig_clones, cells_with_clonal_H, no_duplets,
+                                  IGH_networks)
 
     network_file = "{}/clonotype_network_with_identifiers.dot".format(output_dir)
 
@@ -1087,7 +1104,7 @@ def draw_network_from_cells(cells, output_dir, output_format, dot, neato,
     
     network, draw_tool, cgx = make_cell_network_from_dna(cells, False, 
                         "circle", dot, neato, receptor, loci, network_colours, 
-                          cell_contig_clones, cells_with_clonal_H, no_duplets)
+                          cell_contig_clones, cells_with_clonal_H, no_duplets, IGH_networks)
 
     network_file = "{}/clonotype_network_without_identifiers.dot".format(output_dir)
     try:
@@ -1564,8 +1581,6 @@ def quantify_with_kallisto(kallisto, cell, output_dir, cell_name, kallisto_base_
 
  
     # delete index file because it's huge and unecessary. Delete transcriptome file 
-    # os.remove(idx_file) 
-    # os.remove(output_transcriptome) 
     shutil.rmtree("{}/expression_quantification/kallisto_index/".format(output_dir)) 
 
 
