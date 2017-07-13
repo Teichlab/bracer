@@ -637,154 +637,35 @@ class Summariser(TracerTask):
                     empty_cells.append(d)
                                
         
-        cell_recovery_count = dict()
-        # Count cells with productive chains for each locus and for each possible pair
-        for l in self.loci:
-            cell_recovery_count[l] = 0
+        # Count cells with productive chains for each locus and for each 
+        # possible pair and write to summary file
+        cell_recovery_count = self.write_reconstruction_statistics(outfile, self.loci, cells)
 
-        
-        possible_pairs = ["".join(x) for x in itertools.combinations(self.loci, 2)]
-        
-        for p in possible_pairs:
-            cell_recovery_count[p] = 0
-        
-        for cell_name, cell in six.iteritems(cells):
-            prod_counts = dict()
-            for l in self.loci:
-                prod_counts[l] = cell.count_productive_recombinants(l)
-                if prod_counts[l] > 0:
-                    cell_recovery_count[l] += 1
-         
-            for p in possible_pairs:
-                if prod_counts[p[0]] > 0 and prod_counts[p[1]] > 0:
-                    cell_recovery_count[p] += 1
-
-        total_cells = len(cells)
-       
-
-        for l in self.loci:
-            count = cell_recovery_count[l]
-            pc = round((count/float(total_cells))*100, 1)
-            outfile.write("BCR_{locus} reconstruction:\t{count} / {total} ({pc}%)\n".format(
-                                            locus=l, count=count, total=total_cells, pc=pc))
+        # Make all recombinant table and write to summary file
+        t = self.make_all_recombinant_table(self.loci, cells)
+        outfile.write(t.get_string())
         outfile.write("\n")
-        
-        for p in possible_pairs:
-            count = cell_recovery_count[p]
-            pc = round((count/float(total_cells))*100, 1)
-            if pc == "KL":
-                outfile.write(
-                    "Productive reconstruction of K and L:\t{count} / {total} ({pc}%)\n".format(
-                                                    p=p, count=count, total=total_cells, pc=pc))
-            else:
-                outfile.write(
-                    "Paired {p} productive reconstruction:\t{count} / {total} ({pc}%)\n".format(
-                                                    p=p, count=count, total=total_cells, pc=pc))
-        outfile.write("\n")
-        
-        
-        all_counters = defaultdict(Counter)
-        prod_counters = defaultdict(Counter)
+
+
         
         isotype_counters = defaultdict(Counter)
         possible_isotypes = ["IGHM", "IGHG1", "IGHG2A", "IGHG2B", "IGHG2C", "IGHG2", "IGHG3", 
                             "IGHG4", "IGHA", "IGHA1", "IGHA2", "IGHE", "IGHD", "IGHDM"]
         
-        for cell in cells.values():
-            for l in self.loci:
-                all_counters[l].update({cell.count_total_recombinants(l): 1})
-                prod_counters[l].update({cell.count_productive_recombinants(l): 1})
-        
-        all_recombinant_counts = []
-        
-        for locus in all_counters:
-            all_recombinant_counts = all_recombinant_counts + \
-                                list(all_counters[locus].keys())
-        max_recombinant_count = max(all_recombinant_counts)
-        
-        table_header = ['', '0 recombinants', '1 recombinant', '2 recombinants']
-        recomb_range = range(0, 3)
-        if max_recombinant_count > 2:
-            extra_header = [str(x) + " recombinants" for x in range(
-                                        3, max_recombinant_count + 1)]
-            table_header = table_header + extra_header
-            recomb_range = range(0, max_recombinant_count + 1)
 
-        t = PrettyTable(table_header)
-        t.padding_width = 1
-        t.align = "l"
-
-        
-        # Make all recombinant table
-        for counter_name in ['all_counters', 'prod_counters']:
-            counter_type = counter_name.split("_")[0]
-            counter_set = eval(counter_name)
-            for l in self.loci:
-                counter = counter_set[l]
-                count_array = [counter[x] for x in recomb_range]
-                total_with_at_least_one = sum(count_array[1:])
-                if total_with_at_least_one > 0:
-                    percentages = [''] + [" (" + str(round((float(x) \
-                            / total_with_at_least_one) * 100)) + "%)" \
-                            for x in count_array[1:]]
-                else:
-                    percentages = [''] + [" (N/A%)" for x in count_array[1:]]
-                row = []
-                for i in recomb_range:
-                    row.append(str(count_array[i]) + percentages[i])
-                label = '{} {}'.format(counter_type, l)
-                t.add_row([label] + row)
-        
-        
-        outfile.write(t.get_string())
-        outfile.write("\n")
-
-        # If using unfiltered, name cells with more than two recombinants#
+        # If using unfiltered, name potential multiplets (cells with more
+        # than two recombinants for a locus
         multiplets = []
         if self.use_unfiltered:
-            outfile.write("\n\n##Cells with more than two recombinants for a locus##\n")
-            if self.no_multiplets:
-                outfile.write("\nThe following cells are likely multiplets or contaminated "
-                                "as they contain more than two recombinants for a locus, "
-                                "and were excluded from downstream analyses.\n")
-                                
-            found_multi = False
-            for cell in cells.values():
-                if cell.has_excess_recombinants:
-                    outfile.write("*{}*\n".format(cell.name))
-                    multiplets.append(cell.name)
-                    for l in self.loci:
-                        count = cell.count_total_recombinants(l)
-                        outfile.write("BCR_{l}:\t{count}\n".format(l=l, count=count))
-                    outfile.write("\n")
-                    found_multi = True
-            if not found_multi:
-                outfile.write("None\n\n")
+            multiplets = self.detect_multiplets(self.no_multiplets, outfile, cells)
 
-
-        # Write recombinant details of filtered multiplets if --no_multiplets option is given
-        if len(multiplets) > 0:
-            with open("{}/multiplet_recombinants.txt".format(outdir), 'w') as f:
-                f.write("cell_name\tlocus\trecombinant_id\tproductive\treconstructed_length\tTPM\n")
-                sorted_cell_names = sorted(multiplets)
-                for cell_name in sorted_cell_names:
-                    cell = cells[cell_name]
-                    for locus in self.loci:
-                        recombinants = cell.recombinants["BCR"][locus]
-                        
-                        for r in recombinants:
-                            f.write("{name}\t{locus}\t{ident}\t{productive}\t{length}\t{tpm}\n".format(
-                                    name=cell_name, locus=locus, ident=r.identifier,
-                                    productive=r.productive, length=len(r.trinity_seq), tpm=r.TPM))
-
-                    f.write("\n")
-                f.write("\n\n")
+        # Create Change-O db file for filtered multiplets if --no_multuplets
+        self.create_multiplet_database_file(outdir, self.loci, cells, multiplets)
 
         # Delete likely multiplets from downstream analyses if --no_multiplets option is given
-        if self.no_multiplets:
-            if len(multiplets) > 0:
-                for cell_name in multiplets:
-                    del cells[cell_name]
+        if self.no_multiplets and len(multiplets) > 0:
+            for cell_name in multiplets:
+                del cells[cell_name]
 
 
         # Make full length statistics table and plot proportion of sequences 
@@ -807,7 +688,7 @@ class Summariser(TracerTask):
         if len(outstring) > 0:
             outfile.write(outstring)
       
-        #Report cells with productive kappa and lambda chain
+        # Report cells with productive kappa and lambda chain
         outstring = self.report_kappa_lambda_cells(self.loci, cells)
 
         if len(outstring) > 0:
@@ -825,9 +706,6 @@ class Summariser(TracerTask):
         # Read ChangeO result files and define clone groups for each locus
         (clones, cell_clones, cell_contig_clones) = self.read_changeo_results(
                                                             self.loci, outdir)
-
-        # Create Change-O database file containing all sequences (not IMGT-gapped)
-        self.create_database_file(outdir, self.loci, cells, cell_contig_clones)
 
         # Get H clone groups consisting of 2 or more cells
         multiple_clones_H = dict()
@@ -889,58 +767,12 @@ class Summariser(TracerTask):
 
 
         # Plot lengths of reconstructed sequences
-        lengths = defaultdict(list)
-        for cell in cells.values():
-            for l in self.loci:
-                lengths[l].extend(cell.get_trinity_lengths(l))
-        
-        # plot length distributions
-        quartiles = dict()
-        for l in self.loci:
-            q = self.get_quartiles(l)
-            quartiles[l] = q
-            
-        for l in self.loci:
-            q = quartiles[l]
-            lns = lengths[l]
-            if len(lns) > 1:
-                plt.figure()
-                plt.axvline(q[0], linestyle="--", color='k')
-                plt.axvline(q[1], linestyle="--", color='k')
-                sns.distplot(lns)
-                sns.despine()
-                plt.xlabel("BCR_{} reconstructed length (bp)".format(l))
-                plt.ylabel("Density")
-                plt.savefig("{}_{}.pdf".format(length_filename_root, l))
-            if len(lns) > 0:
-                with open("{}_{}.txt".format(length_filename_root,l), 'w') as f:
-                    for l in sorted(lns):
-                        f.write("{}\n".format(l))
-                        
+        self.plot_length_distributions(self.loci, length_filename_root, cells)
+
+        # Delete cells with no reconstructed sequences                
         for cell_name in empty_cells:
             del cells[cell_name]
 
-
-        # Write recombinant details
-        with open("{}/recombinants.txt".format(outdir), 'w') as f:
-            f.write("cell_name\tlocus\trecombinant_id\tproductive\t"
-                    "reconstructed_length\tTPM\n")
-            sorted_cell_names = sorted(list(cells.keys()))
-            for cell_name in sorted_cell_names:
-                cell = cells[cell_name]
-                for locus in self.loci:
-                    recombinants = cell.recombinants["BCR"][locus]
-                    if recombinants is not None:
-                        for r in recombinants:
-                            f.write("{name}\t{locus}\t{ident}\t{productive}\t{length}\t{tpm}\n".format(
-                                    name=cell_name, locus=locus, ident=r.identifier, 
-                                    productive=r.productive, length=len(r.trinity_seq),
-                                    tpm=r.TPM))
-                f.write("\n")
-            f.write("\n\n")
-            for cell_name in empty_cells:
-                f.write("{cell_name}\tNo seqs found for BCR_{loci}\n".format(
-                    cell_name=cell_name, loci=self.loci))
                 
         # Make clonotype networks
         network_colours = io.read_colour_file(os.path.join(
@@ -962,21 +794,15 @@ class Summariser(TracerTask):
         for g in component_groups:
             outfile.write(", ".join(g))
             outfile.write("\n\n")
+
+        # Print name of empty cells to the summary
+        outfile.write("#Cells with no reconstructed sequences#\n")
+        for cell_name in empty_cells:
+            outfile.write(", ".join(cell_name))
         
         # Plot clonotype sizes
-        plt.figure()
-        clonotype_sizes = tracer_func.get_component_groups_sizes(cells, 
-                                                        self.loci, G)
+        x_range, clonotype_sizes = self.plot_clonotype_sizes(outdir, cells, self.loci, G)
 
-        w = 0.85
-        x_range = range(1, len(clonotype_sizes) + 1)
-        plt.bar(x_range, height=clonotype_sizes, width=w, color='black', 
-                                                        align='center')
-        plt.gca().set_xticks(x_range)
-        plt.xlabel("Clonotype size")
-        plt.ylabel("Clonotype count")
-        plt.savefig("{}/clonotype_sizes.pdf".format(outdir))
-        
         # Write clonotype sizes to text file
         with open("{}/clonotype_sizes.txt".format(outdir), 'w') as f:
             data = zip(x_range, clonotype_sizes)
@@ -985,7 +811,132 @@ class Summariser(TracerTask):
                 f.write("{}\t{}\n".format(t[0], t[1]))
 
         outfile.close()
-    
+
+
+    def write_reconstruction_statistics(self, outfile, loci, cells):
+        """Writes statistics for reconstruction of productive chains and 
+        paired chains to summary file"""
+        
+        cell_recovery_count = dict()
+
+        # Count cells with productive chains for each locus and for each possible pair
+        for l in loci:
+            cell_recovery_count[l] = 0
+        possible_pairs = ["".join(x) for x in itertools.combinations(loci, 2)]
+
+        for p in possible_pairs:
+            cell_recovery_count[p] = 0
+        
+        for cell_name, cell in six.iteritems(cells):
+            prod_counts = dict()
+            for l in loci:
+                prod_counts[l] = cell.count_productive_recombinants(l)
+                if prod_counts[l] > 0:
+                    cell_recovery_count[l] += 1
+            for p in possible_pairs:
+                if prod_counts[p[0]] > 0 and prod_counts[p[1]] > 0:
+                    cell_recovery_count[p] += 1
+
+        total_cells = len(cells)
+
+        for l in loci:
+            count = cell_recovery_count[l]
+            pc = round((count/float(total_cells))*100, 1)
+            outfile.write("BCR_{locus} reconstruction:\t{count} / {total} ({pc}%)\n".format(
+                                            locus=l, count=count, total=total_cells, pc=pc))
+        outfile.write("\n")
+        
+        for p in possible_pairs:
+            count = cell_recovery_count[p]
+            pc = round((count/float(total_cells))*100, 1)
+            if pc == "KL":
+                outfile.write("Productive reconstruction of K and L:\t{count} / {total} ({pc}%)\n".format(
+                            p=p, count=count, total=total_cells, pc=pc))
+            else:
+                 outfile.write("Paired {p} productive reconstruction:\t{count} / {total} ({pc}%)\n".format(
+                            p=p, count=count, total=total_cells, pc=pc))
+            
+        outfile.write("\n")
+
+        return(cell_recovery_count)
+
+
+    def make_all_recombinant_table(self, loci, cells):
+        """Creates table with number of reconstructed recombinants per locus"""
+        
+        all_counters = defaultdict(Counter)
+        prod_counters = defaultdict(Counter)
+        for cell in cells.values():
+            for l in loci:
+                all_counters[l].update({cell.count_total_recombinants(l): 1})
+                prod_counters[l].update({cell.count_productive_recombinants(l): 1})
+
+        all_recombinant_counts = []
+
+        for locus in all_counters:
+            all_recombinant_counts = (all_recombinant_counts +
+                    list(all_counters[locus].keys()))
+
+        max_recombinant_count = max(all_recombinant_counts)
+
+        table_header = ['', '0 recombinants', '1 recombinant', '2 recombinants']
+        recomb_range = range(0, 3)
+        if max_recombinant_count > 2:
+            extra_header = [str(x) + " recombinants" for x in range(
+                                        3, max_recombinant_count + 1)]
+            table_header = table_header + extra_header
+            recomb_range = range(0, max_recombinant_count + 1)
+        t = PrettyTable(table_header)
+        t.padding_width = 1
+        t.align = "l"
+
+        for counter_name in ['all_counters', 'prod_counters']:
+            counter_type = counter_name.split("_")[0]
+            counter_set = eval(counter_name)
+            for l in loci:
+                counter = counter_set[l]
+                count_array = [counter[x] for x in recomb_range]
+                total_with_at_least_one = sum(count_array[1:])
+                if total_with_at_least_one > 0:
+                    percentages = [''] + [" (" + str(round((float(x) \
+                        / total_with_at_least_one) * 100)) + "%)" \
+                        for x in count_array[1:]]
+                else:
+                    percentages = [''] + [" (N/A%)" for x in count_array[1:]]
+                row = []
+                for i in recomb_range:
+                    row.append(str(count_array[i]) + percentages[i])
+                label = '{} {}'.format(counter_type, l)
+                t.add_row([label] + row)
+        
+        return(t)
+
+
+    def detect_multiplets(self, no_multiplets, outfile, cells):
+        """Names cells with more than two recombinants for a locus"""
+        
+        multiplets = []
+        outfile.write("\n\n##Cells with more than two recombinants for a locus##\n")
+        if no_multiplets:
+            outfile.write("\nThe following cells are likely multiplets or "
+                "contaminated as they contain more than two recombinants for "
+                "a locus, and were excluded from downstream analyses.\n")
+        found_multi = False
+        for cell in cells.values():
+            if cell.has_excess_recombinants:
+                outfile.write("*{}*\n".format(cell.name))
+                multiplets.append(cell.name)
+                for l in loci:
+                    count = cell.count_total_recombinants(l)
+                    outfile.write("BCR_{l}:\t{count}\n".format(l=l, count=count))
+                outfile.write("\n")
+                found_multi = True
+        if not found_multi:
+            outfile.write("None\n\n")
+
+        return(multiplets)
+
+
     def get_quartiles(self, locus):
         
         fasta = os.path.join(self.species_dir, 'combinatorial_recombinomes',
@@ -1009,6 +960,37 @@ class Summariser(TracerTask):
         quartiles = (percentile(lengths, 25), percentile(lengths, 75))
 
         return(quartiles)
+
+
+    def plot_length_distributions(self, loci, length_filename_root, cells):
+        """Plots length distributions of reconstructed sequences"""
+        
+        lengths = defaultdict(list)
+        for cell in cells.values():
+            for l in loci:
+                lengths[l].extend(cell.get_trinity_lengths(l))
+
+        quartiles = dict()
+        for l in loci:
+            q = self.get_quartiles(l)
+            quartiles[l] = q
+
+        for l in loci:
+            q = quartiles[l]
+            lns = lengths[l]
+            if len(lns) > 1:
+                plt.figure()
+                plt.axvline(q[0], linestyle="--", color='k')
+                plt.axvline(q[1], linestyle="--", color='k')
+                sns.distplot(lns)
+                sns.despine()
+                plt.xlabel("BCR_{} reconstructed length (bp)".format(l))
+                plt.ylabel("Density")
+                plt.savefig("{}_{}.pdf".format(length_filename_root, l))
+            if len(lns) > 0:
+                with open("{}_{}.txt".format(length_filename_root,l), 'w') as f:
+                    for l in sorted(lns):
+                        f.write("{}\n".format(l))
             
         
     def two_productive_chains_per_locus(self, loci, cells):
@@ -1093,6 +1075,31 @@ class Summariser(TracerTask):
                         string = databasedict[locus][rec.contig_name] + "\t{}\t{}\n".format(isotype, clone)
                         output.write(string)
 
+
+    def create_multiplet_database_file(self, outdir, loci, cells, multiplets):
+        """Creates a tab-delimited Change-O database containing all potential
+        multiplets filtered out if --no_multiplets option is given"""
+        
+        changeo_string = ("CELL\tSEQUENCE_ID\tCONTIG_NAME\tLOCUS\tFUNCTIONAL\tIN_FRAME" +
+                     "\tSTOP\tINDELS\tV_CALL\tTOP_V_ALLELE\tD_CALL\tTOP_D_ALLELE\tJ_CALL\t" +
+                     "TOP_J_ALLELE\tSEQUENCE_INPUT\tSEQUENCE_VDJ\tV_SEQ_START\tV_SEQ_LENGTH" +
+                     "\tD_SEQ_START\tD_SEQ_LENGTH\tJ_SEQ_START\tJ_SEQ_LENGTH\t" +
+                     "CDR3\tCDR3_LENGTH\tJUNCTION\tJUNCTION_LENGTH\tTPM\tC_CALL\n")
+
+        database_file = "{}/filtered_multiplets_changeodb.tab".format(outdir)
+
+        with open(database_file, 'w') as output:
+            output.write(changeo_string)
+            sorted_cell_names = sorted(multiplets)
+            for cell_name in sorted_cell_names:
+                cell = cells[cell_name]
+                databasedict = cell.databasedict
+                for locus in loci:
+                    recs = cell.recombinants["BCR"][locus]
+                    string = databasedict[locus][rec.contig_name]
+                    output.write(string)
+
+
     def make_changeo_input(self, outdir, locus, cells):
         """Creates tab-delimited database file for each locus compatible with 
         Change-O"""
@@ -1161,6 +1168,7 @@ class Summariser(TracerTask):
 
         return (clones, cell_clones, cell_contig_clones)
 
+
     def make_clone_igblast_input(self, outdir, locus, cells):
         """Creates input file for each locus containing sequences belonging to a clone
         group to use as input for IgBlast in order to obtain IMGT-gapped
@@ -1186,6 +1194,7 @@ class Summariser(TracerTask):
                             header = ">" + name + "\n"
                             output.write(header)
                             output.write(seq)
+
 
     def IgBlast_germline_reconstruction(self, outdir, locus, cells):
          
@@ -1255,6 +1264,7 @@ class Summariser(TracerTask):
         if os.path.exists(output_file):
             os.remove(input_file)
 
+
     def create_germline_sequences(self, outdir, locus, cells):
         """Runs CreateGermlines from Change-O toolkit to infer germline sequences from clonal sequences"""
 
@@ -1262,6 +1272,7 @@ class Summariser(TracerTask):
         gapped_seq_location = self.config.get('IgBlast_options', 'gapped_imgt_seq_location')
         igblast_seqtype = self.config.get('IgBlast_options', 'igblast_seqtype')
         tracer_func.run_CreateGermlines(CreateGermlines, locus, outdir, self.species, gapped_seq_location)
+
 
     def create_lineage_trees(self, outdir):
         """Executes R script with Alakazam commands for lineage reconstruction"""
@@ -1271,6 +1282,7 @@ class Summariser(TracerTask):
         script = self.get_rscript_path()
         command = Rscript + " " + script + " {} {}".format(outdir, dnapars) 
         subprocess.check_call(command, shell=True)
+
 
     def create_igblast_IMGT_gapped_input(self, outdir, cells, loci):
         """Creates FASTA file with all sequences for all cells as input for
@@ -1289,6 +1301,7 @@ class Summariser(TracerTask):
                         output.write(header)
                         output.write(sequence_line)
 
+
     def run_IgBlast_IMGT_gapped(self, outdir):
         """Runs IgBlast on all reconstructed sequences using IMGT-gapped
         reference sequences for creation of IMGT-gapped Change-O database
@@ -1305,6 +1318,7 @@ class Summariser(TracerTask):
         # IgBlast sequences
         tracer_func.run_IgBlast_IMGT_gaps(igblastn, outdir, 
             gapped_igblast_index_location, igblast_seqtype, self.species)
+
 
     def count_full_length_sequences(self, loci, cells):
         """Count all full length sequences and productive full length sequences"""
@@ -1415,7 +1429,6 @@ class Summariser(TracerTask):
         return (full_length_statistics_table, all_dict, prod_dict)
 
 
-
     def count_isotype_usage(self, cells):
         prod_counters = defaultdict(Counter)
         cell_isotypes = []
@@ -1469,6 +1482,21 @@ class Summariser(TracerTask):
             plt.savefig("{}/isotype_distribution.pdf".format(outdir))
 
 
+    def plot_clonotype_sizes(self, outdir, cells, loci, G):
+
+        plt.figure()
+        clonotype_sizes = tracer_func.get_component_groups_sizes(
+                                                cells, loci, G)
+        w = 0.85
+        x_range = range(1, len(clonotype_sizes) + 1)
+        plt.bar(x_range, height=clonotype_sizes, width=w, color='black',
+                                                        align='center')
+        plt.gca().set_xticks(x_range)
+        plt.xlabel("Clonotype size")
+        plt.ylabel("Clonotype count")
+        plt.savefig("{}/clonotype_sizes.pdf".format(outdir))
+
+        return(x_range, clonotype_sizes)
 
 
 class Tester(TracerTask):
