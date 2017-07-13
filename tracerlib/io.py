@@ -12,7 +12,6 @@ from collections import defaultdict
 import six
 import sys
 from Bio import SeqIO
-#from Bio.Blast import NCBIXML, Record
 
 from tracerlib.tracer_func import process_chunk, find_possible_alignments, extract_blast_info
 import glob
@@ -65,6 +64,9 @@ def load_IMGT_seqs(file):
 
 
 def parse_assembled_file(output_dir, cell_name, assembled_file):
+    """Creates unique sequence names for each sequence if already assembled
+    sequences are provided as input to BraCeR Assemble"""
+
     if os.path.exists(assembled_file):
         outfile = "{output_dir}/Trinity_output/{cell_name}.fasta".format(
                    output_dir=output_dir, cell_name=cell_name)
@@ -84,7 +86,7 @@ def parse_assembled_file(output_dir, cell_name, assembled_file):
                         output.write(line)
 
 
-def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species, 
+def parse_IgBLAST(loci, output_dir, cell_name, raw_seq_dir, species, 
                   assembled_file, max_junc_len=100, invariant_seqs=None):
     
     IMGT_seqs = dict()
@@ -92,16 +94,16 @@ def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species,
     
 
     for locus in loci:
-        seq_files = glob.glob(os.path.join(raw_seq_dir, "{receptor}_{locus}_*.fa".format(
-                                                        receptor=receptor, locus=locus)))
+        seq_files = glob.glob(os.path.join(raw_seq_dir, "BCR_{}_*.fa".format(locus)))
         for f in seq_files:
             segment_name = os.path.splitext(os.path.split(f)[1])[0]
             IMGT_seqs[segment_name] = load_IMGT_seqs(f)
             loci_for_segments[segment_name.split("_")[2]].append(locus)
                     
     
-    locus_names = ["_".join([receptor,x]) for x in loci]
+    locus_names = ["_".join(["BCR",x]) for x in loci]
     all_locus_data = defaultdict(dict)
+
     for locus in locus_names:
         if assembled_file is not None:
             file = "{output_dir}/IgBLAST_output/{cell_name}.IgBLASTOut".format(
@@ -122,34 +124,32 @@ def parse_IgBLAST(receptor, loci, output_dir, cell_name, raw_seq_dir, species,
         else:
             all_locus_data[locus] = None
 
-             
-
     cell = find_possible_alignments(all_locus_data, locus_names, cell_name, IMGT_seqs, 
-                                    output_dir, species, loci_for_segments, receptor, 
+                                    output_dir, species, loci_for_segments, 
                                     loci, max_junc_len, assembled_file)
     return (cell)
 
 
-def parse_BLAST(receptor, loci, output_dir, cell_name, species, assembled_file):
+def parse_BLAST(loci, output_dir, cell_name, species, assembled_file):
     """Parses BLAST output from output files and writes formatted output to BLAST 
     output summary files"""
 
-    locus_names = ["_".join([receptor,x]) for x in loci]    
+    locus_names = ["_".join(["BCR",x]) for x in loci]    
 
     for locus in loci:
         
         blast_dir = "BLAST_output"
         output_file = "{outdir}/{blast_dir}/blastsummary_{locus}.txt".format(
                        outdir=output_dir, blast_dir=blast_dir, locus=locus)
-        input_file = "{output_dir}/{blast_dir}/{cell_name}_{receptor}_{locus}.xml".format(
+        input_file = "{output_dir}/{blast_dir}/{cell_name}_BCR_{locus}.xml".format(
                       output_dir=output_dir, blast_dir=blast_dir, cell_name=cell_name, 
-                      locus=locus, receptor=receptor)
+                      locus=locus)
 
         with open(output_file, 'w') as outfile:
-            outfile.write("------------------\n##{}##\n------------------\n\n#{}_{}#\n\n".format(
-                                                                    cell_name, receptor, locus))
+            outfile.write("------------------\n##{}##\n------------------\n\n#BCR_{}#\n\n".format(
+                                                                    cell_name, locus))
         
-            #Split result file into chunks corresponding to results for each query sequence.
+            # Split result file into chunks corresponding to results for each query sequence.
             if os.path.isfile(input_file):
                 blast_result_chunks = split_blast_file(input_file)
 
@@ -205,8 +205,9 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species, assembled_file):
                                                                 blast_query_name=blast_query_name)
                             outfile.write(out_string)
                         
-                        #Create output string when reaching end of BLAST iteration result (marked by </Iteration>) 
-                        #and write to BLAST summary file
+                        # Create output string when reaching end of BLAST 
+                        # iteration result (marked by </Iteration>) and write 
+                        # to BLAST summary file
                         elif line_x.startswith("</Iteration>") and message is not True:
                             identity_pro = float(identity)/int(align_length)*100
                             identity_pro = format(identity_pro, '.2f')
@@ -220,8 +221,8 @@ def parse_BLAST(receptor, loci, output_dir, cell_name, species, assembled_file):
                                 q_end = int(query_length) - x + 1
                                 s_start, s_end = s_end, s_start
                                
-                            intro_string = "##{blast_query_name}##\nC segment:\t{C_segment}\n\n".format(
-                                            blast_query_name=blast_query_name, C_segment=C_segment)
+                            intro_string = "##{}##\nC segment:\t{}\n\n".format(
+                                            blast_query_name, C_segment)
                             header_string = ("Segment\tquery_id\tsubject_id\t% identity\talignment length\t"
                                             "mismatches\tgap opens\tgaps\tq start\tq end\ts start\ts end\t"
                                             "evalue\tbit score\n")
@@ -297,6 +298,7 @@ def check_binary(name, user_path=None):
 
 
 def read_colour_file(filename, return_used_list=False, receptor_name=None):
+    
     colour_map = dict()
     used_colours = set()
     with open(filename) as f:

@@ -4,8 +4,6 @@ from collections import Counter, defaultdict
 import six
 from Bio.Alphabet import generic_dna
 from Bio.Seq import Seq
-import pdb
-from tracerlib import tracer_func
 
 
 class Cell(object):
@@ -13,20 +11,20 @@ class Cell(object):
     """Class to describe B cells containing H, K and L loci"""
 
     def __init__(self, cell_name, recombinants, is_empty=False, species="Mmus", 
-                    receptor=None, loci=None):
+                loci=None):
         
         self.name = cell_name
         self.species = species
-        self.receptor = receptor
-        self.recombinants = self._process_recombinants(recombinants, receptor, loci)
+        self.recombinants = self._process_recombinants(recombinants, loci)
         self.is_empty = self._check_is_empty()
         self.ranked_recs = self.rank_recombinants()
         self.bgcolor = None
         self.isotype = None
-        self.changeodict = self.get_changeo_db_for_locus(receptor, loci)
+        self.changeodict = self.get_changeo_db_for_locus(loci)
         self.has_excess_recombinants = self.has_excess_recombinants()
+        self.databasedict = self.get_database_for_locus(loci)
     
-    def _process_recombinants(self, recombinants, receptor, loci):
+    def _process_recombinants(self, recombinants, loci):
         recombinant_dict = defaultdict(dict)
         if recombinants is not None:
             for r_name, r in six.iteritems(recombinants):
@@ -42,12 +40,13 @@ class Cell(object):
         return dict(recombinant_dict)
 
 
-    def get_changeo_db_for_locus(self, receptor, loci):
+    def get_changeo_db_for_locus(self, loci):
+
         changeodict = defaultdict(dict)
         for l in loci:
             changeodict[l] = None
             changeo_string = ""
-            recombinants = self.recombinants[receptor][l]
+            recombinants = self.recombinants["BCR"][l]
             if not recombinants is None:
                 for rec in recombinants:
                     if rec.productive:
@@ -57,15 +56,32 @@ class Cell(object):
                     else:
                         changeo_string = changeo_string
             changeodict[l] = changeo_string
+
         return(changeodict)
             
+    def get_database_for_locus(self, loci):
+
+        databasedict = defaultdict(dict)
+        for l in loci:
+            databasedict[l] = None
+            changeo_string = ""
+            recombinants = self.recombinants["BCR"][l]
+            if not recombinants is None:
+                databasedict[l] = dict()
+                for rec in recombinants:
+                    string = rec.create_database_string()
+                    string = "{}\t{}_".format(self.name, self.name) + string
+                    databasedict[l][rec.contig_name] = string
+
+        return(databasedict)
+    
 
     def determine_isotype(self, ranked_recs):
         """Determines isotype of B cell based on isotype of the two highest ranking 
         heavy chain recs if productive"""
 
         ranked_H = ranked_recs["H"][0:2]
-        H_recombinants = self.recombinants[self.receptor]["H"]
+        H_recombinants = self.recombinants["BCR"]["H"]
         isotype = None
         isotype_list = []
         for ranked_rec in ranked_H:
@@ -128,8 +144,8 @@ class Cell(object):
         else:
             return False
     
-    def missing_loci_of_interest(self, receptor_name, loci):
-        recombinants = self.recombinants[receptor_name]
+    def missing_loci_of_interest(self, loci):
+        recombinants = self.recombinants["BCR"]
         loci_of_interest = set(loci)
         loci_in_cell = set()
         for l in loci:
@@ -151,8 +167,8 @@ class Cell(object):
                     identifier_list.add(identifier)
         return (identifier_list)
 
-    def getMainRecombinantIdentifiersForLocus(self, receptor_name, locus):
-        recombinants = self.recombinants[receptor_name][locus]
+    def getMainRecombinantIdentifiersForLocus(self, locus):
+        recombinants = self.recombinants["BCR"][locus]
         identifier_list = set()
         if recombinants is not None:
             for recombinant in recombinants:
@@ -160,11 +176,11 @@ class Cell(object):
         return identifier_list
 
 
-    def html_style_label_dna(self, receptor, loci, colours):
+    def html_style_label_dna(self, loci, colours):
 
         recombinants = dict()
         final_string = '<<FONT POINT-SIZE="16"><B>' + self.name + "</B></FONT>"
-        for locus, recombinant_list in six.iteritems(self.recombinants[receptor]):
+        for locus, recombinant_list in six.iteritems(self.recombinants["BCR"]):
             recombinant_set = set()
             if recombinant_list is not None:
                 for recombinant in recombinant_list:
@@ -173,7 +189,7 @@ class Cell(object):
                     else:
                         i = 1
                     recombinant_set.add("<BR/>" + '<FONT COLOR = "{}">'.format(
-                        colours[receptor][locus][i]) + recombinant.identifier + '</FONT>')
+                        colours["BCR"][locus][i]) + recombinant.identifier + '</FONT>')
 
                 recombinants[locus] = recombinant_set
         for locus in loci:
@@ -183,11 +199,11 @@ class Cell(object):
         final_string = final_string + ">"
         return (final_string)
 
-    def html_style_label_for_circles(self, receptor, loci, colours):
+    def html_style_label_for_circles(self, loci, colours):
         
         recombinants = dict()
         final_string = '<<table cellspacing="6px" border="0" cellborder="0">'
-        for locus, recombinant_list in six.iteritems(self.recombinants[receptor]):
+        for locus, recombinant_list in six.iteritems(self.recombinants["BCR"]):
             recombinant_set = list()
             if recombinant_list is not None:
                 for recombinant in recombinant_list:
@@ -197,7 +213,7 @@ class Cell(object):
                         i = 1
                     recombinant_set.append(
                         '<tr><td height="10" width="40" bgcolor="{}"></td></tr>'.format(
-                                                            colours[receptor][locus][i]))
+                                                            colours["BCR"][locus][i]))
 
                 recombinants[locus] = recombinant_set
         strings = []
@@ -256,20 +272,18 @@ class Cell(object):
         return ("\n".join(seq_string + ["\n"]))
 
 
-
-    def summarise_productivity(self, receptor, locus):
-        if (self.recombinants is None or locus not in self.recombinants[receptor] or 
-            self.recombinants[receptor][locus] is None):
+    def summarise_productivity(self, locus):
+        if (self.recombinants is None or locus not in self.recombinants["BCR"] or 
+            self.recombinants["BCR"][locus] is None):
             return("0/0")
         else:
-            recs = self.recombinants[receptor][locus]
+            recs = self.recombinants["BCR"][locus]
             prod_count = 0
             total_count = len(recs)
             for rec in recs:
                 if rec.productive:
                     prod_count += 1
             return ("{}/{}".format(prod_count, total_count))
-                
 
 
     def rank_recombinants(self):
@@ -285,13 +299,14 @@ class Cell(object):
                         for rec in recombinants:
                             TPM_ranks.update({rec.contig_name: rec.TPM})
                         most_common = [x[0] for x in TPM_ranks.most_common()]
-                        
                     ranked_recs[locus] = most_common
+
         return (ranked_recs)
 
 
 
     def filter_recombinants(self):
+
         for receptor, locus_dict in six.iteritems(self.recombinants):
             for locus, recombinants in six.iteritems(locus_dict):
                 if recombinants is not None:
@@ -308,8 +323,8 @@ class Cell(object):
                              self.recombinants[receptor][locus].remove(rec)
 
  
-    def count_productive_recombinants(self, receptor, locus):
-        recs = self.recombinants[receptor][locus]
+    def count_productive_recombinants(self, locus):
+        recs = self.recombinants["BCR"][locus]
         count = 0
         if recs is not None:
             for rec in recs:
@@ -317,15 +332,15 @@ class Cell(object):
                     count += 1
         return (count)
 
-    def count_total_recombinants(self, receptor, locus):
-        recs = self.recombinants[receptor][locus]
+    def count_total_recombinants(self, locus):
+        recs = self.recombinants["BCR"][locus]
         count = 0
         if recs is not None:
             count = len(recs)
         return (count)
 
-    def count_full_length_recombinants(self, receptor, locus):
-        recs = self.recombinants[receptor][locus]
+    def count_full_length_recombinants(self, locus):
+        recs = self.recombinants["BCR"][locus]
         count = 0
         if recs is not None:
             for rec in recs:
@@ -333,8 +348,8 @@ class Cell(object):
                     count += 1
         return (count)
 
-    def count_productive_full_length_recombinants(self, receptor, locus):
-        recs = self.recombinants[receptor][locus]
+    def count_productive_full_length_recombinants(self, locus):
+        recs = self.recombinants["BCR"][locus]
         count = 0
         if recs is not None:
             for rec in recs:
@@ -343,24 +358,14 @@ class Cell(object):
         return (count)
 
 
-    def get_trinity_lengths(self, receptor, locus):
-        recs = self.recombinants[receptor][locus]
+    def get_trinity_lengths(self, locus):
+        recs = self.recombinants["BCR"][locus]
         lengths = []
         if recs is not None:
             for rec in recs:
                 lengths.append(len(rec.trinity_seq))
         return (lengths)
  
- 
-    def get_prod_cdr3_lengths(self, receptor, locus):
-        recs = self.recombinants[receptor][locus]
-        lengths = []
-        if recs is not None:
-            for rec in recs:
-                if rec.cdr3 is not None and rec.productive:
-                    length = len(rec.cdr3) - 5
-                    lengths.append(length)
-        return (lengths)
        
     def has_excess_recombinants(self, max_r=2):
         for receptor, locus_dict in six.iteritems(self.recombinants):
@@ -379,7 +384,8 @@ class Recombinant(object):
                  productive, stop_codon, in_frame, TPM, dna_seq, hit_table, 
                  summary, junction_details, best_VJ_names, alignment_summary, 
                  trinity_seq, has_D, output_dir, full_length, query_length, 
-                 V_genes, J_genes, cdr3, C_gene, C_info_line, cdr3_seq):
+                 V_genes, J_genes, cdr3, C_gene, C_info_line, cdr3_seq, 
+                 junc_string, untrimmed_seq):
 
         self.contig_name = contig_name
         self.locus = locus
@@ -395,23 +401,37 @@ class Recombinant(object):
         self.best_VJ_names = best_VJ_names
         self.alignment_summary = alignment_summary
         self.trinity_seq = trinity_seq
+        self.untrimmed_seq = untrimmed_seq
         self.dna_seq = dna_seq
         self.cdr3 = cdr3
         self.cdr3_seq = cdr3_seq
         self.output_dir = output_dir
         self.V_genes = V_genes
+        self.V_gene = self.get_V_gene()
         self.has_D_segment = has_D
+        self.D_gene = self.get_D_gene()
         self.J_gene = self.get_J_gene()
         self.J_genes = J_genes
         self.C_gene = C_gene
         self.C_gene_info = C_info_line
         self.full_length = full_length
         self.query_length = query_length
+        self.junc_string = junc_string
         
 
     def __str__(self):
         return ("{} {} {} {}".format(self.identifier, self.productive, self.TPM))
 
+    def get_V_gene(self):
+        V_segment = self.summary[0]
+        return(V_segment)
+
+    def get_D_gene(self):
+        if self.has_D_segment:
+            D_segment = self.summary[1]
+        else:
+            D_segment = "None"
+        return(D_segment)
 
     def get_J_gene(self):
         if not self.has_D_segment:
@@ -484,7 +504,8 @@ class Recombinant(object):
 
 
     def create_changeo_db_string(self):
-        """For assessment of clonality"""
+        """For assessment of clonality with Change-O"""
+
         changeo_db_header = "SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\tJUNCTION_LENGTH\tJUNCTION"
 
         #Add sequence_ID at cell level to include cell name
@@ -497,7 +518,7 @@ class Recombinant(object):
             J_call = ",".join(str(x) for x in J_genes)
             sequence_vdj = self.dna_seq
 
-            # Replace junction with CDR3 sequence
+            # Replace JUNCTION with CDR3 sequence
             junction = self.cdr3_seq
             junction_length = int(len(junction))
             changeo_db_string = "{}_{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
@@ -506,8 +527,87 @@ class Recombinant(object):
 
         return(changeo_db_string)
 
+    def create_database_string(self):
+        """Creates string for recombinant to include in tab-delimited Change-O database file"""
 
-                
-                
+        changeo_db_header = ("SEQUENCE_ID\tCONTIG_NAME\tLOCUS\tFUNCTIONAL\tIN_FRAME" +
+            "\tSTOP\tINDELS\tV_CALL\tTOP_V_ALLELE\tD_CALL\tTOP_D_ALLELE\tJ_CALL\t" + 
+            "TOP_J_ALLELE\tSEQUENCE_INPUT\tSEQUENCE_VDJ\tV_SEQ_START\tV_SEQ_LENGTH" + 
+            "\tD_SEQ_START\tD_SEQ_LENGTH\tJ_SEQ_START\tJ_SEQ_LENGTH\t" +
+            "\tCDR3\tCDR3_LENGTH\tJUNCTION\tJUNCTION_LENGTH\tTPM\tC_CALL")
         
+        locus = self.locus.split("_")[1]
+
+        #Create unique SEQUENCE_ID
+        seq_id = "{}_{}".format(self.contig_name, locus)
+        changeo_db_string = ""
+
+        V_genes = self.V_genes
+        V_call = ",".join(str(x) for x in V_genes)
+        D_call = "None"
+        J_genes = self.J_genes
+        J_call = ",".join(str(x) for x in J_genes)
+        sequence_vdj = self.dna_seq
+
+        # Check if CDR3 sequence is detected
+        cdr3 = self.cdr3_seq
+        if cdr3 is not None:
+            cdr3_length = int(len(cdr3))
+        else:
+            cdr3 = "None"
+            cdr3_length = "None"
+        
+        # Extract IgBlast info for top hits
+        found_V = False
+        found_D = False
+        found_J = False
+        V_seq_start = "None"
+        V_seq_length = "None"
+        J_seq_start = "None"
+        J_seq_length = "None"
+        D_seq_start = "None"
+        D_seq_length = "None"
+
+        for hit in self.hit_table:
+            info = hit
+            segment = info[0]
+            gap_opens = int(info[6])
+            gaps = int(info[7])
+            seq_start = info[8]
+            align_length = info[4]
+            if gap_opens > 0 or gaps > 0:
+                indels = True
+            else:
+                indels = False
+            if segment == "V" and found_V is False:
+                found_V = True
+                V_indels = indels
+                V_seq_start = seq_start
+                V_seq_length = align_length
+            elif segment == "D" and found_D is False:
+                found_D = True
+                D_seq_start = seq_start
+                D_seq_length = align_length
+            elif segment == "J" and found_J is False:
+                found_J = True
+                J_indels = indels
+                J_seq_start = seq_start
+                J_seq_length = align_length
+
+        if V_indels is True or J_indels is True:
+            indels = True
+        else:
+            indels = False
+
+
+        junction_length = int(len(self.junc_string))
+        changeo_db_string = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
+            seq_id, self.contig_name, locus, self.productive, self.in_frame, 
+            self.stop_codon, indels, V_call, self.V_gene, D_call, self.D_gene,
+            J_call, self.J_gene, self.untrimmed_seq, sequence_vdj, V_seq_start, 
+            V_seq_length, D_seq_start, D_seq_length, J_seq_start, J_seq_length,
+            cdr3, cdr3_length, self.junc_string, junction_length, self.TPM, self.C_gene)
+                
+                
+        return(changeo_db_string)
         
