@@ -1219,41 +1219,44 @@ class Summariser(TracerTask):
         before germline reconstruction"""
         
         input_file = "{}/igblast_{}_db-pass.tab".format(outdir, locus)
-        output_file = "{}/igblast_{}_db-modified.tab".format(outdir, locus)
-        with open(input_file, "r") as input:
-            with open(output_file, "w") as output:
-                for line in input:
-                    if line.startswith("SEQUENCE_ID"):
-                        header = line.rstrip()
-                        header += "\tISOTYPE\tCLONE\tCELL\n"
-                        output.write(header)
-                    elif (len(line) > 0 and not line == "\n"):
-                        fields = line.split("\t")
-                        name = fields[0]
-                        cell_name = fields[0].split("_TRINITY")[0]
-                        full_contig_name = fields[0].split("{}_".format(cell_name))[1]
-                        contig_name = full_contig_name.split("_IG")[0]
+        
+        if os.path.isfile(input_file):
+            output_file = "{}/igblast_{}_db-modified.tab".format(outdir, locus)
+            with open(input_file, "r") as input:
+                with open(output_file, "w") as output:
+                    for line in input:
+                        if line.startswith("SEQUENCE_ID"):
+                            header = line.rstrip()
+                            header += "\tISOTYPE\tCLONE\tCELL\n"
+                            output.write(header)
+                        elif (len(line) > 0 and not line == "\n"):
+                            fields = line.split("\t")
+                            name = fields[0]
+                            cell_name = fields[0].split("_TRINITY")[0]
+                            full_contig_name = fields[0].split("{}_".format(cell_name))[1]
+                            contig_name = full_contig_name.split("_IG")[0]
 
-                        for cell in cells.values():
-                            #pdb.set_trace()
-                            if cell.name == cell_name:
-                                recs = cell.recombinants["BCR"][locus]
+                            for cell in cells.values():
+                                #pdb.set_trace()
+                                if cell.name == cell_name:
+                                    recs = cell.recombinants["BCR"][locus]
 
-                                for rec in recs:
-                                    if contig_name == rec.contig_name:
-                                        C_gene = rec.C_gene
-                                        if C_gene == None or C_gene == "None":
-                                            C_gene = "Unknown"
-                                        if "*" in C_gene:
-                                            C_gene = C_gene.split("*")[0]
-                                        isotype = C_gene
-                                        clone = cell_contig_clones[locus][cell.name][full_contig_name]
-                                        line = line.rstrip() + "\t{}\t{}\t{}\n".format(isotype, clone, cell_name)
-                                        output.write(line)
+                                    for rec in recs:
+                                        if contig_name == rec.contig_name:
+                                            C_gene = rec.C_gene
+                                            if C_gene == None or C_gene == "None":
+                                                C_gene = "Unknown"
+                                            if "*" in C_gene:
+                                                C_gene = C_gene.split("*")[0]
+                                            isotype = C_gene
+                                            clone = cell_contig_clones[locus][cell.name][full_contig_name]
+                                            line = line.rstrip() + "\t{}\t{}\t{}\n".format(isotype, clone, cell_name)
+                                            output.write(line)
 
         # Remove old Change-O database file
-        if os.path.exists(output_file):
-            os.remove(input_file)
+        if os.path.isfile(input_file):
+            if os.path.isfile(output_file):
+                os.remove(input_file)
 
 
     def create_germline_sequences(self, outdir, locus, cells):

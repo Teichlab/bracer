@@ -35,9 +35,12 @@ Note that BraCeR requires Python 3.4.0, as one of the required tools have this a
 2. [Trinity](https://github.com/trinityrnaseq/trinityrnaseq/wiki) - required for assembly of reads into BCR contigs. BraCeR now works with both version 1 and version 2 of Trinity. It should automatically detect the version that is installed or you can [specify it in the config file](https://github.com/Teichlab/bracer#trinity-options).
     - Please note that Trinity requires a working installation of [Bowtie v1](http://bowtie-bio.sourceforge.net).
 3. [IgBLAST](http://www.ncbi.nlm.nih.gov/igblast/faq.html#standalone) - required for analysis of assembled contigs. (ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/).
-4. [BLAST](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/ ) - required for determination of isotype.
-5. [Kallisto](http://pachterlab.github.io/kallisto/) - software for quantification of BCR expression:
+4. [BLAST](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/ ) - required for determination of isotype. (ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/).
+5. [Kallisto](http://pachterlab.github.io/kallisto/) - software for quantification of BCR expression
 6. [Graphviz](http://www.graphviz.org) - Dot and Neato drawing programs required for visualisation of clonotype graphs. This is optional - see the [`--no_networks` option](#options-1) to [`summarise`](#summarise-summary-and-clonotype-networks).
+7. [ChangeO]
+8. [dnapars]
+	
 
 ##### Installing IgBlast 
 Downloading the executable files from `ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/<version_number>` is not sufficient for a working IgBlast installation. You must also download the `internal_data` directory (ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/internal_data) and put it into the same directory as the igblast executable. This is also described in the igblast README file.
@@ -58,6 +61,10 @@ Note: Seaborn depends on the module statsmodels, which if updated through other 
   
     conda uninstall statsmodels --yes
     conda install -c taugspurger statsmodels=0.8.0     
+
+#### R packages
+1. [ggplot2]
+2. [Alakazam]
 
 ## Setup 
 To set up the python dependencies, use the requirements file:

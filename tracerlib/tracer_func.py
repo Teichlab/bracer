@@ -1513,9 +1513,8 @@ def run_IgBlast_for_lineage_reconstruction(igblast, locus, output_dir, index_loc
                     '-outfmt', '7 std qseq sseq btop', '-query', sequence_file]
         
 
-    with open(output_file, 'w') as out:
-                
-        subprocess.check_call(command, stdout=out)
+        with open(output_file, 'w') as out:    
+            subprocess.check_call(command, stdout=out)
 
 def run_Blast(blast, loci, output_dir, cell_name, index_location, species,
                 should_resume, assembled_file):
