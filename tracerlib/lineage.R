@@ -98,7 +98,7 @@ for (graph in graphs){
     legend_fill <- c("black", "white", colors)
       
     # Add isotype legend
-    legend("topleft", legend_names, 
+    legend("topright", legend_names, 
            fill=legend_fill, cex=0.8)
        
     
@@ -150,7 +150,7 @@ for (graph in graphs){
     legend_fill <- c("black", "white", "grey")
       
     # Add isotype legend
-    legend("topleft", legend_names, 
+    legend("topright", legend_names, 
            fill=legend_fill, cex=0.8)
        
     
@@ -202,7 +202,7 @@ for (graph in graphs){
     legend_fill <- c("black", "white", "grey")
       
     # Add isotype legend
-    legend("topleft", legend_names, 
+    legend("topright", legend_names, 
            fill=legend_fill, cex=0.8)
        
     

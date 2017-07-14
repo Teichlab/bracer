@@ -573,52 +573,18 @@ class Summariser(TracerTask):
     def run(self):
 
         if self.draw_graphs:
-            dot = self.resolve_relative_path(self.config.get(
-                                'tool_locations', 'dot_path'))
-            neato = self.resolve_relative_path(self.config.get(
-                                'tool_locations', 'neato_path'))
-
-            # Check that executables from config file can be used
-            not_executable = []
-            for name, x in six.iteritems({"dot": dot, "neato": neato}):
-                if not io.is_exe(x):
-                    not_executable.append((name, x))
-            if len(not_executable) > 0:
-                print()
-                print("Could not execute the following required tools. "
-                      "Check your configuration file.")
-                for t in not_executable:
-                    print( t[0], t[1])
-                print()
-                exit(1)
+            dot = self.get_binary("dot")
+            neato = self.get_binary("neato")
         else:
             dot = ""
             neato = ""
 
-        # Check that IMGT-gapped resources exist
 
         if self.infer_lineage:
-            dnapars = self.resolve_relative_path(self.config.get(
-                            'tool_locations', 'dnapars_path'))
-            rscript = self.resolve_relative_path(self.config.get(
-                            'tool_locations', 'rscript_path'))
-            
-            # Check that executables from config file can be used
-            non_executable = []
-            for name, x in six.iteritems({"dnapars": dnapars, "rscript": rscript}):
-                if not io.is_exe(x):
-                    not_executable.append((name, x))
-            if len(not_executable) > 0:
-                print()
-                print("Could not execute the following tools required for "
-                    "lineage reconstruction. Check your configuration file or "
-                    "run Summarise without --infer_lineage.")
-                for t in not_executable:
-                    print( t[0], t[1])
-                print()
-                exit(1)
+            dnapars = self.get_binary("dnapars")
+            rscript = self.get_binary("rscript")
+            R = self.get_binary("R")
                     
-            # Check that R is installed?
             # Check that Alakazam is installed
         
 
@@ -742,31 +708,6 @@ class Summariser(TracerTask):
         # from BraCeR (not IMGT-gapped)
         self.create_database_file(outdir, self.loci, cells, cell_contig_clones)
 
-        # Reconstruct lineages - optional
-        """These steps use MakeDb and CreateGermlines of the Change-O toolkit.
-        Change-O reference: Gupta NT*, Vander Heiden JA*, Uduman M, Gadala-Maria D,
-        Yaari G, Kleinstein SH. Change-O: a toolkit for analyzing large-scale B cell
-        immunoglobulin repertoire sequencing data. Bioinformatics 2015;
-        doi: 10.1093/bioinformatics/btv359"""
-        
-        """if self.infer_lineage and len(cells_with_clonal_H) > 1:
-            
-            for locus in self.loci:
-                # Align clonal sequences using IgBlast and IMGT-gapped references
-                self.make_clone_igblast_input(outdir, locus, cells)
-                self.IgBlast_germline_reconstruction(outdir, locus, cells)
-                
-                # Create Change-O database from IMGT-gapped IgBlast results
-                self.create_changeo_db(outdir, locus)
-
-                # Modify database
-                self.modify_changeo_db(outdir, locus, cells, cell_contig_clones)
-
-                # Reconstruct germline sequences with CreateGermlines
-                self.create_germline_sequences(outdir, locus, cells)
-   
-            # Run lineage reconstruction with Alakazam
-            self.create_lineage_trees(outdir)"""
 
         # Create database file in the Change-O format with IMGT-gaps
         self.create_igblast_IMGT_gapped_input(outdir, cells, self.loci)
@@ -841,11 +782,12 @@ class Summariser(TracerTask):
 
 
 
-
         # Print name of empty cells to the summary
         outfile.write("#Cells with no reconstructed sequences#\n")
         for cell_name in empty_cells:
             outfile.write(", ".join(cell_name))
+        if len(empty_cells) == 0:
+            outfile.write("None")
         
         # Plot clonotype sizes
         x_range, clonotype_sizes = self.plot_clonotype_sizes(outdir, cells, self.loci, G)
@@ -1556,12 +1498,17 @@ class Tester(TracerTask):
                               "with small dataset", parents=[self.base_parser])
             parser.add_argument('--graph_format', '-f', metavar="<GRAPH_FORMAT>", 
                                 help='graphviz output format [pdf]', default='pdf')
-            parser.add_argument('--no_networks', help='skip attempts to draw '
+            parser.add_argument('--no_networks', help='Skip attempts to draw '
                                 'network graphs', action="store_true")
             parser.add_argument('--resume_with_existing_files', '-r',
-                                help='look for existing intermediate files '
+                                help='Look for existing intermediate files '
                                 'and use those instead of starting from scratch',
                                 action="store_true")
+            parser.add_argument('--infer_lineage', help='Construct lineage trees '
+                                'for clone groups shown in clonal network', 
+                                action = "store_true")
+            
+
             args = parser.parse_args(sys.argv[2:])
 
             self.ncores = args.ncores
@@ -1569,16 +1516,18 @@ class Tester(TracerTask):
             self.graph_format = args.graph_format
             self.no_networks = args.no_networks
             self.resume = args.resume_with_existing_files
+            self.infer_lineage = args.infer_lineage
         else:
             self.ncores = kwargs.get('ncores')
             self.config_file = kwargs.get('config_file')
             self.graph_format = kwargs.get('graph_format', 'pdf')
             self.no_networks = kwargs.get('no_networks')
             self.resume = kwargs.get('resume_with_existing_files')
+            self.infer_lineage = kwargs.get('infer_lineage')
+
 
     def run(self):
         # MUST PROVIDE APPROPRIATE FILES FOR BCR!
-        # test_dir = self.resolve_relative_path("test_data")
         test_dir = os.path.join(base_dir, 'test_data')
         test_names = ['cell1']
         out_dir = "{}/results".format(test_dir)
@@ -1587,15 +1536,15 @@ class Tester(TracerTask):
             f2 = "{}/{}_2.fastq".format(test_dir, name)
 
             Assembler(ncores=str(self.ncores), config_file=self.config_file, 
-                      resume_with_existing_files=self.resume, species='Mmus', 
+                      resume_with_existing_files=self.resume, species='Hsap', 
                       fastq1=f1, fastq2=f2, cell_name=name, output_dir=out_dir,
                       single_end=False, fragment_length=False, fragment_sd=False, 
-                      receptor_name='BCR', loci=['H', 'K', 'L'], max_junc_len=100).run()
+                      loci=['H', 'K', 'L'], max_junc_len=100).run()
 
-        Summariser(config_file=self.config_file, use_unfiltered=False, 
+        Summariser(config_file=self.config_file, use_unfiltered=True, 
                    graph_format=self.graph_format, no_networks=self.no_networks, 
-                   root_dir=out_dir, receptor_name='BCR', loci=['H', 'K', 'L'], 
-                   species='Mmus').run()
+                   root_dir=out_dir, loci=['H', 'K', 'L'], 
+                   species='Hsap').run()
 
 
 class Builder(TracerTask):

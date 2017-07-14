@@ -29,14 +29,13 @@ class Cell(object):
         if recombinants is not None:
             for r_name, r in six.iteritems(recombinants):
                 r_name = r_name.split("_")
-                receptor = r_name[0]
                 locus = r_name[1]
-                recombinant_dict[receptor][locus] = r
+                recombinant_dict["BCR"][locus] = r
             
         #normalise this to put None in cases where no receptors found
         for l in loci:
-            if l not in recombinant_dict[receptor]:
-                recombinant_dict[receptor][l] = None
+            if l not in recombinant_dict["BCR"]:
+                recombinant_dict["BCR"][l] = None
         return dict(recombinant_dict)
 
 
