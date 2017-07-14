@@ -596,13 +596,31 @@ class Summariser(TracerTask):
             neato = ""
 
         # Check that IMGT-gapped resources exist
-        # Check that ChangeO is installed
 
         if self.infer_lineage:
+            dnapars = self.resolve_relative_path(self.config.get(
+                            'tool_locations', 'dnapars_path'))
+            rscript = self.resolve_relative_path(self.config.get(
+                            'tool_locations', 'rscript_path'))
+            
+            # Check that executables from config file can be used
+            non_executable = []
+            for name, x in six.iteritems({"dnapars": dnapars, "rscript": rscript}):
+                if not io.is_exe(x):
+                    not_executable.append((name, x))
+            if len(not_executable) > 0:
+                print()
+                print("Could not execute the following tools required for "
+                    "lineage reconstruction. Check your configuration file or "
+                    "run Summarise without --infer_lineage.")
+                for t in not_executable:
+                    print( t[0], t[1])
+                print()
+                exit(1)
+                    
             # Check that R is installed?
             # Check that Alakazam is installed
-            # Check that PHYLIP is installed
-            pass
+        
 
         cells = {}
         empty_cells = []
@@ -657,7 +675,7 @@ class Summariser(TracerTask):
         # than two recombinants for a locus
         multiplets = []
         if self.use_unfiltered:
-            multiplets = self.detect_multiplets(self.no_multiplets, outfile, cells)
+            multiplets = self.detect_multiplets(self.no_multiplets, outfile, cells, self.loci)
 
         # Create Change-O db file for filtered multiplets if --no_multuplets
         self.create_multiplet_database_file(outdir, self.loci, cells, multiplets)
@@ -695,9 +713,10 @@ class Summariser(TracerTask):
             outfile.write(outstring)
 
         # Make initial clonal assignments for B cells using Change-O DefineClones bygroup
+        changeo_path =  self.config.get('tool_locations', 'changeo_path')
         for locus in self.loci:
             self.make_changeo_input(outdir, locus, cells)
-            DefineClones = "DefineClones.py"
+            DefineClones = changeo_path + "/DefineClones.py"
             tracer_func.run_DefineClones(DefineClones, locus, outdir, self.species, self.dist)
             print()
             with warnings.catch_warnings():
@@ -730,7 +749,7 @@ class Summariser(TracerTask):
         immunoglobulin repertoire sequencing data. Bioinformatics 2015;
         doi: 10.1093/bioinformatics/btv359"""
         
-        if self.infer_lineage:
+        """if self.infer_lineage and len(cells_with_clonal_H) > 1:
             
             for locus in self.loci:
                 # Align clonal sequences using IgBlast and IMGT-gapped references
@@ -747,7 +766,7 @@ class Summariser(TracerTask):
                 self.create_germline_sequences(outdir, locus, cells)
    
             # Run lineage reconstruction with Alakazam
-            self.create_lineage_trees(outdir)
+            self.create_lineage_trees(outdir)"""
 
         # Create database file in the Change-O format with IMGT-gaps
         self.create_igblast_IMGT_gapped_input(outdir, cells, self.loci)
@@ -794,6 +813,34 @@ class Summariser(TracerTask):
         for g in component_groups:
             outfile.write(", ".join(g))
             outfile.write("\n\n")
+
+        # Reconstruct lineages - optional
+        """These steps use MakeDb and CreateGermlines of the Change-O toolkit
+        Change-O reference: Gupta NT*, Vander Heiden JA*, Uduman M, Gadala-Maria D
+        Yaari G, Kleinstein SH. Change-O: a toolkit for analyzing large-scale B cell
+        immunoglobulin repertoire sequencing data. Bioinformatics 2015;
+        doi: 10.1093/bioinformatics/btv359"""
+
+        if self.infer_lineage and len(component_groups) > 0:
+            for locus in self.loci:
+                # Align clonal sequences using IgBlast and IMGT-gapped references
+                self.make_clone_igblast_input(outdir, locus, cells)
+                self.IgBlast_germline_reconstruction(outdir, locus, cells)
+
+                # Create Change-O database from IMGT-gapped IgBlast results
+                self.create_changeo_db(outdir, locus)
+
+                # Modify database
+                self.modify_changeo_db(outdir, locus, cells, cell_contig_clones)
+
+                # Reconstruct germline sequences with CreateGermlines
+                self.create_germline_sequences(outdir, locus, cells)
+
+            # Run lineage reconstruction with Alakazam
+            self.create_lineage_trees(outdir)
+
+
+
 
         # Print name of empty cells to the summary
         outfile.write("#Cells with no reconstructed sequences#\n")
@@ -912,7 +959,7 @@ class Summariser(TracerTask):
         return(t)
 
 
-    def detect_multiplets(self, no_multiplets, outfile, cells):
+    def detect_multiplets(self, no_multiplets, outfile, cells, loci):
         """Names cells with more than two recombinants for a locus"""
         
         multiplets = []
@@ -1096,8 +1143,9 @@ class Summariser(TracerTask):
                 databasedict = cell.databasedict
                 for locus in loci:
                     recs = cell.recombinants["BCR"][locus]
-                    string = databasedict[locus][rec.contig_name]
-                    output.write(string)
+                    for rec in recs:
+                        string = databasedict[locus][rec.contig_name]
+                        output.write(string)
 
 
     def make_changeo_input(self, outdir, locus, cells):
@@ -1216,7 +1264,7 @@ class Summariser(TracerTask):
         """Creates Change-O database from IgBlast result files after alignment
         to imgt-gapped sequences for germline reconstruction"""
 
-        MakeDb = "MakeDb.py"
+        MakeDb =  self.config.get('tool_locations', 'changeo_path') + "/MakeDb.py"
         gapped_seq_location = self.config.get('IgBlast_options', 'gapped_imgt_seq_location')
         igblast_seqtype = self.config.get('IgBlast_options', 'igblast_seqtype')
 
@@ -1245,14 +1293,15 @@ class Summariser(TracerTask):
                         contig_name = full_contig_name.split("_IG")[0]
 
                         for cell in cells.values():
+                            #pdb.set_trace()
                             if cell.name == cell_name:
                                 recs = cell.recombinants["BCR"][locus]
 
                                 for rec in recs:
                                     if contig_name == rec.contig_name:
                                         C_gene = rec.C_gene
-                                        if C_gene == None:
-                                            C_gene = "None"
+                                        if C_gene == None or C_gene == "None":
+                                            C_gene = "Unknown"
                                         if "*" in C_gene:
                                             C_gene = C_gene.split("*")[0]
                                         isotype = C_gene
@@ -1268,7 +1317,7 @@ class Summariser(TracerTask):
     def create_germline_sequences(self, outdir, locus, cells):
         """Runs CreateGermlines from Change-O toolkit to infer germline sequences from clonal sequences"""
 
-        CreateGermlines = "CreateGermlines.py"
+        CreateGermlines =  self.config.get('tool_locations', 'changeo_path') + "/CreateGermlines.py"
         gapped_seq_location = self.config.get('IgBlast_options', 'gapped_imgt_seq_location')
         igblast_seqtype = self.config.get('IgBlast_options', 'igblast_seqtype')
         tracer_func.run_CreateGermlines(CreateGermlines, locus, outdir, self.species, gapped_seq_location)
@@ -1551,38 +1600,61 @@ class Tester(TracerTask):
 
 class Builder(TracerTask):
 
-    """ Build Combinatorial Recombinomes for a given species """
+    """ Build Combinatorial Recombinomes and reference databases for a given species """
 
     def __init__(self, **kwargs):
         self.leader_padding = 20
         if not kwargs:
-            parser = argparse.ArgumentParser(description="Build resources from sequences", parents=[self.base_parser])
-            parser.add_argument('--force_overwrite', '-f', help='force overwrite of existing resources',
+            parser = argparse.ArgumentParser(description="Build resources from sequences", 
+                                                            parents=[self.base_parser])
+            parser.add_argument('--force_overwrite', '-f', 
+                                help='Force overwrite of existing resources',
                                 action='store_true')
             parser.add_argument('species', metavar="<SPECIES>", help='species (eg Mmus)')
-            parser.add_argument('receptor_name', metavar="<RECEPTOR_NAME>", help='name of receptor (eg TCR)')
-            parser.add_argument('locus_name', metavar="<LOCUS_NAME>", help='name of locus (eg A)')
+            parser.add_argument('locus_name', metavar="<LOCUS_NAME>", help='Name of locus (H, K or L)')
             parser.add_argument('N_padding', metavar="<N_PADDING>", 
-                                 help='number of ambiguous N nucleotides between V and J', type=int)
+                                help='Number of ambiguous N nucleotides '
+                                'between V and J', type=int)
             parser.add_argument('colour', metavar="<COLOUR>", default = 'random', 
-                                help='colour for productive recombinants. Specify as HTML (eg E41A1C) '
-                                'or use "random"', type = self.check_colour)
-            parser.add_argument('V_seqs', metavar="<V_SEQS>", help='fasta file containing V gene sequences')
-            parser.add_argument('J_seqs', metavar="<J_SEQS>", help='fasta file containing J gene sequences')
+                                help='Colour for productive recombinants. '
+                                'Specify as HTML (eg E41A1C) or use "random', 
+                                type = self.check_colour)
+            parser.add_argument('V_seqs', metavar="<V_SEQS>", 
+                                help='FASTA file containing V gene sequences')
+            parser.add_argument('J_seqs', metavar="<J_SEQS>", 
+                                help='FASTA file containing J gene sequences')
             parser.add_argument('C_seqs', metavar="<C_SEQS>", 
-                                help='fasta file containing C gene sequence(s) for creation of recombinomes')
+                                help='FASTA file containing C gene sequence(s) '
+                                'for creation of recombinomes')
 
             parser.add_argument('D_seqs', metavar="<D_SEQS>", nargs='?', default=False,
-                                help='fasta file containing D gene sequences (optional)')
+                                help='FASTA file containing D gene sequences (optional)')
             parser.add_argument('--C_db', metavar="<ALT_C_SEQS>", nargs='?',
-                                help='specify alternative fasta file (if other than the one used to make recombinomes) containing C gene sequences for creation of BLAST database (optional)')
+                                help='Specify alternative FASTA file (if other '
+                                'than the one used to make recombinomes) '
+                                'containing C gene sequences for creation of '
+                                'BLAST database (optional)')
+            parser.add_argument('--V_gapped', metavar="<GAPPED_V_SEQS>", nargs='?',
+                                help='FASTA file containing IMGT-gapped V '
+                                'reference sequences (optional). Required '
+                                'for lineage reconstruction and creation of '
+                                'IMGT-gapped tab-delimited databases')
+            parser.add_argument('--D_gapped', metavar="<GAPPED_D_SEQS>", nargs='?',
+                                help='FASTA file containing IMGT-gapped D '
+                                'reference sequences (optional). Required '
+                                'for heavy chain for lineage reconstruction and creation of '
+                                'IMGT-gapped tab-delimited databases')
+            parser.add_argument('--J_gapped', metavar="<GAPPED_J_SEQS>", nargs='?',
+                                help='FASTA file containing IMGT-gapped J '
+                                'reference sequences (optional). Required '
+                                'for lineage reconstruction and creation of '
+                                'IMGT-gapped tab-delimited databases')
             
             args = parser.parse_args(sys.argv[2:])
             
             self.ncores = args.ncores
             self.force_overwrite = args.force_overwrite
             self.species = args.species
-            self.receptor_name = args.receptor_name
             self.locus_name = args.locus_name
             self.N_padding = args.N_padding
             
@@ -1591,17 +1663,26 @@ class Builder(TracerTask):
             self.raw_seq_files['J'] = args.J_seqs
             self.raw_seq_files['C'] = args.C_seqs
             self.prod_colour = args.colour
+            self.gapped = False
             if args.D_seqs:
                 self.raw_seq_files['D'] = args.D_seqs
             if args.C_db:
                 self.raw_seq_files['c'] = args.C_db
+
+            self.gapped_raw_seq_files = {}
+            if args.V_gapped and args.J_gapped:
+                self.gapped = True
+                self.gapped_raw_seq_files['V'] = args.V_gapped
+                self.gapped_raw_seq_files['J'] = args.J_gapped
+                if args.D_gapped:
+                    self.gapped_raw_seq_files['D'] = args.D_gapped
+
             config_file = args.config_file
             
         else:
             self.ncores = kwargs.get('ncores')
             self.force_overwrite = kwargs.get('force_overwrite')
             self.species = kwargs.get('species')
-            self.receptor_name = kwargs.get('receptor_name')
             self.locus_name = kwargs.get('locus_name')
             self.N_padding = kwargs.get('N_padding')
             self.raw_seq_files = {}
@@ -1609,10 +1690,19 @@ class Builder(TracerTask):
             self.raw_seq_files['J'] = kwargs.get('J_seqs')
             self.raw_seq_files['C'] = kwargs.get('C_seqs')
             self.prod_colour = kwargs.get('colour')
+            self.gapped = False
             if kwargs.get('D_seqs'):
                 self.raw_seq_files['D'] = kwargs.get('D_seqs')
             if kwargs.get('C_db'):
                 self.raw_seq_files['c'] = kwargs.get('C_db')
+
+            self.gapped_raw_seq_files = {}
+            if kwargs.get('V_gapped') and kwargs.get('J_gapped'):
+                self.gapped = True
+                self.gapped_raw_seq_files['V'] = kwargs.get('V_gapped')
+                self.gapped_raw_seq_files['J'] = kwargs.get('J_gapped')
+                if  kwargs.get('D_gapped'):
+                    self.gapped_raw_seq_files['D'] = kwargs.get('D_gapped')
 
             config_file = kwargs.get('config_file')
 
@@ -1623,11 +1713,6 @@ class Builder(TracerTask):
 
     def run(self):
 
-        # Check that there will not be git conflicts with inbuilt species
-        #assert self.species not in ('Mmus', 'Hsap'), \
-        #    "Cannot overwrite inbuilt species. Please choose a unique name " \
-        #    "e.g. 'Mmus_1'"
-        #
         self.init_dirs()
         
         self.calculate_colours(self.prod_colour)
@@ -1636,10 +1721,10 @@ class Builder(TracerTask):
         self.make_bowtie2_index(recombinome_fasta)
         missing_dbs = self.make_igblast_db(VDJC_files)
         for s in missing_dbs:
-            print("\nIMPORTANT: there is no IgBLAST database for {receptor}_{segment}\n".format(
-                    receptor=self.receptor_name, segment=s))
-            print("Run build with {segment} segments for {receptor} before using tracer assemble\n".format(
-                    segment=s, receptor=self.receptor_name))
+            print("\nIMPORTANT: there is no IgBLAST database for BCR_{segment}\n".format(
+                    segment=s))
+            print("Run build with {segment} segments for BCR before using bracer assemble\n".format(
+                    segment=s))
     
     def check_colour(self, c):
         if c == 'random':
@@ -1661,7 +1746,7 @@ class Builder(TracerTask):
         colour_file = os.path.join(self.species_dir, "colours.csv")
         if os.path.exists(colour_file):
             colour_map, used_colours = io.read_colour_file(colour_file, return_used_list=True, 
-                                                            receptor_name = self.receptor_name)     
+                                                            receptor_name = "BCR")     
             if len(used_colours) < len(pal):
                 for uc in used_colours:
                     if uc in pal:
@@ -1674,9 +1759,9 @@ class Builder(TracerTask):
 
         else:
             if used_colours is not None:
-                if (self.receptor_name in colour_map and 
-                   self.locus_name in colour_map[self.receptor_name]
-                   and not colour_map[self.receptor_name][self.locus_name][0] == c):
+                if ("BCR" in colour_map and 
+                   self.locus_name in colour_map["BCR"]
+                   and not colour_map["BCR"][self.locus_name][0] == c):
                         if c in used_colours and c not in allowed_pal:
                             msg = "{c} already in use. Please specify a different colour.".format(c=c)
                             raise argparse.ArgumentTypeError(msg)
@@ -1691,10 +1776,10 @@ class Builder(TracerTask):
         
         d1 = {self.locus_name : (prod_colour, nonprod_colour)}
         
-        if self.receptor_name in colour_map:
-            colour_map[self.receptor_name].update(d1)
+        if "BCR" in colour_map:
+            colour_map["BCR"].update(d1)
         else:
-            colour_map[self.receptor_name] = d1
+            colour_map["BCR"] = d1
         
         io.write_colour_file(colour_file, colour_map)
         
@@ -1707,8 +1792,8 @@ class Builder(TracerTask):
         return(new_v)
 
     def check_duplicate(self, new_path, segment=None, descriptor="Resource"):
-        error_string = "{descriptor} already exists for {receptor}_{locus}".format(
-            descriptor=descriptor, receptor=self.receptor_name, locus=self.locus_name)
+        error_string = "{descriptor} already exists for BCR_{locus}".format(
+            descriptor=descriptor, locus=self.locus_name)
         if segment:
             error_string += "_" + segment
         error_string += ". Use --force_overwrite to replace existing file."
@@ -1719,6 +1804,11 @@ class Builder(TracerTask):
 
         # Set up output directories
         subdirs = ['igblast_dbs', 'combinatorial_recombinomes', 'raw_seqs']
+
+        if self.gapped:
+            subdirs = subdirs + ['imgt_gapped_resources', 
+                'imgt_gapped_resources/igblast_dbs', 
+                'imgt_gapped_resources/raw_seqs']
 
         io.makeOutputDir(self.species_dir)
         for d in subdirs:
@@ -1739,15 +1829,28 @@ class Builder(TracerTask):
             gene_segs += 'c'
 
         for s in gene_segs:
-            fn = "{receptor}_{locus}_{s}.fa".format(receptor=self.receptor_name,
-                                                    locus=self.locus_name, s=s)
+            fn = "BCR_{locus}_{s}.fa".format(locus=self.locus_name, s=s)
             out_file = os.path.join(self.species_dir, 'raw_seqs', fn)
             VDJC_files[s] = out_file
             self.check_duplicate(out_file, segment=s,
                                  descriptor="Sequence File")
             shutil.copy(self.raw_seq_files[s], out_file)
 
-        return VDJC_files
+        gapped_gene_segs = 'VJ'
+        gapped_VDJ_files = {}
+        if 'D' in self.gapped_raw_seq_files:
+             gapped_gene_segs += 'D'
+
+        for s in gapped_gene_segs:
+            fn = "BCR_{locus}_{s}.fa".format(locus=self.locus_name, s=s)
+            out_file = os.path.join(self.species_dir, 'imgt_gapped_resources/raw_seqs', fn)
+            gapped_VDJ_files[s] = out_file
+            self.check_duplicate(out_file, segment=s,
+                                        descriptor="Sequence File")
+            shutil.copy(self.gapped_raw_seq_files[s], out_file)
+
+        return (VDJC_files, gapped_VDJ_files)
+
      
     def load_segment_seqs(self, filename):
         seqs = {}
@@ -1761,8 +1864,7 @@ class Builder(TracerTask):
         
         out_fasta = os.path.join(
             self.species_dir, 'combinatorial_recombinomes',
-            '{receptor}_{locus}.fa'.format(receptor=self.receptor_name,
-                                           locus=self.locus_name))
+            'BCR_{locus}.fa'.format(locus=self.locus_name))
 
         self.check_duplicate(out_fasta, descriptor="Combinatorial recombinome")
         
@@ -1809,8 +1911,7 @@ class Builder(TracerTask):
         bowtie2_build = self.get_binary('bowtie2-build')
         index_base = os.path.join(
             self.species_dir, 'combinatorial_recombinomes',
-            '{receptor}_{locus}'.format(receptor=self.receptor_name,
-                                        locus=self.locus_name))
+            'BCR_{locus}'.format(locus=self.locus_name))
 
         self.check_duplicate(index_base + ".1.bt2", descriptor="Bowtie2 index")
         
@@ -1838,8 +1939,7 @@ class Builder(TracerTask):
             gene_segs += 'C'
 
         for s in gene_segs:
-            fn = "{receptor}_{segment}.fa".format(receptor=self.receptor_name,
-                                                  segment=s)
+            fn = "BCR_{segment}.fa".format(segment=s)
             fasta_file = os.path.join(igblast_dir, fn)
 
             # Create file if it doesn't already exist
@@ -1870,8 +1970,8 @@ class Builder(TracerTask):
             
                 if len(non_overwritten_seqs) > 0:
                     print('The follwing IgBLAST DB sequences for '
-                          '{receptor}_{segment} already found in {file}.'.format(
-                          receptor=self.receptor_name, segment=s, file=fasta_file))
+                          'BCR_{segment} already found in {file}.'.format(
+                                            segment=s, file=fasta_file))
                     print('These sequences were not overwritten. '
                           'Use --force_overwrite to replace with new ones')
                     for seq in non_overwritten_seqs:
@@ -1882,5 +1982,5 @@ class Builder(TracerTask):
                 try:
                     subprocess.check_call(command)
                 except subprocess.CalledProcessError:
-                    print("makeblastdb failed for {receptor}_{segment}"
-                          .format(receptor=self.receptor_name, segment=s))
+                    print("makeblastdb failed for BCR_{segment}".format(
+                                                            segment=s))

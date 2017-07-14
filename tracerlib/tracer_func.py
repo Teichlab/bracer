@@ -1460,15 +1460,18 @@ def run_IgBlast_IMGT_gaps(igblast, output_dir, index_location, ig_seqtype, speci
 
     igblast_species = species_mapper[species]
     databases = {}
+    missing_resources = False
     for segment in ['V', 'D', 'J']:
         databases[segment] = "{}/{}_ig_{}".format(index_location, igblast_species, segment.lower())
+        if not os.path.isfile(databases[segment]):
+            missing_resources = True
     
     auxiliary_data = "{}/{}_gl.aux".format(index_location, igblast_species)
 
     sequence_file = "{}/BCR_sequences.fa".format(output_dir)
     output_file = "{}/igblast_BCR_sequences.fmt7".format(output_dir)
 
-    if os.path.isfile(sequence_file):
+    if os.path.isfile(sequence_file) and missing_resources == False:
         command = [igblast, '-germline_db_V', databases['V'], '-germline_db_J',
                     databases['J'], '-germline_db_D', databases['D'],
                     '-auxiliary_data', auxiliary_data,
@@ -1478,6 +1481,8 @@ def run_IgBlast_IMGT_gaps(igblast, output_dir, index_location, ig_seqtype, speci
 
         with open(output_file, 'w') as out:
             subprocess.check_call(command, stdout=out)
+
+        
 
 def run_IgBlast_for_lineage_reconstruction(igblast, locus, output_dir, index_location, ig_seqtype, species):
     """Runs IgBlast using databases constructed from IMGT-gapped sequences. Needed for germline
