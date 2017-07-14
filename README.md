@@ -38,10 +38,8 @@ Note that BraCeR requires Python 3.4.0, as one of the required tools have this a
 4. [BLAST](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/ ) - required for determination of isotype. (ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/).
 5. [Kallisto](http://pachterlab.github.io/kallisto/) - software for quantification of BCR expression
 6. [Graphviz](http://www.graphviz.org) - Dot and Neato drawing programs required for visualisation of clonotype graphs. This is optional - see the [`--no_networks` option](#options-1) to [`summarise`](#summarise-summary-and-clonotype-networks).
-7. [ChangeO]
-8. [dnapars]
+7. [PHYLIP] - dnapars program of PHYLIP is required for lineage reconstruction. This is optional - see the [`--infer_lineage` option](#options-1) to [`summarise`](#summarise-summary-and-clonotype-networks).   
 	
-
 ##### Installing IgBlast 
 Downloading the executable files from `ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/<version_number>` is not sufficient for a working IgBlast installation. You must also download the `internal_data` directory (ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/internal_data) and put it into the same directory as the igblast executable. This is also described in the igblast README file.
 
@@ -56,6 +54,7 @@ You should also ensure to set the `$IGDATA` environment variable to point to the
 6. [Networkx](https://networkx.github.io)
 7. It seems that v1.11 of Networkx behaves differently when writing dot files for use with Graphviz. If you have this (or later versions) you also need to install [PyDotPlus](http://pydotplus.readthedocs.org).
 8. [Future](http://python-future.org/index.html) for compatibility with Python 2.
+9. [Change-O](http://changeo.readthedocs.io/)
 
 Note: Seaborn depends on the module statsmodels, which if updated through other packages may cause problems in Seaborn. If such issues arise, try to uninstall statsmodels and install again:
   
@@ -63,13 +62,15 @@ Note: Seaborn depends on the module statsmodels, which if updated through other 
     conda install -c taugspurger statsmodels=0.8.0     
 
 #### R packages
+The following R packages are required if BraCeR is run with `--infer_lineage`.
+
 1. [ggplot2]
 2. [Alakazam]
 
 ## Setup 
 To set up the python dependencies, use the requirements file:
 
-    pip install -r requirements.txt
+    pip3 install -r requirements.txt
 
 It is **highly** recommended that numpy and biopython are first installed through your system's package manager or conda.
 
