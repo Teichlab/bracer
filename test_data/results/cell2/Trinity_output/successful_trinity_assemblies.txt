@@ -1,1 +1,1 @@
-cell2	['TCR_A', 'TCR_B']
+cell2	['BCR_H', 'BCR_L']

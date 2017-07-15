@@ -644,7 +644,8 @@ class Summariser(TracerTask):
             multiplets = self.detect_multiplets(self.no_multiplets, outfile, cells, self.loci)
 
         # Create Change-O db file for filtered multiplets if --no_multuplets
-        self.create_multiplet_database_file(outdir, self.loci, cells, multiplets)
+        if self.no_multiplets:
+            self.create_multiplet_database_file(outdir, self.loci, cells, multiplets)
 
         # Delete likely multiplets from downstream analyses if --no_multiplets option is given
         if self.no_multiplets and len(multiplets) > 0:
@@ -735,6 +736,7 @@ class Summariser(TracerTask):
 
                 
         # Make clonotype networks
+        #pdb.set_trace()
         network_colours = io.read_colour_file(os.path.join(
                             self.species_dir, "colours.csv"), receptor_name="BCR")
 
@@ -1057,10 +1059,12 @@ class Summariser(TracerTask):
                             C_gene = C_gene.split("*")[0]
                         isotype = C_gene
                         full_name = rec.contig_name + "_" + rec.identifier
-                        if full_name in cell_contig_clones[locus][cell_name].keys():
-                            clone = cell_contig_clones[locus][cell_name][full_name]
-                        else:
-                            clone = None
+                        clone = None
+                        if locus in cell_contig_clones.keys():
+                            if cell_name in cell_contig_clones[locus].keys():
+                                if full_name in cell_contig_clones[locus][cell_name].keys():
+                                    clone = cell_contig_clones[locus][cell_name][full_name]
+                        
                         string = databasedict[locus][rec.contig_name] + "\t{}\t{}\n".format(isotype, clone)
                         output.write(string)
 
@@ -1523,14 +1527,13 @@ class Tester(TracerTask):
         else:
             self.ncores = kwargs.get('ncores')
             self.config_file = kwargs.get('config_file')
-            self.graph_format = kwargs.get('graph_format', 'pdf')
+            self.graph_format = kwargs.get('graph_format', 'svg')
             self.no_networks = kwargs.get('no_networks')
             self.resume = kwargs.get('resume_with_existing_files')
             self.infer_lineage = kwargs.get('infer_lineage')
 
 
     def run(self):
-        # MUST PROVIDE APPROPRIATE FILES FOR BCR!
         test_dir = os.path.join(base_dir, 'test_data')
         test_names = ['cell1']
         out_dir = "{}/results".format(test_dir)
@@ -1544,9 +1547,10 @@ class Tester(TracerTask):
                       single_end=False, fragment_length=False, fragment_sd=False, 
                       loci=['H', 'K', 'L'], max_junc_len=100).run()
 
-        Summariser(config_file=self.config_file, use_unfiltered=True, 
+        Summariser(config_file=self.config_file, use_unfiltered=False, 
                    graph_format=self.graph_format, no_networks=self.no_networks, 
-                   root_dir=out_dir, loci=['H', 'K', 'L'], 
+                   root_dir=out_dir, loci=['H', 'K', 'L'], no_multiplets=False,
+                   IGH_networks=False, infer_lineage=self.infer_lineage, 
                    species='Hsap').run()
 
 

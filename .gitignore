@@ -62,7 +62,8 @@ carbajo.conf
 
 # test files
 cell1/
-filtered_TCR_summary
+filtered_BCR_summary
+unfiltered_BCR_summary
 
 # IDE settings
 .idea
@@ -71,5 +72,5 @@ filtered_TCR_summary
 # Folder for temp stuff
 unversioned/
 
-#Resources
-resources/Hsap
+# Various
+mess/

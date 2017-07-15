@@ -879,6 +879,8 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato,
                    cells_with_clonal_H, no_multiplets, IGH_networks):
     G = nx.MultiGraph()
 
+    #pdb.set_trace()
+
     # initialise all cells as nodes
 
     if shape == 'circle':

@@ -1,7 +1,7 @@
 # BraCeR
 BraCeR - reconstruction of B cell receptor sequences from single-cell RNA-seq data.
 
-**IMPORTANT: Python dependencies have changed since the last release of TraCeR. Use the requirements file (detailed [here](#setup)) to update them if necessary.**
+**IMPORTANT: Python dependencies are different from TraCeR. Use the requirements file (detailed [here](#setup)) to update them.**
 
 ## Contents ##
 1. [Introduction](#introduction)
@@ -26,13 +26,13 @@ BraCeR is written in Python and so can just be downloaded, made executable (with
 
 BraCeR relies on several additional tools and Python modules that you should install. BraCeR also requires R and some R packages for lineage reconstruction (optional).
 
-Note that BraCeR requires Python 3.4.0, as one of the required tools have this as a requirement.
+Note that BraCeR requires Python 3.4.0 or higher, as one of the required tools have this as a requirement.
 
 ### Pre-requisites
 
 #### Software 
 1. [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml) - required for alignment of reads to synthetic BCR genomes.
-2. [Trinity](https://github.com/trinityrnaseq/trinityrnaseq/wiki) - required for assembly of reads into BCR contigs. BraCeR now works with both version 1 and version 2 of Trinity. It should automatically detect the version that is installed or you can [specify it in the config file](https://github.com/Teichlab/bracer#trinity-options).
+2. [Trinity](https://github.com/trinityrnaseq/trinityrnaseq/wiki) - required for assembly of reads into BCR contigs. BraCeR works with both version 1 and version 2 of Trinity. It should automatically detect the version that is installed or you can [specify it in the config file](https://github.com/Teichlab/bracer#trinity-options).
     - Please note that Trinity requires a working installation of [Bowtie v1](http://bowtie-bio.sourceforge.net).
 3. [IgBLAST](http://www.ncbi.nlm.nih.gov/igblast/faq.html#standalone) - required for analysis of assembled contigs. (ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/).
 4. [BLAST](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/ ) - required for determination of isotype. (ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/).
@@ -55,6 +55,7 @@ You should also ensure to set the `$IGDATA` environment variable to point to the
 7. It seems that v1.11 of Networkx behaves differently when writing dot files for use with Graphviz. If you have this (or later versions) you also need to install [PyDotPlus](http://pydotplus.readthedocs.org).
 8. [Future](http://python-future.org/index.html) for compatibility with Python 2.
 9. [Change-O](http://changeo.readthedocs.io/)
+
 
 Note: Seaborn depends on the module statsmodels, which if updated through other packages may cause problems in Seaborn. If such issues arise, try to uninstall statsmodels and install again:
   

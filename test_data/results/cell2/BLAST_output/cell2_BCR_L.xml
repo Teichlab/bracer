@@ -1,0 +1,91 @@
+<?xml version="1.0"?>
+<!DOCTYPE BlastOutput PUBLIC "-//NCBI//NCBI BlastOutput/EN" "http://www.ncbi.nlm.nih.gov/dtd/NCBI_BlastOutput.dtd">
+<BlastOutput>
+  <BlastOutput_program>blastn</BlastOutput_program>
+  <BlastOutput_version>BLASTN 2.2.31+</BlastOutput_version>
+  <BlastOutput_reference>Zheng Zhang, Scott Schwartz, Lukas Wagner, and Webb Miller (2000), &quot;A greedy algorithm for aligning DNA sequences&quot;, J Comput Biol 2000; 7(1-2):203-14.</BlastOutput_reference>
+  <BlastOutput_db>/nfs/users/nfs_i/il5/software/bracer/resources/Hsap/igblast_dbs/BCR_c.fa</BlastOutput_db>
+  <BlastOutput_query-ID>Query_1</BlastOutput_query-ID>
+  <BlastOutput_query-def>TRINITY_DN3_c4_g1_i1 len=685 path=[663:0-684] [-1, 663, -2]</BlastOutput_query-def>
+  <BlastOutput_query-len>685</BlastOutput_query-len>
+  <BlastOutput_param>
+    <Parameters>
+      <Parameters_expect>0.001</Parameters_expect>
+      <Parameters_sc-match>1</Parameters_sc-match>
+      <Parameters_sc-mismatch>-2</Parameters_sc-mismatch>
+      <Parameters_gap-open>0</Parameters_gap-open>
+      <Parameters_gap-extend>0</Parameters_gap-extend>
+      <Parameters_filter>L;m;</Parameters_filter>
+    </Parameters>
+  </BlastOutput_param>
+<BlastOutput_iterations>
+<Iteration>
+  <Iteration_iter-num>1</Iteration_iter-num>
+  <Iteration_query-ID>Query_1</Iteration_query-ID>
+  <Iteration_query-def>TRINITY_DN3_c4_g1_i1 len=685 path=[663:0-684] [-1, 663, -2]</Iteration_query-def>
+  <Iteration_query-len>685</Iteration_query-len>
+<Iteration_hits>
+<Hit>
+  <Hit_num>1</Hit_num>
+  <Hit_id>IGLC2*02_C-REGION</Hit_id>
+  <Hit_def>No definition line</Hit_def>
+  <Hit_accession>IGLC2*02_C-REGION</Hit_accession>
+  <Hit_len>317</Hit_len>
+  <Hit_hsps>
+    <Hsp>
+      <Hsp_num>1</Hsp_num>
+      <Hsp_bit-score>586.508</Hsp_bit-score>
+      <Hsp_score>317</Hsp_score>
+      <Hsp_evalue>3.9337e-170</Hsp_evalue>
+      <Hsp_query-from>21</Hsp_query-from>
+      <Hsp_query-to>337</Hsp_query-to>
+      <Hsp_hit-from>317</Hsp_hit-from>
+      <Hsp_hit-to>1</Hsp_hit-to>
+      <Hsp_query-frame>1</Hsp_query-frame>
+      <Hsp_hit-frame>-1</Hsp_hit-frame>
+      <Hsp_identity>317</Hsp_identity>
+      <Hsp_positive>317</Hsp_positive>
+      <Hsp_gaps>0</Hsp_gaps>
+      <Hsp_align-len>317</Hsp_align-len>
+      <Hsp_qseq>TGAACATTCTGTAGGGGCCACTGTCTTCTCCACGGTGCTCCCTTCATGCGTGACCTGGCAGCTGTAGCTTCTGTGGGACTTCCACTGCTCAGGCGTCAGGCTCAGATAGCTGCTGGCCGCGTACTTGTTGTTGCTTTGTTTGGAGGGTGTGGTGGTCTCCACTCCCGCCTTGACGGGGCTGCTATCTGCCTTCCAGGCCACTGTCACGGCTCCCGGGTAGAAGTCACTTATGAGACACACCAGTGTGGCCTTGTTGGCTTGAAGCTCCTCAGAGGAGGGCGGGAACAGAGTGACCGAGGGGGCAGCCTTGGGCTGAC</Hsp_qseq>
+      <Hsp_hseq>TGAACATTCTGTAGGGGCCACTGTCTTCTCCACGGTGCTCCCTTCATGCGTGACCTGGCAGCTGTAGCTTCTGTGGGACTTCCACTGCTCAGGCGTCAGGCTCAGATAGCTGCTGGCCGCGTACTTGTTGTTGCTTTGTTTGGAGGGTGTGGTGGTCTCCACTCCCGCCTTGACGGGGCTGCTATCTGCCTTCCAGGCCACTGTCACGGCTCCCGGGTAGAAGTCACTTATGAGACACACCAGTGTGGCCTTGTTGGCTTGAAGCTCCTCAGAGGAGGGCGGGAACAGAGTGACCGAGGGGGCAGCCTTGGGCTGAC</Hsp_hseq>
+      <Hsp_midline>|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||</Hsp_midline>
+    </Hsp>
+  </Hit_hsps>
+</Hit>
+</Iteration_hits>
+  <Iteration_stat>
+    <Statistics>
+      <Statistics_db-num>75</Statistics_db-num>
+      <Statistics_db-len>22381</Statistics_db-len>
+      <Statistics_hsp-len>16</Statistics_hsp-len>
+      <Statistics_eff-space>14170089</Statistics_eff-space>
+      <Statistics_kappa>0.46</Statistics_kappa>
+      <Statistics_lambda>1.28</Statistics_lambda>
+      <Statistics_entropy>0.85</Statistics_entropy>
+    </Statistics>
+  </Iteration_stat>
+</Iteration>
+<Iteration>
+  <Iteration_iter-num>2</Iteration_iter-num>
+  <Iteration_query-ID>Query_2</Iteration_query-ID>
+  <Iteration_query-def>TRINITY_DN4_c0_g1_i1 len=306 path=[284:0-305] [-1, 284, -2]</Iteration_query-def>
+  <Iteration_query-len>306</Iteration_query-len>
+<Iteration_hits>
+</Iteration_hits>
+  <Iteration_stat>
+    <Statistics>
+      <Statistics_db-num>75</Statistics_db-num>
+      <Statistics_db-len>22381</Statistics_db-len>
+      <Statistics_hsp-len>15</Statistics_hsp-len>
+      <Statistics_eff-space>6185496</Statistics_eff-space>
+      <Statistics_kappa>0.46</Statistics_kappa>
+      <Statistics_lambda>1.28</Statistics_lambda>
+      <Statistics_entropy>0.85</Statistics_entropy>
+    </Statistics>
+  </Iteration_stat>
+  <Iteration_message>No hits found</Iteration_message>
+</Iteration>
+</BlastOutput_iterations>
+</BlastOutput>
+

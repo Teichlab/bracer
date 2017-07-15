@@ -1,0 +1,24 @@
+------------------
+##cell3##
+------------------
+
+#BCR_L#
+
+##reversed|TRINITY_DN2_c0_g1_i1##
+C segment:	IGLC1*02
+
+Segment	query_id	subject_id	% identity	alignment length	mismatches	gap opens	gaps	q start	q end	s start	s end	evalue	bit score
+C	reversed|TRINITY_DN2_c0_g1_i1	IGLC1*02	99.37	317	2	NA	0	34	350	1	317	4e-167	575.428
+
+##reversed|TRINITY_DN2_c0_g1_i2##
+C segment:	IGLC1*02
+
+Segment	query_id	subject_id	% identity	alignment length	mismatches	gap opens	gaps	q start	q end	s start	s end	evalue	bit score
+C	reversed|TRINITY_DN2_c0_g1_i2	IGLC1*02	99.23	260	2	NA	0	23	282	58	317	2e-135	470.169
+
+##reversed|TRINITY_DN3_c3_g1_i1##
+C segment:	IGLC2*02
+
+Segment	query_id	subject_id	% identity	alignment length	mismatches	gap opens	gaps	q start	q end	s start	s end	evalue	bit score
+C	reversed|TRINITY_DN3_c3_g1_i1	IGLC2*02	100.00	317	0	NA	0	347	663	1	317	4e-170	586.508
+
