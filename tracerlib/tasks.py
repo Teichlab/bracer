@@ -42,9 +42,11 @@ class TracerTask(object):
     base_parser = argparse.ArgumentParser(add_help=False, 
                   formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     base_parser.add_argument('--ncores', '-p', metavar="<CORES>", 
-                help='number of processor cores to use', type=int, default=1)
+                help='Number of processor cores to use', type=int, default=1)
     base_parser.add_argument('--config_file', '-c', metavar="<CONFIG_FILE>", 
-                help='config file to use', default='~/.tracerrc')
+                help='Config file to use', default=None)
+    base_parser.add_argument('--resource_dir', metavar="<RESOURCE_DIR>",
+                help='Root directory for resources', default=None)
 
     config = None
 
@@ -55,19 +57,25 @@ class TracerTask(object):
         tool_key = name.lower() + '_path'
         user_path = None
         if self.config.has_option('tool_locations', tool_key):
-            user_path = self.resolve_relative_path(self.config.get(
-                                        'tool_locations', tool_key))
+            user_path = self.resolve_relative_path(
+                self.config.get('tool_locations', tool_key))
         return check_binary(name, user_path)
 
     def read_config(self, config_file):
-        # Read config file
+        # First look for environmental variable
         if not config_file:
-            config_file = '~/.tracerrc'
-        config_file = os.path.expanduser(config_file)
-        if not os.path.isfile(config_file):
-            print("Config file not found at ~/.tracerrc. Using default \
-                  tracer.conf in repo...")
-            config_file = os.path.join(base_dir, 'tracer.conf')
+            config_file = os.environ.get('BRACER_CONF', None)
+            if config_file is not None:
+                config_file = os.path.expanduser(config_file)
+                if not os.path.isfile(config_file):
+                    config_file = None
+        # Then check the default location
+        if not config_file:
+            config_file = os.path.expanduser('~/.bracerrc')
+            if not os.path.isfile(config_file):
+                print("Config file not found at ~/.bracerrc."
+                    " Using default bracer.conf in repo...")
+                config_file = os.path.join(base_dir, 'bracer.conf')
         tracer_func.check_config_file(config_file)
         config = ConfigParser()
         config.read(config_file)
@@ -77,17 +85,18 @@ class TracerTask(object):
     def resolve_relative_path(self, path):
         if not path.startswith("/"):
             base_directory = os.path.abspath(os.path.dirname(__file__))
-            full_path = os.path.normpath("/{}/../{}".format(base_directory, path))
+            full_path = os.path.normpath(
+                "/{}/../{}".format(base_directory, path))
         else:
-
             full_path = path
 
         return full_path
 
     def print_cell_summary(self, cell, output_file, loci):
         out_file = open(output_file, 'w')
-        out_file.write('------------------\n{name}\n------------------\n'.format(
-                                                                 name=cell.name))
+        out_file.write(
+            '------------------\n{name}\n------------------\n'.format(
+                                                    name=cell.name))
         
         # Summarise the productive/total recombinants
         for l in loci:
@@ -137,17 +146,24 @@ class TracerTask(object):
         
         exit(0)
     
-    def get_resources_root(self, species):
-        resources_dir = os.path.join(base_dir, 'resources')
-        resources_root = os.path.join(resources_dir, species)
-        return(resources_root)
+    def get_species_root(self, species, root=None):
+        if root is None:
+            resources_root = os.path.join(base_dir, 'resources', species)
+        else:
+            resources_root = os.path.join(root, species)
+        assert os.path.isdir(resources_root), "Species not found in resources"
+        return (resources_root)
+
 
     def get_rscript_path(self):
         rscript_path = os.path.join(base_dir, 'tracerlib/lineage.R')
         return(rscript_path)
         
-    def get_available_species(self):
-        resources_dir = os.path.join(base_dir, 'resources')
+    def get_available_species(self, root=None):
+        if root is None:
+            resources_dir = os.path.join(base_dir, 'resources')
+        else:
+            resources_dir = root
         species_dirs = next(os.walk(resources_dir))[1]
         return(species_dirs)
 
@@ -174,7 +190,7 @@ class Assembler(TracerTask):
             parser.add_argument('--species', '-s', 
                                 help='Species to use for reconstruction', 
                                 choices=self.get_available_species(), 
-                                default='Mmus')
+                                default='Hsap')
             parser.add_argument('--loci',
                                 help='Space-separated list of loci to reconstruct '
                                 'for receptor', default=['H','K', 'L'], nargs = '+')
@@ -204,7 +220,8 @@ class Assembler(TracerTask):
                                 help='second fastq file', nargs='?')
 
             args = parser.parse_args(sys.argv[2:])
-
+            
+            resource_dir = args.resource_dir
             self.cell_name = args.cell_name
             self.fastq1 = args.fastq1
             self.single_end = args.single_end
@@ -222,13 +239,15 @@ class Assembler(TracerTask):
             
 
         else:
+            resource_dir = kwargs.get('resource_dir')
             self.cell_name = kwargs.get('cell_name')
             self.fastq1 = kwargs.get('fastq1')
             self.fastq2 = kwargs.get('fastq2')
             self.ncores = kwargs.get('ncores')
             self.assembled_file = kwargs.get('assembled_file')
             self.species = kwargs.get('species')
-            self.resume_with_existing_files = kwargs.get('resume_with_existing_files')
+            self.resume_with_existing_files = kwargs.get(
+                'resume_with_existing_files')
             self.output_dir = kwargs.get('output_dir')
             self.single_end = kwargs.get('single_end')
             self.fragment_length = kwargs.get('fragment_length')
@@ -236,26 +255,27 @@ class Assembler(TracerTask):
             self.loci = kwargs.get('loci')
             self.max_junc_len = kwargs.get('max_junc_len')
             config_file = kwargs.get('config_file')
-           
 
         self.config = self.read_config(config_file)
+        self.species_root = self.get_species_root(self.species,
+                                            root=resource_dir)
         
         if not self.assembled_file:
             self.assembled_file = None
-
-        #pdb.set_trace()
  
-        # Check that fasta file containing already assembled sequences exists (if provided)
+        # Check that FASTA file containing assembled sequences exists
+        # if running with --assembled_file
         if self.assembled_file:
              if not os.path.isfile(self.assembled_file):
-                   raise OSError('2', 'Fasta file containing assembled sequences '
-                                'not found. Please provide fasta file or run BraCeR '
-                                'without --assembled_file option.', self.assembled_file)
-
+                   raise OSError('2', 'Fasta file containing assembled '
+                                'sequences not found. Please provide FASTA '
+                                'file or run Assemble without --assembled_file', 
+                                self.assembled_file)
         else:
             assert self.fastq1, \
-                ('No FASTQ specified. Either provide FASTQ or '
-                'provide assembled sequences in fasta format with the --assembled_file option.')
+                ('No FASTQ specified. Either provide FASTQ or provide '
+                'assembled sequences in FASTA format with the '
+                '--assembled_file option.')
 
          # Check FASTQ files exist
         if not self.assembled_file:
@@ -265,10 +285,9 @@ class Assembler(TracerTask):
                 if not os.path.isfile(self.fastq2):
                     raise OSError('2', 'FASTQ file not found', self.fastq2)
 
-        # Check the fastq config is correct
+        # Check the FASTQ config is correct
         if not self.assembled_file:
             if not self.single_end:
-                
                 assert self.fastq2, \
                     ('Only one fastq file specified. ' 
                     'Either set --single_end or provide second fastq.')
@@ -289,7 +308,6 @@ class Assembler(TracerTask):
                     (--fragment_sd) for use with single-end data'
 
         
-        
     def run(self, **kwargs):
 
         # Set-up output directories
@@ -299,8 +317,9 @@ class Assembler(TracerTask):
 
         io.makeOutputDir(self.output_dir)
 
-        data_dirs = ['aligned_reads', 'Trinity_output', 'IgBLAST_output', 'BLAST_output',
-                     'unfiltered_BCR_seqs', 'expression_quantification', 'filtered_BCR_seqs']
+        data_dirs = ['aligned_reads', 'Trinity_output', 'IgBLAST_output', 
+                    'BLAST_output', 'unfiltered_BCR_seqs', 
+                    'expression_quantification', 'filtered_BCR_seqs']
 
         for d in data_dirs:
             io.makeOutputDir("{}/{}".format(self.output_dir, d))
@@ -318,23 +337,23 @@ class Assembler(TracerTask):
         
         
         unfiltered_fasta_filename = \
-            "{}/unfiltered_BCR_seqs/{}_BCRseqs.fa".format(self.output_dir, self.cell_name)
-
+            "{}/unfiltered_BCR_seqs/{}_BCRseqs.fa".format(self.output_dir, 
+                                                            self.cell_name)
         unfiltered_cell_summary_file = \
             "{}/unfiltered_BCR_seqs/unfiltered_BCRs.txt".format(self.output_dir)
 
         unfiltered_pickle = \
-            "{}/unfiltered_BCR_seqs/{}.pkl".format(self.output_dir, self.cell_name)
-
+            "{}/unfiltered_BCR_seqs/{}.pkl".format(self.output_dir, 
+                                                    self.cell_name)
         filtered_fasta_filename = \
-            "{}/filtered_BCR_seqs/{}_BCRseqs.fa".format(self.output_dir, self.cell_name)
-
+            "{}/filtered_BCR_seqs/{}_BCRseqs.fa".format(self.output_dir, 
+                                                        self.cell_name)
         filtered_cell_summary_file = \
             "{}/filtered_BCR_seqs/filtered_BCRs.txt".format(self.output_dir)
 
         filtered_pickle = \
-            "{}/filtered_BCR_seqs/{}.pkl".format(self.output_dir, self.cell_name) 
-
+            "{}/filtered_BCR_seqs/{}.pkl".format(self.output_dir, 
+                                                    self.cell_name) 
                                                                         
         unfiltered_fasta_file = open(unfiltered_fasta_filename, 'w')
         unfiltered_fasta_file.write(cell.get_fasta_string())
@@ -370,15 +389,11 @@ class Assembler(TracerTask):
             pickle.dump(cell, pf, protocol=0)
 
 
-    def get_index_location(self, name):
-        location = os.path.join(base_dir, 'resources', self.species, name)
-
-        return location
-
     def align(self):
         bowtie2 = self.get_binary('bowtie2')
 
-        synthetic_genome_path = self.get_index_location('combinatorial_recombinomes')
+        synthetic_genome_path = os.path.join(self.species_root, 
+                                'combinatorial_recombinomes')
         
         # Align with Bowtie 2
         tracer_func.bowtie2_alignment(bowtie2, self.ncores, self.loci, 
@@ -389,7 +404,10 @@ class Assembler(TracerTask):
 
     def de_novo_assemble(self):
 
-        trinity = self.get_binary('trinity')
+        try:
+            trinity = self.get_binary('trinity')
+        except OSError:
+            trinity = self.get_binary('Trinity')
 
         # Trinity version
         if not self.config.has_option('trinity_options', 'trinity_version'):
@@ -417,8 +435,8 @@ class Assembler(TracerTask):
 
         if len(successful_files) == 0:
             print("No successful Trinity assemblies")
-            self.die_with_empty_cell(self.cell_name, self.output_dir, self.species)
-
+            self.die_with_empty_cell(self.cell_name, self.output_dir, 
+                                                        self.species)
         print()
 
 
@@ -426,11 +444,10 @@ class Assembler(TracerTask):
         igblastn = self.get_binary('igblastn')
 
         # Reference data locations
-        igblast_index_location = self.get_index_location('igblast_dbs')
-        imgt_seq_location = self.get_index_location('raw_seqs')
 
-        igblast_seqtype = self.config.get('IgBlast_options', 'igblast_seqtype')
-
+        igblast_index_location = os.path.join(self.species_root, 'igblast_dbs')
+        imgt_seq_location = os.path.join(self.species_root, 'raw_seqs')
+        igblast_seqtype = 'Ig'
 
         # IgBlast of assembled contigs
         tracer_func.run_IgBlast(igblastn, self.loci, self.output_dir, 
@@ -439,34 +456,35 @@ class Assembler(TracerTask):
                     self.assembled_file)
         print()
         
-        
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             cell = io.parse_IgBLAST(self.loci, self.output_dir, self.cell_name, 
                     imgt_seq_location, self.species, self.assembled_file, 
                     self.max_junc_len)
             if cell.is_empty:
-                self.die_with_empty_cell(self.cell_name, self.output_dir, self.species)
+                self.die_with_empty_cell(self.cell_name, self.output_dir, 
+                                                            self.species)
 
         return cell
+
 
     def blast(self):
         blastn = self.get_binary('blastn')
 
         # Reference data locations
-        blast_index_location = self.get_index_location('igblast_dbs')
-        imgt_seq_location = self.get_index_location('raw_seqs')
+        blast_index_location = os.path.join(self.species_root, 'igblast_dbs')
+        imgt_seq_location = os.path.join(self.species_root, 'raw_seqs')
 
-        # Blast of assembled contigs
-        tracer_func.run_Blast(blastn, self.loci, self.output_dir, self.cell_name, 
-                            blast_index_location, self.species, 
-                            self.resume_with_existing_files, self.assembled_file)
+        # BLAST assembled contigs
+        tracer_func.run_Blast(blastn, self.loci, self.output_dir, 
+                    self.cell_name, blast_index_location, self.species, 
+                    self.resume_with_existing_files, self.assembled_file)
         print()
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            isotype = io.parse_BLAST(self.loci, self.output_dir, self.cell_name, 
-                                            self.species, self.assembled_file)
+            isotype = io.parse_BLAST(self.loci, self.output_dir, 
+                        self.cell_name, self.species, self.assembled_file)
 
         return isotype
 
@@ -475,12 +493,15 @@ class Assembler(TracerTask):
         kallisto = self.get_binary('kallisto')
         
         if not self.config.has_option('kallisto_transcriptomes', self.species):
-            raise OSError(
-                "No transcriptome reference specified for {species}. Please \
-                specify location in config file.".format(species = self.species))
+            raise OSError("No transcriptome reference specified for {species}. "
+                        "Please specify location in config file."
+                        .format(species=self.species))
         else:
             kallisto_base_transcriptome = self.resolve_relative_path(
                 self.config.get('kallisto_transcriptomes', self.species))
+            if not os.path.isfile(kallisto_base_transcriptome):
+                raise OSError('2', 'Transcriptome reference not found', 
+                                kallisto_base_transcriptome)
 
         #Quantification with kallisto
         tracer_func.quantify_with_kallisto(
@@ -491,7 +512,8 @@ class Assembler(TracerTask):
         print()
 
         counts = tracer_func.load_kallisto_counts(
-            "{}/expression_quantification/abundance.tsv".format(self.output_dir))
+            "{}/expression_quantification/abundance.tsv".format(
+                                                self.output_dir))
         
         for receptor, locus_dict in six.iteritems(cell.recombinants):
             for locus, recombinants in six.iteritems(locus_dict):
@@ -511,33 +533,38 @@ class Summariser(TracerTask):
                                              parents=[self.base_parser])
             parser.add_argument('--species', '-s',
                                 help='Species to use for reconstruction',
-                                choices=self.get_available_species(), default='Mmus')
+                                choices=self.get_available_species(), 
+                                default='Hsap')
             parser.add_argument('--loci', help="Space-separated list of loci to \
                                 summarise for receptor", default=['H','K', 'L'], 
                                 nargs = '+')
             parser.add_argument('--use_unfiltered', '-u', 
-                                help='Use unfiltered recombinants', action="store_true")
+                                help='Use unfiltered recombinants', 
+                                action="store_true")
             parser.add_argument('--graph_format', '-f', metavar="<GRAPH_FORMAT>", 
                                 help='Graphviz output format [pdf]', default='svg')
             parser.add_argument('--no_networks', help='Skip attempts to draw network \
                                 graphs', action = "store_true")
-            parser.add_argument('--IGH_networks', help='Only require shared clonal heavy \
-                                chain to be determined clonal', action = "store_true")
+            parser.add_argument('--IGH_networks', help='Base clonality only \
+                                on heavy chain', action = "store_true")
             parser.add_argument('--dist', metavar="<DISTANCE>",
                                 help='Distance value to use for clonal inference. ' \
-                                'Heavily mutated datasets may require a higher distance value, ' \
-                                'whereas datasets enriched in naive B cells may require ' \
-                                'a lower distance value.', default='0.2')
+                                'Heavily mutated datasets may require a higher ' \
+                                'distance value, whereas datasets enriched ' \
+                                'in naive B cells may require a lower value.', 
+                                default='0.2')
             parser.add_argument('--no_multiplets', help='Exclude cells containing \
-                                more than two recombinants for a locus from downstream \
-                                analyses, including networks and clonotype analysis', 
-                                action = "store_true")
-            parser.add_argument('--infer_lineage', help='Construct lineage trees for clone groups \
+                                more than two recombinants for a locus from \
+                                downstream analyses, including networks and \
+                                clonotype analysis', action = "store_true")
+            parser.add_argument('--infer_lineage', 
+                                help='Construct lineage trees for clone groups \
                                 shown in clonal network', action = "store_true")
             parser.add_argument('dir', metavar="<DIR>", help='Directory containing \
                                 subdirectories for each cell to be summarised')
             args = parser.parse_args(sys.argv[2:])
 
+            resource_dir = args.resource_dir
             self.root_dir = os.path.abspath(args.dir)
             self.graph_format = args.graph_format
             self.use_unfiltered = args.use_unfiltered
@@ -550,6 +577,7 @@ class Summariser(TracerTask):
             self.dist = args.dist
             self.infer_lineage = args.infer_lineage
         else:
+            resource_dir = kwargs.get('resource_dir')
             self.use_unfiltered = kwargs.get('use_unfiltered')
             self.root_dir = os.path.abspath(kwargs.get('root_dir'))
             self.draw_graphs = not (kwargs.get('no_networks'))
@@ -564,8 +592,9 @@ class Summariser(TracerTask):
 
         # Read config file
         self.config = self.read_config(config_file)
-        
-        self.species_dir = self.get_resources_root(self.species)
+        self.species_dir = self.get_species_root(self.species,
+                                            root=resource_dir)
+
         if self.no_multiplets:
             self.use_unfiltered = True
         
@@ -575,10 +604,10 @@ class Summariser(TracerTask):
         if self.draw_graphs:
             dot = self.get_binary("dot")
             neato = self.get_binary("neato")
+
         else:
             dot = ""
             neato = ""
-
 
         if self.infer_lineage:
             dnapars = self.get_binary("dnapars")
@@ -587,7 +616,6 @@ class Summariser(TracerTask):
                     
             # Check that Alakazam is installed
         
-
         cells = {}
         empty_cells = []
         subdirectories = next(os.walk(self.root_dir))[1]
@@ -611,8 +639,8 @@ class Summariser(TracerTask):
         isotype_filename_root = "{}/isotypes_BCR".format(outdir)
 
         for d in subdirectories:
-            cell_pkl = "{root_dir}/{d}/{pkl_dir}/{d}.pkl".format(pkl_dir=pkl_dir, 
-                                                    d=d, root_dir=self.root_dir)
+            cell_pkl = "{root_dir}/{d}/{pkl_dir}/{d}.pkl".format(
+                        pkl_dir=pkl_dir, d=d, root_dir=self.root_dir)
             if os.path.isfile(cell_pkl):
                 with open(cell_pkl, 'rb') as pkl:
                     cl = pickle.load(pkl)
@@ -623,38 +651,34 @@ class Summariser(TracerTask):
         
         # Count cells with productive chains for each locus and for each 
         # possible pair and write to summary file
-        cell_recovery_count = self.write_reconstruction_statistics(outfile, self.loci, cells)
+        cell_recovery_count = self.write_reconstruction_statistics(outfile, 
+                                                        self.loci, cells)
 
         # Make all recombinant table and write to summary file
         t = self.make_all_recombinant_table(self.loci, cells)
         outfile.write(t.get_string())
         outfile.write("\n")
 
-
-        
-        isotype_counters = defaultdict(Counter)
-        possible_isotypes = ["IGHM", "IGHG1", "IGHG2A", "IGHG2B", "IGHG2C", "IGHG2", "IGHG3", 
-                            "IGHG4", "IGHA", "IGHA1", "IGHA2", "IGHE", "IGHD", "IGHDM"]
-        
-
         # If using unfiltered, name potential multiplets (cells with more
         # than two recombinants for a locus
         multiplets = []
         if self.use_unfiltered:
-            multiplets = self.detect_multiplets(self.no_multiplets, outfile, cells, self.loci)
+            multiplets = self.detect_multiplets(self.no_multiplets, outfile, 
+                                                        cells, self.loci)
 
         # Create Change-O db file for filtered multiplets if --no_multuplets
-        if self.no_multiplets:
-            self.create_multiplet_database_file(outdir, self.loci, cells, multiplets)
+        if self.no_multiplets and len(multiplets) > 0:
+            self.create_multiplet_database_file(outdir, self.loci, cells, 
+                                                            multiplets)
 
-        # Delete likely multiplets from downstream analyses if --no_multiplets option is given
+        # Delete likely multiplets from downstream analyses if --no_multiplets 
         if self.no_multiplets and len(multiplets) > 0:
             for cell_name in multiplets:
                 del cells[cell_name]
 
 
         # Make full length statistics table and plot proportion of sequences 
-        #that are full-length
+        # that are full-length
         (full_length_counter, full_length_prod_counter, productive_counter, 
             total_counter) = self.count_full_length_sequences(self.loci, cells)
         
@@ -679,17 +703,25 @@ class Summariser(TracerTask):
         if len(outstring) > 0:
             outfile.write(outstring)
 
-        # Make initial clonal assignments for B cells using Change-O DefineClones bygroup
-        changeo_path =  self.config.get('tool_locations', 'changeo_path')
+        # Make initial clonal assignments for B cells using Change-O 
+        # DefineClones bygroup
+        try:
+            DefineClones = (self.config.get('tool_locations', 'changeo_path') + 
+                                                            "/DefineClones.py")
+            if not os.path.isfile(DefineClones):
+                DefineClones = "DefineClones.py"
+        except:
+            DefineClones = "DefineClones.py"
+
         for locus in self.loci:
             self.make_changeo_input(outdir, locus, cells)
-            DefineClones = changeo_path + "/DefineClones.py"
-            tracer_func.run_DefineClones(DefineClones, locus, outdir, self.species, self.dist)
+            tracer_func.run_DefineClones(DefineClones, locus, outdir, 
+                                            self.species, self.dist)
             print()
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
 
-        # Read ChangeO result files and define clone groups for each locus
+        # Read Change-O result files and define clone groups for each locus
         (clones, cell_clones, cell_contig_clones) = self.read_changeo_results(
                                                             self.loci, outdir)
 
@@ -709,14 +741,12 @@ class Summariser(TracerTask):
         # from BraCeR (not IMGT-gapped)
         self.create_database_file(outdir, self.loci, cells, cell_contig_clones)
 
-
         # Create database file in the Change-O format with IMGT-gaps
         self.create_igblast_IMGT_gapped_input(outdir, cells, self.loci)
         self.run_IgBlast_IMGT_gapped(outdir)
         self.create_changeo_db(outdir, locus=None)
         # Modify database to include information from BraCeR
 
-        
         # Make isotype usage table and plot isotype distributions
         isotype_counter = self.count_isotype_usage(cells)
         (header, outstring) = self.make_isotype_table(cell_recovery_count, 
@@ -726,19 +756,16 @@ class Summariser(TracerTask):
         outfile.write("\n")
         self.plot_isotype_distributions(isotype_counter, outdir)
 
-
         # Plot lengths of reconstructed sequences
         self.plot_length_distributions(self.loci, length_filename_root, cells)
 
         # Delete cells with no reconstructed sequences                
         for cell_name in empty_cells:
             del cells[cell_name]
-
                 
         # Make clonotype networks
-        #pdb.set_trace()
         network_colours = io.read_colour_file(os.path.join(
-                            self.species_dir, "colours.csv"), receptor_name="BCR")
+                    self.species_dir, "colours.csv"), receptor_name="BCR")
 
         component_groups, G = tracer_func.draw_network_from_cells(cells, outdir, 
                            self.graph_format, dot, neato, self.draw_graphs, 
@@ -751,8 +778,9 @@ class Summariser(TracerTask):
             "\n#Clonotype groups#\n"
             "This is a text representation of the groups shown in clonotype_"
              "network_with_identifiers.pdf.\n"
-            "It does not exclude cells that only share heavy chain and not light chain "
-            "if Summarise is run with --IGH_networks.\n\n")
+            "It does not exclude cells that only share heavy chain and not "
+            "light chain if Summarise is run with --IGH_networks.\n\n")
+
         for g in component_groups:
             outfile.write(", ".join(g))
             outfile.write("\n\n")
@@ -783,16 +811,17 @@ class Summariser(TracerTask):
             self.create_lineage_trees(outdir)
 
 
-
         # Print name of empty cells to the summary
         outfile.write("#Cells with no reconstructed sequences#\n")
         for cell_name in empty_cells:
             outfile.write(", ".join(cell_name))
         if len(empty_cells) == 0:
             outfile.write("None")
+        outfile.write("\t")
         
         # Plot clonotype sizes
-        x_range, clonotype_sizes = self.plot_clonotype_sizes(outdir, cells, self.loci, G)
+        x_range, clonotype_sizes = self.plot_clonotype_sizes(outdir, cells, 
+                                                            self.loci, G)
 
         # Write clonotype sizes to text file
         with open("{}/clonotype_sizes.txt".format(outdir), 'w') as f:
@@ -810,7 +839,7 @@ class Summariser(TracerTask):
         
         cell_recovery_count = dict()
 
-        # Count cells with productive chains for each locus and for each possible pair
+        # Count cells with productive chains for each locus and possible pairs
         for l in loci:
             cell_recovery_count[l] = 0
         possible_pairs = ["".join(x) for x in itertools.combinations(loci, 2)]
@@ -833,18 +862,22 @@ class Summariser(TracerTask):
         for l in loci:
             count = cell_recovery_count[l]
             pc = round((count/float(total_cells))*100, 1)
-            outfile.write("BCR_{locus} reconstruction:\t{count} / {total} ({pc}%)\n".format(
-                                            locus=l, count=count, total=total_cells, pc=pc))
+            outfile.write(
+                "BCR_{locus} reconstruction:\t{count} / {total} ({pc}%)\n".format(
+                                locus=l, count=count, total=total_cells, pc=pc))
         outfile.write("\n")
         
         for p in possible_pairs:
             count = cell_recovery_count[p]
             pc = round((count/float(total_cells))*100, 1)
             if pc == "KL":
-                outfile.write("Productive reconstruction of K and L:\t{count} / {total} ({pc}%)\n".format(
-                            p=p, count=count, total=total_cells, pc=pc))
+                outstring = ("Productive reconstruction of K and L:\t" +
+                            "{count} / {total} ({pc}%)\n".format(p=p, 
+                            count=count, total=total_cells, pc=pc))
+                outfile.write(outstring)
             else:
-                 outfile.write("Paired {p} productive reconstruction:\t{count} / {total} ({pc}%)\n".format(
+                 outfile.write(
+                    "Paired {p} productive reconstruction:\t{count} / {total} ({pc}%)\n".format(
                             p=p, count=count, total=total_cells, pc=pc))
             
         outfile.write("\n")
@@ -999,11 +1032,11 @@ class Summariser(TracerTask):
             if len(double_rec) > 0 :
                 cells_string = ', '.join(double_rec)
                 locus_string = ("Cells with two productive {} chains: \n".format(l) +
-                                cells_string + "\n\n")
+                                                        cells_string + "\n\n")
                 outstring += locus_string
         if len(outstring) != 0:
-            outstring = ("\n\n##Cells with two (or more) productive recombinants for a locus##\n\n"
-                        + outstring)
+            outstring = ("\n\n##Cells with two (or more) productive "
+                        "recombinants for a locus##\n\n" + outstring)
 
         return (outstring)
 
@@ -1036,11 +1069,13 @@ class Summariser(TracerTask):
         reconstructed sequences and info from BraCeR (not from alignment
         to IMGT-gapped reference sequences by IgBlast through Change-O"""
 
-        changeo_string = ("CELL\tSEQUENCE_ID\tCONTIG_NAME\tLOCUS\tFUNCTIONAL\tIN_FRAME" +
-                        "\tSTOP\tINDELS\tV_CALL\tTOP_V_ALLELE\tD_CALL\tTOP_D_ALLELE\tJ_CALL\t" +
-                        "TOP_J_ALLELE\tSEQUENCE_INPUT\tSEQUENCE_VDJ\tV_SEQ_START\tV_SEQ_LENGTH" +
-                        "\tD_SEQ_START\tD_SEQ_LENGTH\tJ_SEQ_START\tJ_SEQ_LENGTH\t" +
-                        "CDR3\tCDR3_LENGTH\tJUNCTION\tJUNCTION_LENGTH\tTPM\tC_CALL\tISOTYPE\tCLONE\n")
+        changeo_string = ("CELL\tSEQUENCE_ID\tCONTIG_NAME\tLOCUS\tFUNCTIONAL\t"
+                        "IN_FRAME\tSTOP\tINDELS\tV_CALL\tTOP_V_ALLELE\tD_CALL"
+                        "\tTOP_D_ALLELE\tJ_CALL\tTOP_J_ALLELE\tSEQUENCE_INPUT"
+                        "\tSEQUENCE_VDJ\tV_SEQ_START\tV_SEQ_LENGTH\t"
+                        "D_SEQ_START\tD_SEQ_LENGTH\tJ_SEQ_START\tJ_SEQ_LENGTH"
+                        "\tCDR3\tCDR3_LENGTH\tJUNCTION\tJUNCTION_LENGTH\tTPM\t"
+                        "C_CALL\tISOTYPE\tCLONE\n")
 
         database_file = "{}/changeodb.tab".format(outdir)
 
@@ -1065,7 +1100,8 @@ class Summariser(TracerTask):
                                 if full_name in cell_contig_clones[locus][cell_name].keys():
                                     clone = cell_contig_clones[locus][cell_name][full_name]
                         
-                        string = databasedict[locus][rec.contig_name] + "\t{}\t{}\n".format(isotype, clone)
+                        string = (databasedict[locus][rec.contig_name] + 
+                                "\t{}\t{}\n".format(isotype, clone))
                         output.write(string)
 
 
@@ -1073,11 +1109,12 @@ class Summariser(TracerTask):
         """Creates a tab-delimited Change-O database containing all potential
         multiplets filtered out if --no_multiplets option is given"""
         
-        changeo_string = ("CELL\tSEQUENCE_ID\tCONTIG_NAME\tLOCUS\tFUNCTIONAL\tIN_FRAME" +
-                     "\tSTOP\tINDELS\tV_CALL\tTOP_V_ALLELE\tD_CALL\tTOP_D_ALLELE\tJ_CALL\t" +
-                     "TOP_J_ALLELE\tSEQUENCE_INPUT\tSEQUENCE_VDJ\tV_SEQ_START\tV_SEQ_LENGTH" +
-                     "\tD_SEQ_START\tD_SEQ_LENGTH\tJ_SEQ_START\tJ_SEQ_LENGTH\t" +
-                     "CDR3\tCDR3_LENGTH\tJUNCTION\tJUNCTION_LENGTH\tTPM\tC_CALL\n")
+        changeo_string = ("CELL\tSEQUENCE_ID\tCONTIG_NAME\tLOCUS\tFUNCTIONAL\t"
+                        "IN_FRAME\tSTOP\tINDELS\tV_CALL\tTOP_V_ALLELE\tD_CALL"
+                        "\tTOP_D_ALLELE\tJ_CALL\tTOP_J_ALLELE\tSEQUENCE_INPUT"
+                        "\tSEQUENCE_VDJ\tV_SEQ_START\tV_SEQ_LENGTH\tD_SEQ_START"
+                        "\tD_SEQ_LENGTH\tJ_SEQ_START\tJ_SEQ_LENGTH\tCDR3\t"
+                        "CDR3_LENGTH\tJUNCTION\tJUNCTION_LENGTH\tTPM\tC_CALL\n")
 
         database_file = "{}/filtered_multiplets_changeodb.tab".format(outdir)
 
@@ -1098,7 +1135,7 @@ class Summariser(TracerTask):
         """Creates tab-delimited database file for each locus compatible with 
         Change-O"""
         
-        changeo_string = ("SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\t" + 
+        changeo_string = ("SEQUENCE_ID\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ\t" 
                           "JUNCTION_LENGTH\tJUNCTION\tCELL\tISOTYPE\n")
 
         changeo_input = "{}/changeo_input_{}.tab".format(outdir, locus)
@@ -1112,7 +1149,8 @@ class Summariser(TracerTask):
                     if empty == True:
                         output.write(changeo_string)
                         empty = False
-                    write_string = cell.changeodict[locus].rstrip() + "\t{}\t{}\n".format(cell.name, cell.isotype)
+                    write_string = (cell.changeodict[locus].rstrip() + 
+                                "\t{}\t{}\n".format(cell.name, cell.isotype))
                     output.write(write_string)
         
 
@@ -1130,7 +1168,8 @@ class Summariser(TracerTask):
             clones[l] = dict()
             cell_clones[l] = dict()
             cell_contig_clones[l] = dict()
-            changeo_result = "{}/changeo_input_{}_clone-pass.tab".format(outdir, l)
+            changeo_result = "{}/changeo_input_{}_clone-pass.tab".format(
+                                                                outdir, l)
             if not os.path.exists(changeo_result) \
                 or not os.path.getsize(changeo_result) > 0:
                 continue
@@ -1164,13 +1203,14 @@ class Summariser(TracerTask):
 
 
     def make_clone_igblast_input(self, outdir, locus, cells):
-        """Creates input file for each locus containing sequences belonging to a clone
-        group to use as input for IgBlast in order to obtain IMGT-gapped
-        sequences for germline sequence assignment by Change-O"""
+        """Creates input file for each locus containing sequences belonging to 
+        a clone group to use as input for IgBlast in order to obtain 
+        IMGT-gapped sequences for germline sequence assignment by Change-O"""
 
         igblast_input = "{}/igblast_input_{}.fa".format(outdir, locus)
 
-        changeo_result = "{}/changeo_input_{}_clone-pass.tab".format(outdir, locus)
+        changeo_result = "{}/changeo_input_{}_clone-pass.tab".format(
+                                                        outdir, locus)
         if not os.path.exists(changeo_result) \
             or not os.path.getsize(changeo_result) > 0:
             pass
@@ -1191,14 +1231,13 @@ class Summariser(TracerTask):
 
 
     def IgBlast_germline_reconstruction(self, outdir, locus, cells):
-         
+        
         igblastn = self.get_binary('igblastn')
 
         # Reference data locations
-        resource_root = self.get_resources_root(self.species)
-        gapped_igblast_index_location = self.config.get(
-                            'IgBlast_options', 'gapped_igblast_index_location')
-        igblast_seqtype = self.config.get('IgBlast_options', 'igblast_seqtype')
+        gapped_igblast_index_location = os.path.join(self.species_dir, 
+                                    'imgt_gapped_resources/igblast_dbs')
+        igblast_seqtype = 'Ig'
 
         # IgBlast of sequences
         tracer_func.run_IgBlast_for_lineage_reconstruction(igblastn, locus, 
@@ -1210,12 +1249,20 @@ class Summariser(TracerTask):
         """Creates Change-O database from IgBlast result files after alignment
         to imgt-gapped sequences for germline reconstruction"""
 
-        MakeDb =  self.config.get('tool_locations', 'changeo_path') + "/MakeDb.py"
-        gapped_seq_location = self.config.get('IgBlast_options', 'gapped_imgt_seq_location')
-        igblast_seqtype = self.config.get('IgBlast_options', 'igblast_seqtype')
+        try:
+            MakeDb =  self.config.get('tool_locations', 'changeo_path') + "/MakeDb.py"
+            if not os.path.is_file(MakeDb):
+                MakeDb = "MakeDb.py"
+        except:
+            MakeDb = "MakeDb.py"
+
+        gapped_seq_location = os.path.join(self.species_dir,
+                            'imgt_gapped_resources/raw_seqs')
+        igblast_seqtype = 'Ig'
 
         # Run MakeDb from Change-O toolkit
-        tracer_func.run_MakeDb(MakeDb, locus, outdir, self.species, gapped_seq_location)
+        tracer_func.run_MakeDb(MakeDb, locus, outdir, self.species, 
+                                                gapped_seq_location)
         
 
     def modify_changeo_db(self, outdir, locus, cells, cell_contig_clones):
@@ -1241,10 +1288,8 @@ class Summariser(TracerTask):
                             contig_name = full_contig_name.split("_IG")[0]
 
                             for cell in cells.values():
-                                #pdb.set_trace()
                                 if cell.name == cell_name:
                                     recs = cell.recombinants["BCR"][locus]
-
                                     for rec in recs:
                                         if contig_name == rec.contig_name:
                                             C_gene = rec.C_gene
@@ -1254,7 +1299,9 @@ class Summariser(TracerTask):
                                                 C_gene = C_gene.split("*")[0]
                                             isotype = C_gene
                                             clone = cell_contig_clones[locus][cell.name][full_contig_name]
-                                            line = line.rstrip() + "\t{}\t{}\t{}\n".format(isotype, clone, cell_name)
+                                            line = (line.rstrip() + 
+                                                "\t{}\t{}\t{}\n".format(
+                                                    isotype, clone, cell_name))
                                             output.write(line)
 
         # Remove old Change-O database file
@@ -1264,18 +1311,31 @@ class Summariser(TracerTask):
 
 
     def create_germline_sequences(self, outdir, locus, cells):
-        """Runs CreateGermlines from Change-O toolkit to infer germline sequences from clonal sequences"""
+        """Runs CreateGermlines from Change-O toolkit to infer germline 
+        sequences from clonal sequences"""
 
-        CreateGermlines =  self.config.get('tool_locations', 'changeo_path') + "/CreateGermlines.py"
-        gapped_seq_location = self.config.get('IgBlast_options', 'gapped_imgt_seq_location')
-        igblast_seqtype = self.config.get('IgBlast_options', 'igblast_seqtype')
-        tracer_func.run_CreateGermlines(CreateGermlines, locus, outdir, self.species, gapped_seq_location)
+        try:
+            CreateGermlines =  (self.config.get('tool_locations', 
+                                    'changeo_path') + "/CreateGermlines.py")
+            if not os.path.isfile(CreateGermlines):
+                CreateGermlines = "CreateGermlines.py"
+        except:
+            CreateGermlines = "CreateGermlines.py"
+
+        gapped_seq_location = os.path.join(self.species_dir,
+                            'imgt_gapped_resources/raw_seqs')
+        igblast_seqtype = 'Ig'
+        tracer_func.run_CreateGermlines(CreateGermlines, locus, outdir, 
+                                    self.species, gapped_seq_location)
 
 
     def create_lineage_trees(self, outdir):
         """Executes R script with Alakazam commands for lineage reconstruction"""
-        
-        Rscript =  self.config.get('tool_locations', 'rscript_path')
+        try:
+            Rscript = self.get_binary('rscript')
+        except:
+            Rscript = self.get_binary('Rscript')
+
         dnapars = self.get_binary('dnapars')
         script = self.get_rscript_path()
         command = Rscript + " " + script + " {} {}".format(outdir, dnapars) 
@@ -1293,7 +1353,8 @@ class Summariser(TracerTask):
                 for locus in loci:
                     recs = cell.recombinants["BCR"][locus]
                     for rec in recs:
-                        sequence_id = "{}_{}_{}".format(cell.name, rec.contig_name, locus)
+                        sequence_id = "{}_{}_{}".format(cell.name, 
+                                            rec.contig_name, locus)
                         header = ">{}\n".format(sequence_id)
                         sequence_line = rec.dna_seq + "\n"
                         output.write(header)
@@ -1308,10 +1369,9 @@ class Summariser(TracerTask):
         igblastn = self.get_binary('igblastn')
 
         # Reference data locations
-        resource_root = self.get_resources_root(self.species)
-        gapped_igblast_index_location = self.config.get(
-            'IgBlast_options', 'gapped_igblast_index_location')
-        igblast_seqtype = self.config.get('IgBlast_options', 'igblast_seqtype')
+        gapped_igblast_index_location = os.path.join(self.species_dir,
+                                    'imgt_gapped_resources/igblast_dbs')
+        igblast_seqtype = 'Ig'
         
         # IgBlast sequences
         tracer_func.run_IgBlast_IMGT_gaps(igblastn, outdir, 
@@ -1349,7 +1409,8 @@ class Summariser(TracerTask):
                 productive_counter, total_counter)
 
 
-    def plot_full_length_sequences_proportions(self, all_dict, prod_dict, loci, outdir):
+    def plot_full_length_sequences_proportions(self, all_dict, prod_dict, 
+                                                            loci, outdir):
         D_all = all_dict
         D_prod = prod_dict
         values_all = []
@@ -1473,7 +1534,8 @@ class Summariser(TracerTask):
         if len(isotypes) > 1:
             plt.figure()
             w = 0.85
-            plt.bar(range(len(D)), D.values(), width=w, color='black', align='center')
+            plt.bar(range(len(D)), D.values(), width=w, color='black', 
+                                                        align='center')
             plt.xticks(range(len(D)), list(D.keys()))
             plt.xlabel("Isotype")
             plt.ylabel("Cell count")
@@ -1514,10 +1576,13 @@ class Tester(TracerTask):
             parser.add_argument('--infer_lineage', help='Construct lineage trees '
                                 'for clone groups shown in clonal network', 
                                 action = "store_true")
+            parser.add_argument('--output', '-o', 
+                                help='Directory for output data of test')
             
-
             args = parser.parse_args(sys.argv[2:])
 
+            self.resource_dir = args.resource_dir
+            self.output_dir = args.output
             self.ncores = args.ncores
             self.config_file = args.config_file
             self.graph_format = args.graph_format
@@ -1525,6 +1590,8 @@ class Tester(TracerTask):
             self.resume = args.resume_with_existing_files
             self.infer_lineage = args.infer_lineage
         else:
+            self.resource_dir = kwargs.get('resource_dir')
+            self.output_dir = kwargs.get('output')
             self.ncores = kwargs.get('ncores')
             self.config_file = kwargs.get('config_file')
             self.graph_format = kwargs.get('graph_format', 'svg')
@@ -1536,22 +1603,27 @@ class Tester(TracerTask):
     def run(self):
         test_dir = os.path.join(base_dir, 'test_data')
         test_names = ['cell1']
-        out_dir = "{}/results".format(test_dir)
+        if self.output_dir:
+            out_dir = os.path.join(self.output_dir, 'results')
+        else:
+            out_dir = os.path.join(test_dir, 'results')
+
         for name in test_names:
             f1 = "{}/{}_1.fastq".format(test_dir, name)
             f2 = "{}/{}_2.fastq".format(test_dir, name)
 
-            Assembler(ncores=str(self.ncores), config_file=self.config_file, 
+            Assembler(resource_dir=self.resource_dir, ncores=str(self.ncores), 
+                      config_file=self.config_file, 
                       resume_with_existing_files=self.resume, species='Hsap', 
                       fastq1=f1, fastq2=f2, cell_name=name, output_dir=out_dir,
                       single_end=False, fragment_length=False, fragment_sd=False, 
                       loci=['H', 'K', 'L'], max_junc_len=100).run()
 
-        Summariser(config_file=self.config_file, use_unfiltered=False, 
-                   graph_format=self.graph_format, no_networks=self.no_networks, 
-                   root_dir=out_dir, loci=['H', 'K', 'L'], no_multiplets=False,
-                   IGH_networks=False, infer_lineage=self.infer_lineage, 
-                   species='Hsap').run()
+        Summariser(resource_dir=self.resource_dir, config_file=self.config_file, 
+                   use_unfiltered=False, graph_format=self.graph_format, 
+                   no_networks=self.no_networks, root_dir=out_dir, 
+                   loci=['H', 'K', 'L'], no_multiplets=False, IGH_networks=False, 
+                   infer_lineage=self.infer_lineage, species='Hsap').run()
 
 
 class Builder(TracerTask):

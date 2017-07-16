@@ -1,9 +1,0 @@
-{
-	"n_targets": 173261,
-	"n_bootstraps": 0,
-	"n_processed": 67305,
-	"kallisto_version": "0.42.5",
-	"index_version": 10,
-	"start_time": "Fri Jul 14 16:10:58 2017",
-	"call": "/software/team205/kallisto_linux-v0.42.5/kallisto quant -i /nfs/team205/il5/basic/test_data/cell3/expression_quantification/kallisto_index/cell3_transcriptome.idx -t 1 -o /nfs/team205/il5/basic/test_data/cell3/expression_quantification /nfs/users/nfs_i/il5/software/bracer/test_data/cell3_1.fastq /nfs/users/nfs_i/il5/software/bracer/test_data/cell3_2.fastq"
-}
