@@ -5,15 +5,15 @@ import csv
 import six
 import matplotlib as mpl
 
-from tracerlib import io, core
-from tracerlib.io import check_binary
+from bracerlib import io, core
+from bracerlib.io import check_binary
 
 mpl.use('pdf')
 import re
 import seaborn as sns
 from matplotlib import pyplot as plt
-from tracerlib import base_dir
-from tracerlib import tracer_func
+from bracerlib import base_dir
+from bracerlib import bracer_func
 from configparser import ConfigParser, NoOptionError
 import argparse
 import sys
@@ -76,7 +76,7 @@ class TracerTask(object):
                 print("Config file not found at ~/.bracerrc."
                     " Using default bracer.conf in repo...")
                 config_file = os.path.join(base_dir, 'bracer.conf')
-        tracer_func.check_config_file(config_file)
+        bracer_func.check_config_file(config_file)
         config = ConfigParser()
         config.read(config_file)
 
@@ -156,7 +156,7 @@ class TracerTask(object):
 
 
     def get_rscript_path(self):
-        rscript_path = os.path.join(base_dir, 'tracerlib/lineage.R')
+        rscript_path = os.path.join(base_dir, 'bracerlib/lineage.R')
         return(rscript_path)
         
     def get_available_species(self, root=None):
@@ -396,7 +396,7 @@ class Assembler(TracerTask):
                                 'combinatorial_recombinomes')
         
         # Align with Bowtie 2
-        tracer_func.bowtie2_alignment(bowtie2, self.ncores, self.loci, 
+        bracer_func.bowtie2_alignment(bowtie2, self.ncores, self.loci, 
                     self.output_dir, self.cell_name, synthetic_genome_path, 
                     self.fastq1, self.fastq2, self.resume_with_existing_files, 
                     self.single_end)
@@ -428,7 +428,7 @@ class Assembler(TracerTask):
         # De novo assembly with Trinity
         trinity_JM = self.config.get('trinity_options', 'max_jellyfish_memory')
         trinity_version = self.config.get('trinity_options', 'trinity_version')
-        successful_files = tracer_func.assemble_with_trinity(
+        successful_files = bracer_func.assemble_with_trinity(
             trinity, self.loci, self.output_dir, self.cell_name, 
             self.ncores, trinity_grid_conf, trinity_JM, trinity_version, 
             self.resume_with_existing_files, self.single_end, self.species)
@@ -450,7 +450,7 @@ class Assembler(TracerTask):
         igblast_seqtype = 'Ig'
 
         # IgBlast of assembled contigs
-        tracer_func.run_IgBlast(igblastn, self.loci, self.output_dir, 
+        bracer_func.run_IgBlast(igblastn, self.loci, self.output_dir, 
                     self.cell_name, igblast_index_location, igblast_seqtype, 
                     self.species, self.resume_with_existing_files, 
                     self.assembled_file)
@@ -476,7 +476,7 @@ class Assembler(TracerTask):
         imgt_seq_location = os.path.join(self.species_root, 'raw_seqs')
 
         # BLAST assembled contigs
-        tracer_func.run_Blast(blastn, self.loci, self.output_dir, 
+        bracer_func.run_Blast(blastn, self.loci, self.output_dir, 
                     self.cell_name, blast_index_location, self.species, 
                     self.resume_with_existing_files, self.assembled_file)
         print()
@@ -504,14 +504,14 @@ class Assembler(TracerTask):
                                 kallisto_base_transcriptome)
 
         #Quantification with kallisto
-        tracer_func.quantify_with_kallisto(
+        bracer_func.quantify_with_kallisto(
                 kallisto, cell, self.output_dir, self.cell_name, 
                 kallisto_base_transcriptome, self.fastq1, self.fastq2, 
                 self.ncores, self.resume_with_existing_files, self.single_end, 
                 self.fragment_length, self.fragment_sd)
         print()
 
-        counts = tracer_func.load_kallisto_counts(
+        counts = bracer_func.load_kallisto_counts(
             "{}/expression_quantification/abundance.tsv".format(
                                                 self.output_dir))
         
@@ -715,7 +715,7 @@ class Summariser(TracerTask):
 
         for locus in self.loci:
             self.make_changeo_input(outdir, locus, cells)
-            tracer_func.run_DefineClones(DefineClones, locus, outdir, 
+            bracer_func.run_DefineClones(DefineClones, locus, outdir, 
                                             self.species, self.dist)
             print()
             with warnings.catch_warnings():
@@ -767,7 +767,7 @@ class Summariser(TracerTask):
         network_colours = io.read_colour_file(os.path.join(
                     self.species_dir, "colours.csv"), receptor_name="BCR")
 
-        component_groups, G = tracer_func.draw_network_from_cells(cells, outdir, 
+        component_groups, G = bracer_func.draw_network_from_cells(cells, outdir, 
                            self.graph_format, dot, neato, self.draw_graphs, 
                            self.loci, network_colours, cell_contig_clones, 
                            cells_with_clonal_H, self.no_multiplets, 
@@ -1240,7 +1240,7 @@ class Summariser(TracerTask):
         igblast_seqtype = 'Ig'
 
         # IgBlast of sequences
-        tracer_func.run_IgBlast_for_lineage_reconstruction(igblastn, locus, 
+        bracer_func.run_IgBlast_for_lineage_reconstruction(igblastn, locus, 
                 outdir, gapped_igblast_index_location, igblast_seqtype, 
                 self.species)
         
@@ -1261,7 +1261,7 @@ class Summariser(TracerTask):
         igblast_seqtype = 'Ig'
 
         # Run MakeDb from Change-O toolkit
-        tracer_func.run_MakeDb(MakeDb, locus, outdir, self.species, 
+        bracer_func.run_MakeDb(MakeDb, locus, outdir, self.species, 
                                                 gapped_seq_location)
         
 
@@ -1325,7 +1325,7 @@ class Summariser(TracerTask):
         gapped_seq_location = os.path.join(self.species_dir,
                             'imgt_gapped_resources/raw_seqs')
         igblast_seqtype = 'Ig'
-        tracer_func.run_CreateGermlines(CreateGermlines, locus, outdir, 
+        bracer_func.run_CreateGermlines(CreateGermlines, locus, outdir, 
                                     self.species, gapped_seq_location)
 
 
@@ -1374,7 +1374,7 @@ class Summariser(TracerTask):
         igblast_seqtype = 'Ig'
         
         # IgBlast sequences
-        tracer_func.run_IgBlast_IMGT_gaps(igblastn, outdir, 
+        bracer_func.run_IgBlast_IMGT_gaps(igblastn, outdir, 
             gapped_igblast_index_location, igblast_seqtype, self.species)
 
 
@@ -1545,7 +1545,7 @@ class Summariser(TracerTask):
     def plot_clonotype_sizes(self, outdir, cells, loci, G):
 
         plt.figure()
-        clonotype_sizes = tracer_func.get_component_groups_sizes(
+        clonotype_sizes = bracer_func.get_component_groups_sizes(
                                                 cells, loci, G)
         w = 0.85
         x_range = range(1, len(clonotype_sizes) + 1)
@@ -1563,7 +1563,7 @@ class Tester(TracerTask):
 
     def __init__(self, **kwargs):
         if not kwargs:
-            parser = argparse.ArgumentParser(description="Test BraCeR installation"
+            parser = argparse.ArgumentParser(description="Test BraCeR installation "
                               "with small dataset", parents=[self.base_parser])
             parser.add_argument('--graph_format', '-f', metavar="<GRAPH_FORMAT>", 
                                 help='graphviz output format [pdf]', default='pdf')

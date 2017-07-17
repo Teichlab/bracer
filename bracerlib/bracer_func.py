@@ -31,8 +31,8 @@ from Bio.Alphabet import IUPAC
 from Bio.Alphabet import generic_dna
 from Bio.Seq import Seq
 
-from tracerlib.core import Cell, Recombinant
-import tracerlib.io
+from bracerlib.core import Cell, Recombinant
+import bracerlib.io
 
 import copy
 
@@ -318,8 +318,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
         cell = Cell(cell_name, recombinants, species=species, loci=loci)
         
     else:
-        cell = Cell(cell_name, None, species=species, invariant_seqs=invariant_seqs, 
-                                                                        loci=loci)
+        cell = Cell(cell_name, None, species=species, loci=loci)
 
     
     return (cell)
@@ -1331,8 +1330,8 @@ def assemble_with_trinity(trinity, loci, output_dir, cell_name, ncores, trinity_
     successful_file_summary = "{}/Trinity_output/successful_trinity_assemblies.txt".format(output_dir)
     unsuccessful_file_summary = "{}/Trinity_output/unsuccessful_trinity_assemblies.txt".format(output_dir)
 
-    successful_files = tracerlib.io.clean_file_list(successful_files)
-    unsuccessful_directories = tracerlib.io.clean_file_list(unsuccessful_directories)
+    successful_files = bracerlib.io.clean_file_list(successful_files)
+    unsuccessful_directories = bracerlib.io.clean_file_list(unsuccessful_directories)
 
     success_out = open(successful_file_summary, "w")
     fail_out = open(unsuccessful_file_summary, "w")
@@ -1344,19 +1343,19 @@ def assemble_with_trinity(trinity, loci, output_dir, cell_name, ncores, trinity_
     unsuccessful_ordered_files = set()
 
     for filename in successful_files:
-        parsed_name = tracerlib.io.get_filename_and_locus(filename)
+        parsed_name = bracerlib.io.get_filename_and_locus(filename)
         successful[parsed_name[0]].append(parsed_name[1])
         successful_ordered_files.add(parsed_name[0])
     successful_ordered_files = sorted(list(successful_ordered_files))
 
     for filename in unsuccessful_directories:
-        parsed_name = tracerlib.io.get_filename_and_locus(filename)
+        parsed_name = bracerlib.io.get_filename_and_locus(filename)
         unsuccessful[parsed_name[0]].append(parsed_name[1])
         unsuccessful_ordered_files.add(parsed_name[0])
     unsuccessful_ordered_files = sorted(list(unsuccessful_ordered_files))
 
-    successful = tracerlib.io.sort_locus_names(successful)
-    unsuccessful = tracerlib.io.sort_locus_names(unsuccessful)
+    successful = bracerlib.io.sort_locus_names(successful)
+    unsuccessful = bracerlib.io.sort_locus_names(unsuccessful)
 
     for file in successful_ordered_files:
         success_out.write("{}\t{}\n".format(file, successful[file]))
@@ -1552,7 +1551,7 @@ def run_Blast(blast, loci, output_dir, cell_name, index_location, species,
     DEVNULL = open(os.devnull, 'wb')
   
     if assembled_file is not None:
-        tracerlib.io.parse_assembled_file(output_dir, cell_name, assembled_file)
+        bracerlib.io.parse_assembled_file(output_dir, cell_name, assembled_file)
         trinity_fasta = "{}/Trinity_output/{}.fasta".format(output_dir, cell_name)
 
     for locus in locus_names:
@@ -1586,7 +1585,7 @@ def quantify_with_kallisto(kallisto, cell, output_dir, cell_name, kallisto_base_
     print("##Making Kallisto indices##")
     kallisto_dirs = ['kallisto_index']
     for d in kallisto_dirs:
-        tracerlib.io.makeOutputDir("{}/expression_quantification/{}".format(output_dir, d))
+        bracerlib.io.makeOutputDir("{}/expression_quantification/{}".format(output_dir, d))
     fasta_filename = "{output_dir}/unfiltered_BCR_seqs/{cell_name}_BCRseqs.fa".format(output_dir=output_dir,
                                                                                       cell_name=cell_name)
     fasta_file = open(fasta_filename, 'w')

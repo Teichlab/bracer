@@ -7,19 +7,22 @@ import sys
 import pandas as pd
 from pandas.util.testing import assert_frame_equal
 
-from tracerlib.launcher import launch
-from tracerlib import base_dir
-from tracerlib.tasks import Tester
+from bracerlib.launcher import launch
+from bracerlib import base_dir
+from bracerlib.tasks import Tester
 
 
 class TestInstall(unittest.TestCase):
 
     expected_folder = os.path.join(base_dir, 'test_data', 'expected_summary')
     results_folder = os.path.join(base_dir, 'test_data', 'results',
-                                  'filtered_TCR_summary')
+                                  'filtered_BCR_summary')
 
     def test_installation(self):
         Tester(ncores=1).run()
+
+    def test_installation_with_lineage(self):
+        Tester(ncores=1, infer_lineage=True).run()
 
     def test_recombinants(self):
 
@@ -30,9 +33,6 @@ class TestInstall(unittest.TestCase):
             recombinants.dropna(how='all', inplace=True)
             recombinants.sort_values(by='recombinant_id', inplace=True)
             recombinants.reset_index(inplace=True, drop=True)
-            # recombinants['recombinant_id'] = recombinants['recombinant_id'] \
-            #     .apply(lambda x: x.replace('(', '').replace(')', ''))
-
             # Reconstructed lengths differ as trinity is stochastic
             recombinants.drop(['reconstructed_length'], axis=1, inplace=True)
 

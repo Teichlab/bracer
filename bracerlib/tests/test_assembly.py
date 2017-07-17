@@ -6,26 +6,26 @@ import sys
 import pandas as pd
 from pandas.util.testing import assert_frame_equal
 
-from tracerlib import base_dir
-from tracerlib.io import parse_IgBLAST, parse_invariant_cells
-from tracerlib.tasks import Assembler
+from bracerlib import base_dir
+from bracerlib.io import parse_IgBLAST
+from bracerlib.tasks import Assembler
 
 
 class TestAssemble(unittest.TestCase):
 
     expected_folder = os.path.join(base_dir, 'test_data', 'expected_summary')
     results_folder = os.path.join(base_dir, 'test_data', 'results',
-                                  'filtered_TCR_summary')
+                                  'filtered_BCR_summary')
 
     def test_args(self):
-        config_file = os.path.expanduser('~/.tracerrc')
-        assert os.path.isfile(config_file), "Config file ~/.tracerrc not found"
+        config_file = os.path.expanduser('~/.bracerrc')
+        assert os.path.isfile(config_file), "Config file ~/.bracerrc not found"
         assemble_args = dict(
             ncores='1', config_file=config_file,
-            resume_with_existing_files=False, species='Mmus',
-            seq_method='imgt', fastq1='/not/a/file', fastq2='/not/a/file',
+            resume_with_existing_files=False, species='Hsap',
+            fastq1='/not/a/file', fastq2='/not/a/file',
             cell_name='cell1', output_dir=self.results_folder, single_end=False,
-            fragment_length=False, fragment_sd=False)
+            fragment_length=False, fragment_sd=False, assembled_file=False)
 
         # Launcher checks for fastq file existance
         with self.assertRaisesRegexp(OSError, 'FASTQ file not found'):
@@ -45,30 +45,19 @@ class TestAssemble(unittest.TestCase):
 
     @staticmethod
     def generate_cell(cell_name):
-        locus_names = ["TCRA", "TCRB"]
-        imgt_seq_location = os.path.join(base_dir, "resources", "Mmus",
-                                         "imgt_sequences")
-        const_seq_file = os.path.join(base_dir, "resources", "Mmus",
-                                      "constant_seqs.csv")
+        loci = ["H", "K", "L"]
+        imgt_seq_location = os.path.join(base_dir, "resources", "Hsap",
+                                         "raw_seqs")
         out_dir = os.path.join(base_dir, "test_data", "results", "cell2")
 
-        invariant_seqs = parse_invariant_cells(os.path.join(
-            base_dir, "resources", "Mmus", "invariant_cells.json"))
         cell = parse_IgBLAST(
-            'TCR', locus_names, out_dir, cell_name, imgt_seq_location, 'Mmus',
-            'imgt', const_seq_file, invariant_seqs=invariant_seqs)
+            loci, out_dir, cell_name, imgt_seq_location, 'Hsap',
+            assembled_file=None, max_junc_len=100)
         return cell
 
     def test_parse_igblast(self):
         cell = self.generate_cell('cell2')
         assert not cell._check_is_empty(), "No Cell results"
-
-    def xtest_invariant_seqs(self):
-        cell = self.generate_cell('cell2')
-        assert len(cell.invariant_seqs)
-        all_vs = [seq['V'] for seq in cell.invariant_seqs]
-        assert 'TRAV11' in all_vs
-        assert not cell._check_if_inkt()
 
 
 if __name__ == '__main__':

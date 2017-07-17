@@ -10,7 +10,7 @@ class Cell(object):
 
     """Class to describe B cells containing H, K and L loci"""
 
-    def __init__(self, cell_name, recombinants, is_empty=False, species="Mmus", 
+    def __init__(self, cell_name, recombinants, is_empty=False, species="Hsap", 
                 loci=None):
         
         self.name = cell_name

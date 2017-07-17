@@ -1,4 +1,5 @@
 import os
+import glob
 from setuptools import setup, find_packages
 
 
@@ -6,21 +7,32 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 
+def package_files(directory):
+    paths = []
+    for (path, directories, filenames) in os.walk(directory):
+        for filename in filenames:
+            paths.append(os.path.join('..', path, filename))
+    return paths
+
+extra_files = package_files('test_data')
+
+
 setup(
-    name='tracer',
+    name='bracer',
     version=0.1,
-    author="Mike Stubbington",
+    author="Mike Stubbington, Ida Lindeman, Guy Emerton",
     entry_points={
         'console_scripts': [
-            'tracer=tracer.tracerlib.__main__'
+            'bracer=bracer.bracerlib.__main__'
         ]
     },
     author_email="mike.stubbington@sanger.ac.uk",
-    description="Reconstruction of T-Cell receptor sequences from single-cell RNA-seq data",
+    description="Reconstruction of B-Cell receptor sequences from single-cell RNA-seq data",
     licence="Apache",
     keywords="biopython genetics",
-    url="https://github.com/teichlab/tracer",
+    url="https://github.com/teichlab/bracer",
     packages=find_packages(),
+    package_data={'bracer': extra_files},
     install_requires=[
         "biopython>=1.66",
         "cycler>=0.10.0",
@@ -39,6 +51,7 @@ setup(
         "seaborn>=0.7.0",
         "six>=1.10.0",
         "mock>=2.0.0",
-        "future>=0.15.2"
+        "future>=0.15.2",
+        "changeo>=0.3.7"
     ]
 )

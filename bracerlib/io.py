@@ -13,7 +13,7 @@ import six
 import sys
 from Bio import SeqIO
 
-from tracerlib.tracer_func import process_chunk, find_possible_alignments, extract_blast_info
+from bracerlib.bracer_func import process_chunk, find_possible_alignments, extract_blast_info
 import glob
 import pdb
 
@@ -87,7 +87,7 @@ def parse_assembled_file(output_dir, cell_name, assembled_file):
 
 
 def parse_IgBLAST(loci, output_dir, cell_name, raw_seq_dir, species, 
-                  assembled_file, max_junc_len=100, invariant_seqs=None):
+                  assembled_file, max_junc_len=100):
     
     IMGT_seqs = dict()
     loci_for_segments = defaultdict(list)
