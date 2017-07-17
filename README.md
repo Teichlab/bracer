@@ -24,9 +24,9 @@ Please email questions / problems to ms31@sanger.ac.uk
 ## Installation
 BraCeR is written in Python and so can just be downloaded, made executable (with `chmod u+x bracer`) and run or run with `python bracer`. Download the latest version and accompanying files from www.github.com/teichlab/bracer. 
 
-BraCeR relies on several additional tools and Python modules that you should install. BraCeR also requires R (= 3.1.2) and some R packages for lineage reconstruction (optional).
+BraCeR relies on several additional tools and Python modules that you should install. BraCeR also requires R (>= 3.1.2) and some R packages for lineage reconstruction (optional).
 
-Note that BraCeR requires Python (=3.4.0), as one of the required tools have this as a requirement.
+Note that BraCeR requires Python (>=3.4.0), as one of the required tools have this as a requirement.
 
 ### Pre-requisites
 
@@ -76,7 +76,7 @@ To set up the python dependencies, use the requirements file:
 
 It is **highly** recommended that numpy and biopython are first installed through your system's package manager or conda.
 
-If you plan to run BraCeR with `--infer_lineage` to create lineage trees, please make sure that you have installed R (= 3.1.2), ggplot2 (= 2.0.0), Rscript (=3.3.2) and Alakazam (= 0.2.7). 
+If you plan to run BraCeR with `--infer_lineage` to create lineage trees, please make sure that you have installed R (>= 3.1.2), ggplot2 (>= 2.0.0), Rscript (>=3.3.2) and Alakazam (>= 0.2.7). 
 
 The bracer module is then installed using:
 
@@ -157,9 +157,9 @@ BraCeR comes with a small dataset in `test_data/` (containing only BCR reads for
 
 You can also pass the following options to change the Graphviz output format, to prevent attempts to draw network graphs or to test BraCeR with lineage reconstruction.
 
-`-g/--graph_format` : Output format for the clonotype networks. This is passed directly to Graphviz and so must be one of the options detailed at http://www.graphviz.org/doc/info/output.html.  
-`--no_networks` : Don't try to draw clonotype network graphs. This is useful if you don't have a working installation of Graphviz.
-`--infer_lineage` : Run BraCeR with lineage reconstruction.
+* `-g/--graph_format` : Output format for the clonotype networks. This is passed directly to Graphviz and so must be one of the options detailed at http://www.graphviz.org/doc/info/output.html.  
+* `--no_networks` : Don't try to draw clonotype network graphs. This is useful if you don't have a working installation of Graphviz.
+* `--infer_lineage` : Run BraCeR with lineage reconstruction.
 
     
 Running `test` will peform the [`assemble`](#assemble-bcr-reconstruction) step using the small test dataset. It will then perform [`summarise`](#summarise-summary-and-clonotype-networks) using the assemblies that are generated along with pre-calculated output for two other cells (in `test_data/results`).
