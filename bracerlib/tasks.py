@@ -783,7 +783,8 @@ class Summariser(TracerTask):
 
         for g in component_groups:
             outfile.write(", ".join(g))
-            outfile.write("\n\n")
+            
+        outfile.write("\n\n")
 
         # Reconstruct lineages - optional
         """These steps use MakeDb and CreateGermlines of the Change-O toolkit
@@ -813,11 +814,15 @@ class Summariser(TracerTask):
 
         # Print name of empty cells to the summary
         outfile.write("#Cells with no reconstructed sequences#\n")
-        for cell_name in empty_cells:
-            outfile.write(", ".join(cell_name))
         if len(empty_cells) == 0:
-            outfile.write("None")
-        outfile.write("\t")
+                    outfile.write("None")
+        elif len(empty_cells) == 1:
+            for i in empty_cells:
+                outfile.write("".join(i))
+        else:
+            outfile.write(", ".join(empty_cells))
+        
+        outfile.write("\n\n")
         
         # Plot clonotype sizes
         x_range, clonotype_sizes = self.plot_clonotype_sizes(outdir, cells, 
@@ -1085,24 +1090,24 @@ class Summariser(TracerTask):
                 databasedict = cell.databasedict
                 for locus in loci:
                     recs = cell.recombinants["BCR"][locus]
-
-                    for rec in recs:
-                        C_gene = rec.C_gene
-                        if C_gene == None:
-                            C_gene = "None"
-                        if "*" in C_gene:
-                            C_gene = C_gene.split("*")[0]
-                        isotype = C_gene
-                        full_name = rec.contig_name + "_" + rec.identifier
-                        clone = None
-                        if locus in cell_contig_clones.keys():
-                            if cell_name in cell_contig_clones[locus].keys():
-                                if full_name in cell_contig_clones[locus][cell_name].keys():
-                                    clone = cell_contig_clones[locus][cell_name][full_name]
+                    if not recs is None:
+                        for rec in recs:
+                            C_gene = rec.C_gene
+                            if C_gene == None:
+                                C_gene = "None"
+                            if "*" in C_gene:
+                                C_gene = C_gene.split("*")[0]
+                            isotype = C_gene
+                            full_name = rec.contig_name + "_" + rec.identifier
+                            clone = None
+                            if locus in cell_contig_clones.keys():
+                                if cell_name in cell_contig_clones[locus].keys():
+                                    if full_name in cell_contig_clones[locus][cell_name].keys():
+                                        clone = cell_contig_clones[locus][cell_name][full_name]
                         
-                        string = (databasedict[locus][rec.contig_name] + 
+                            string = (databasedict[locus][rec.contig_name] + 
                                 "\t{}\t{}\n".format(isotype, clone))
-                        output.write(string)
+                            output.write(string)
 
 
     def create_multiplet_database_file(self, outdir, loci, cells, multiplets):
@@ -1352,13 +1357,14 @@ class Summariser(TracerTask):
             for cell in cells.values():
                 for locus in loci:
                     recs = cell.recombinants["BCR"][locus]
-                    for rec in recs:
-                        sequence_id = "{}_{}_{}".format(cell.name, 
+                    if recs:
+                        for rec in recs:
+                            sequence_id = "{}_{}_{}".format(cell.name, 
                                             rec.contig_name, locus)
-                        header = ">{}\n".format(sequence_id)
-                        sequence_line = rec.dna_seq + "\n"
-                        output.write(header)
-                        output.write(sequence_line)
+                            header = ">{}\n".format(sequence_id)
+                            sequence_line = rec.dna_seq + "\n"
+                            output.write(header)
+                            output.write(sequence_line)
 
 
     def run_IgBlast_IMGT_gapped(self, outdir):
@@ -1654,32 +1660,21 @@ class Builder(TracerTask):
             parser.add_argument('C_seqs', metavar="<C_SEQS>", 
                                 help='FASTA file containing C gene sequence(s) '
                                 'for creation of recombinomes')
-
             parser.add_argument('D_seqs', metavar="<D_SEQS>", nargs='?', default=False,
                                 help='FASTA file containing D gene sequences (optional)')
             parser.add_argument('--C_db', metavar="<ALT_C_SEQS>", nargs='?',
                                 help='Specify alternative FASTA file (if other '
                                 'than the one used to make recombinomes) '
-                                'containing C gene sequences for creation of '
-                                'BLAST database (optional)')
+                                'containing all C gene sequences for creation of '
+                                'BLAST database to correctly identify isotype (optional)')
             parser.add_argument('--V_gapped', metavar="<GAPPED_V_SEQS>", nargs='?',
                                 help='FASTA file containing IMGT-gapped V '
                                 'reference sequences (optional). Required '
                                 'for lineage reconstruction and creation of '
                                 'IMGT-gapped tab-delimited databases')
-            parser.add_argument('--D_gapped', metavar="<GAPPED_D_SEQS>", nargs='?',
-                                help='FASTA file containing IMGT-gapped D '
-                                'reference sequences (optional). Required '
-                                'for heavy chain for lineage reconstruction and creation of '
-                                'IMGT-gapped tab-delimited databases')
-            parser.add_argument('--J_gapped', metavar="<GAPPED_J_SEQS>", nargs='?',
-                                help='FASTA file containing IMGT-gapped J '
-                                'reference sequences (optional). Required '
-                                'for lineage reconstruction and creation of '
-                                'IMGT-gapped tab-delimited databases')
             
             args = parser.parse_args(sys.argv[2:])
-            
+            resource_dir = args.resource_dir
             self.ncores = args.ncores
             self.force_overwrite = args.force_overwrite
             self.species = args.species
@@ -1698,16 +1693,15 @@ class Builder(TracerTask):
                 self.raw_seq_files['c'] = args.C_db
 
             self.gapped_raw_seq_files = {}
-            if args.V_gapped and args.J_gapped:
+            if args.V_gapped:
                 self.gapped = True
                 self.gapped_raw_seq_files['V'] = args.V_gapped
-                self.gapped_raw_seq_files['J'] = args.J_gapped
-                if args.D_gapped:
-                    self.gapped_raw_seq_files['D'] = args.D_gapped
+            
 
             config_file = args.config_file
             
         else:
+            resource_dir = kwargs.get('resource_dir')
             self.ncores = kwargs.get('ncores')
             self.force_overwrite = kwargs.get('force_overwrite')
             self.species = kwargs.get('species')
@@ -1725,17 +1719,19 @@ class Builder(TracerTask):
                 self.raw_seq_files['c'] = kwargs.get('C_db')
 
             self.gapped_raw_seq_files = {}
-            if kwargs.get('V_gapped') and kwargs.get('J_gapped'):
+            if kwargs.get('V_gapped'):
                 self.gapped = True
                 self.gapped_raw_seq_files['V'] = kwargs.get('V_gapped')
-                self.gapped_raw_seq_files['J'] = kwargs.get('J_gapped')
-                if  kwargs.get('D_gapped'):
-                    self.gapped_raw_seq_files['D'] = kwargs.get('D_gapped')
-
+            
             config_file = kwargs.get('config_file')
 
         self.config = self.read_config(config_file)
-        self.species_dir = self.get_resources_root(self.species)
+
+        if resource_dir is None:
+            self.species_dir = os.path.join(base_dir, 'resources', self.species)
+        else:
+            self.species_dir = os.path.join(resource_dir, self.species)
+        
         
         
 
@@ -1744,7 +1740,7 @@ class Builder(TracerTask):
         self.init_dirs()
         
         self.calculate_colours(self.prod_colour)
-        VDJC_files = self.copy_raw_files()
+        VDJC_files, gapped_V_file  = self.copy_raw_files()
         recombinome_fasta = self.make_recombinomes(VDJC_files)
         self.make_bowtie2_index(recombinome_fasta)
         missing_dbs = self.make_igblast_db(VDJC_files)
@@ -1753,6 +1749,13 @@ class Builder(TracerTask):
                     segment=s))
             print("Run build with {segment} segments for BCR before using bracer assemble\n".format(
                     segment=s))
+
+        if self.gapped:
+            missing_gapped_dbs = self.make_igblast_db_gapped(gapped_V_file)
+            for s in missing_gapped_dbs:
+                print("\nIMPORTANT: there is no IgBLAST database for IMGT-gapped BCR_{segment}\n".format(
+                                            segment=s))
+                print("Run build with --V_gapped and IMGT-gapped BCR_V segments before using bracer assemble\n")
     
     def check_colour(self, c):
         if c == 'random':
@@ -1864,20 +1867,16 @@ class Builder(TracerTask):
                                  descriptor="Sequence File")
             shutil.copy(self.raw_seq_files[s], out_file)
 
-        gapped_gene_segs = 'VJ'
-        gapped_VDJ_files = {}
-        if 'D' in self.gapped_raw_seq_files:
-             gapped_gene_segs += 'D'
-
-        for s in gapped_gene_segs:
-            fn = "BCR_{locus}_{s}.fa".format(locus=self.locus_name, s=s)
+        gapped_V_file = None
+        if self.gapped:
+            fn = "BCR_{locus}_V.fa".format(locus=self.locus_name)
             out_file = os.path.join(self.species_dir, 'imgt_gapped_resources/raw_seqs', fn)
-            gapped_VDJ_files[s] = out_file
-            self.check_duplicate(out_file, segment=s,
+            gapped_V_file = out_file
+            self.check_duplicate(out_file, segment='V',
                                         descriptor="Sequence File")
-            shutil.copy(self.gapped_raw_seq_files[s], out_file)
+            shutil.copy(self.gapped_raw_seq_files['V'], out_file)
 
-        return (VDJC_files, gapped_VDJ_files)
+        return (VDJC_files, gapped_V_file)
 
      
     def load_segment_seqs(self, filename):
@@ -2011,4 +2010,52 @@ class Builder(TracerTask):
                     subprocess.check_call(command)
                 except subprocess.CalledProcessError:
                     print("makeblastdb failed for BCR_{segment}".format(
-                                                            segment=s))
+                                                        segment=s))
+
+        return missing_dbs
+    def make_igblast_db_gapped(self, gapped_V_file):
+        """Create IgBlast database from IMGT-gapped sequences"""
+        igblast_dir = os.path.join(self.species_dir, 'imgt_gapped_resources/igblast_dbs')
+        makeblastdb = self.get_binary('makeblastdb')
+        missing_gapped_dbs = []
+        fn = "BCR_V.fa"
+        fasta_file = os.path.join(igblast_dir, fn)
+        # Create file if it doesn't already exist
+        open(fasta_file, 'a').close()
+
+        with open(fasta_file) as e:
+            existing_seqs = SeqIO.to_dict(SeqIO.parse(e, "fasta"))
+        with open(gapped_V_file) as n:
+            new_seqs = SeqIO.to_dict(SeqIO.parse(n, "fasta"))
+        non_overwritten_seqs = []
+        for seq_name, seq in six.iteritems(new_seqs):
+            if seq_name in existing_seqs:
+                if not self.force_overwrite:
+                    non_overwritten_seqs.append(seq_name)
+                else:
+                    existing_seqs.update({seq_name: seq})
+            else:
+                existing_seqs.update({seq_name: seq})
+        with open(fasta_file, 'w') as f:
+            SeqIO.write(existing_seqs.values(), f, "fasta")
+
+        if len(existing_seqs) == 0:
+            missing_gapped_dbs.append('V')
+
+        if len(non_overwritten_seqs) > 0:
+            print('The follwing IgBLAST DB sequences for '
+                'BCR_V already found in {file}.'.format(file=fasta_file))
+            print('These sequences were not overwritten. '
+                'Use --force_overwrite to replace with new ones')
+            for seq in non_overwritten_seqs:
+                print(seq)
+
+        command = [makeblastdb, '-parse_seqids', '-dbtype', 'nucl',
+                                                '-in', fasta_file]
+
+        try:
+            subprocess.check_call(command)
+        except subprocess.CalledProcessError:
+            print("makeblastdb failed for BCR_V (IMGT-gapped)")
+
+        return missing_gapped_dbs

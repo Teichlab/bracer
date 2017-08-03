@@ -38,6 +38,15 @@ import copy
 
 import pdb
 
+
+
+def hamming_dist(str1, str2):
+    diffs = 0
+    for ch1, ch2 in zip(str1, str2):
+        if ch1 != ch2:
+            diffs += 1
+    return diffs
+
 def process_chunk(chunk):
     store_VDJ_rearrangement_summary = False
     store_junction_details = False
@@ -799,11 +808,17 @@ def collapse_close_sequences(recombinants, locus):
                         if len(base_V_segment.intersection(comp_V_segment)) > 0 \
                                 and len(base_J_segment.intersection(comp_J_segment)) > 0:
                             attempt_collapse = True
+                    elif (hamming_dist(base_cdr3, comp_cdr3) <= 3 and base_name 
+                        in filtered_contig_names and comp_name in filtered_contig_names):
+                        if (len(base_V_segment.intersection(comp_V_segment)) > 0 
+                            and len(base_J_segment.intersection(comp_J_segment)) > 0):
+                            attempt_collapse = True
+                        
                 elif base_cdr3 is None or comp_cdr3 is None:
-                    if base_junc == comp_junc and base_name in filtered_contig_names \
-                            and comp_name in filtered_contig_names:
-                        if len(base_V_segment.intersection(comp_V_segment)) > 0 \
-                                and len(base_J_segment.intersection(comp_J_segment)) > 0:
+                    if (hamming_dist(base_junc, comp_junc) <= 3 and base_name in filtered_contig_names 
+                            and comp_name in filtered_contig_names):
+                        if (len(base_V_segment.intersection(comp_V_segment)) > 0 
+                                and len(base_J_segment.intersection(comp_J_segment)) > 0):
                             attempt_collapse = True
 
                 if attempt_collapse is False:
@@ -1199,8 +1214,10 @@ def bowtie2_alignment(bowtie2, ncores, loci, output_dir, cell_name, synthetic_ge
         if not single_end:
             fastq_out_1 = open("{}/aligned_reads/{}_{}_1.fastq".format(output_dir, cell_name, locus), 'w')
             fastq_lines_1 = []
+            fastq_lines_1_unpaired = []
             fastq_out_2 = open("{}/aligned_reads/{}_{}_2.fastq".format(output_dir, cell_name, locus), 'w')
             fastq_lines_2 = []
+            fastq_lines_2_unpaired = []
 
             command = [bowtie2, '--no-unal', '-p', ncores, '-k', '1', '--np', '0', '--rdg', '1,1', '--rfg', '1,1',
                        '-x', "/".join([synthetic_genome_path, locus]), '-1', fastq1, '-2', fastq2, '-S', sam_file]
@@ -1238,10 +1255,22 @@ def bowtie2_alignment(bowtie2, ncores, loci, output_dir, cell_name, synthetic_ge
                                     "@{name}{name_ending}\n{seq}\n+\n{qual}\n".format(name=name, 
                                                     seq=seq, name_ending=name_ending, qual=qual))
 
+                        else:
+                            name_ending = "/1"
+                            fastq_lines_1_unpaired.append(
+                                "@{name}{name_ending}\n{seq}\n+\n{qual}\n".format(name=name,
+                                seq=seq, name_ending=name_ending, qual=qual))
+
+
+
             for line in fastq_lines_1:
+                fastq_out_1.write(line)
+            for line in fastq_lines_1_unpaired:
                 fastq_out_1.write(line)
             for line in fastq_lines_2:
                 fastq_out_2.write(line)
+            #for line in fastq_lines_2_unpaired:
+                #fastq_out_2.write(line)
 
             fastq_out_1.close()
             fastq_out_2.close()
@@ -1389,9 +1418,12 @@ def run_IgBlast(igblast, loci, output_dir, cell_name, index_location, ig_seqtype
     
     species_mapper = {
         'Mmus': 'mouse',
-        'Hsap': 'human'
+        'Hsap': 'human',
+        'Rat': 'rat'
     }
-    igblast_species = species_mapper[species]
+    igblast_species = species
+    if species in species_mapper.keys():
+        igblast_species = species_mapper[species]
     initial_locus_names = ["_".join([receptor,x]) for x in loci]
     locus_names = copy.copy(initial_locus_names)
 
@@ -1456,10 +1488,16 @@ def run_IgBlast_IMGT_gaps(igblast, output_dir, index_location, ig_seqtype, speci
     
     species_mapper = {
         'Mmus': 'mouse',
-        'Hsap': 'human'
+        'Hsap': 'human',
+        'Rat' : 'rat',
+        'rat' : 'rat',
+        'Rno' : 'rat'
     }
 
-    igblast_species = species_mapper[species]
+    igblast_species = species
+    if species in species_mapper.keys():
+        igblast_species = species_mapper[species]
+    
     databases = {}
     missing_resources = False
     for segment in ['V', 'D', 'J']:
@@ -1491,10 +1529,13 @@ def run_IgBlast_for_lineage_reconstruction(igblast, locus, output_dir, index_loc
 
     species_mapper = {
         'Mmus': 'mouse',
-        'Hsap': 'human'
+        'Hsap': 'human',
+        'Rat' : 'rat'
     }
 
-    igblast_species = species_mapper[species]
+    igblast_species = species
+    if species in species_mapper.keys():
+        igblast_species = species_mapper[species]
 
     databases = {}
     for segment in ['V', 'D', 'J']:
@@ -1525,10 +1566,13 @@ def run_Blast(blast, loci, output_dir, cell_name, index_location, species,
 
     species_mapper = {
         'Mmus': 'mouse',
-        'Hsap': 'human'
+        'Hsap': 'human',
+        'Rat' : 'rat'
     }
 
-    blast_species = species_mapper[species]
+    igblast_species = species
+    if species in species_mapper.keys():
+        blast_species = species_mapper[species]
     initial_locus_names = ["_".join([receptor,x]) for x in loci]
     locus_names = copy.copy(initial_locus_names)
 
@@ -1676,10 +1720,6 @@ def run_MakeDb(MakeDb, locus, outdir, species, gapped_seq_location):
 def run_CreateGermlines(CreateGermlines, locus, outdir, species, gapped_seq_location):
     """Runs CreateGermlines of Change-O"""
 
-    species_mapper = {
-        'Mmus': 'mouse',
-        'Hsap': 'human'
-                    }
     gapped_seqs = {}
     for segment in ['V', 'D', 'J']:
         gapped_seqs[segment] = "{}/IG{}.fasta".format(gapped_seq_location, segment)

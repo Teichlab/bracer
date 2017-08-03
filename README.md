@@ -164,7 +164,7 @@ You can also pass the following options to change the Graphviz output format, to
     
 Running `test` will peform the [`assemble`](#assemble-bcr-reconstruction) step using the small test dataset. It will then perform [`summarise`](#summarise-summary-and-clonotype-networks) using the assemblies that are generated along with pre-calculated output for two other cells (in `test_data/results`).
 
-Compare the output in `test_data/results/filtered_BCR_summary` with the expected results in `test_data/expected_summary`. There should be three cells, two with one productive heavy and one productive lambda, and one cell with one productive heavy, one productive lambda and one non-productive kappa.Cells 2 and 3 should be in a clonotype.
+Compare the output in `test_data/results/filtered_BCR_summary` with the expected results in `test_data/expected_summary`. There should be three cells, two with one productive heavy and one productive lambda, and one cell with one productive heavy, one productive lambda and one non-productive kappa. Cells 2 and 3 should be in a clonotype.
 
 
 ## Using BraCeR 
