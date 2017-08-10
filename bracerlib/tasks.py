@@ -28,6 +28,7 @@ import pickle
 from prettytable import PrettyTable
 from Bio.Seq import Seq
 from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
 import itertools
 import pdb
 import numpy as np
@@ -783,6 +784,7 @@ class Summariser(TracerTask):
 
         for g in component_groups:
             outfile.write(", ".join(g))
+            outfile.write("\n")
             
         outfile.write("\n\n")
 
@@ -809,7 +811,7 @@ class Summariser(TracerTask):
                 self.create_germline_sequences(outdir, locus, cells)
 
             # Run lineage reconstruction with Alakazam
-            self.create_lineage_trees(outdir)
+            self.create_lineage_trees(outdir, self.species)
 
 
         # Print name of empty cells to the summary
@@ -847,6 +849,7 @@ class Summariser(TracerTask):
         # Count cells with productive chains for each locus and possible pairs
         for l in loci:
             cell_recovery_count[l] = 0
+        
         possible_pairs = ["".join(x) for x in itertools.combinations(loci, 2)]
 
         for p in possible_pairs:
@@ -872,6 +875,7 @@ class Summariser(TracerTask):
                                 locus=l, count=count, total=total_cells, pc=pc))
         outfile.write("\n")
         
+        
         for p in possible_pairs:
             count = cell_recovery_count[p]
             pc = round((count/float(total_cells))*100, 1)
@@ -882,8 +886,8 @@ class Summariser(TracerTask):
                 outfile.write(outstring)
             else:
                  outfile.write(
-                    "Paired {p} productive reconstruction:\t{count} / {total} ({pc}%)\n".format(
-                            p=p, count=count, total=total_cells, pc=pc))
+                        "Paired {p} productive reconstruction:\t{count} / {total} ({pc}%)\n".format(
+                                p=p, count=count, total=total_cells, pc=pc))
             
         outfile.write("\n")
 
@@ -1048,22 +1052,23 @@ class Summariser(TracerTask):
 
     def report_kappa_lambda_cells(self, loci, cells):
         """Report cells with both productive kappa and lambda chain"""
-
         outstring = ""
-        kappa_lambda = []
-        cells_string = ""
-        for cell_name, cell in six.iteritems(cells):
-            store_cell = True
-            for l in ["K", "L"]:
-                prod_counts = dict()
-                prod_counts[l] = cell.count_productive_recombinants(l)
-                if prod_counts[l] == 0:
-                    store_cell = False
-            if store_cell == True:
-                kappa_lambda.append(cell_name)
-        if len(kappa_lambda) > 0 :
-            cells_string = ', '.join(kappa_lambda)
-            outstring = ("\n\n##Cells with productive K and L chain##\n\n" +
+        if ("K" and "L") in loci:
+            
+            kappa_lambda = []
+            cells_string = ""
+            for cell_name, cell in six.iteritems(cells):
+                store_cell = True
+                for l in ["K", "L"]:
+                    prod_counts = dict()
+                    prod_counts[l] = cell.count_productive_recombinants(l)
+                    if prod_counts[l] == 0:
+                        store_cell = False
+                if store_cell == True:
+                    kappa_lambda.append(cell_name)
+            if len(kappa_lambda) > 0 :
+                cells_string = ', '.join(kappa_lambda)
+                outstring = ("\n\n##Cells with productive K and L chain##\n\n" +
                         cells_string + "\n\n")
 
         return(outstring)
@@ -1240,13 +1245,16 @@ class Summariser(TracerTask):
         igblastn = self.get_binary('igblastn')
 
         # Reference data locations
+        ungapped_igblast_index_location = os.path.join(self.species_dir,
+                                            'igblast_dbs')
         gapped_igblast_index_location = os.path.join(self.species_dir, 
                                     'imgt_gapped_resources/igblast_dbs')
         igblast_seqtype = 'Ig'
 
         # IgBlast of sequences
         bracer_func.run_IgBlast_for_lineage_reconstruction(igblastn, locus, 
-                outdir, gapped_igblast_index_location, igblast_seqtype, 
+                outdir, ungapped_igblast_index_location, 
+                gapped_igblast_index_location, igblast_seqtype, 
                 self.species)
         
 
@@ -1334,7 +1342,7 @@ class Summariser(TracerTask):
                                     self.species, gapped_seq_location)
 
 
-    def create_lineage_trees(self, outdir):
+    def create_lineage_trees(self, outdir, species):
         """Executes R script with Alakazam commands for lineage reconstruction"""
         try:
             Rscript = self.get_binary('rscript')
@@ -1343,7 +1351,7 @@ class Summariser(TracerTask):
 
         dnapars = self.get_binary('dnapars')
         script = self.get_rscript_path()
-        command = Rscript + " " + script + " {} {}".format(outdir, dnapars) 
+        command = Rscript + " " + script + " {} {} {}".format(outdir, dnapars, species) 
         subprocess.check_call(command, shell=True)
 
 
@@ -1375,13 +1383,16 @@ class Summariser(TracerTask):
         igblastn = self.get_binary('igblastn')
 
         # Reference data locations
+        ungapped_igblast_index_location = os.path.join(self.species_dir,
+                                                        'igblast_dbs')
         gapped_igblast_index_location = os.path.join(self.species_dir,
                                     'imgt_gapped_resources/igblast_dbs')
         igblast_seqtype = 'Ig'
         
         # IgBlast sequences
         bracer_func.run_IgBlast_IMGT_gaps(igblastn, outdir, 
-            gapped_igblast_index_location, igblast_seqtype, self.species)
+            ungapped_igblast_index_location, gapped_igblast_index_location, 
+                                    igblast_seqtype, self.species)
 
 
     def count_full_length_sequences(self, loci, cells):
@@ -1666,12 +1677,16 @@ class Builder(TracerTask):
                                 help='Specify alternative FASTA file (if other '
                                 'than the one used to make recombinomes) '
                                 'containing all C gene sequences for creation of '
-                                'BLAST database to correctly identify isotype (optional)')
+                                'BLAST database to correctly identify isotype (optional)',
+                                default=False)
             parser.add_argument('--V_gapped', metavar="<GAPPED_V_SEQS>", nargs='?',
                                 help='FASTA file containing IMGT-gapped V '
                                 'reference sequences (optional). Required '
                                 'for lineage reconstruction and creation of '
-                                'IMGT-gapped tab-delimited databases')
+                                'IMGT-gapped tab-delimited databases', default=False)
+            parser.add_argument('--igblast_aux', metavar="<IGBLAST_AUXILARY_FILE>",
+                                nargs='?', help='IgBlast auxiliary file for species',
+                                default=False)
             
             args = parser.parse_args(sys.argv[2:])
             resource_dir = args.resource_dir
@@ -1691,13 +1706,14 @@ class Builder(TracerTask):
                 self.raw_seq_files['D'] = args.D_seqs
             if args.C_db:
                 self.raw_seq_files['c'] = args.C_db
+            
+            self.igblast_aux = args.igblast_aux
 
             self.gapped_raw_seq_files = {}
             if args.V_gapped:
                 self.gapped = True
                 self.gapped_raw_seq_files['V'] = args.V_gapped
             
-
             config_file = args.config_file
             
         else:
@@ -1717,7 +1733,8 @@ class Builder(TracerTask):
                 self.raw_seq_files['D'] = kwargs.get('D_seqs')
             if kwargs.get('C_db'):
                 self.raw_seq_files['c'] = kwargs.get('C_db')
-
+            if kwargs.get('igblast_aux'):
+                self.igblast_aux = kwargs.get('igblast_aux')
             self.gapped_raw_seq_files = {}
             if kwargs.get('V_gapped'):
                 self.gapped = True
@@ -1743,6 +1760,7 @@ class Builder(TracerTask):
         VDJC_files, gapped_V_file  = self.copy_raw_files()
         recombinome_fasta = self.make_recombinomes(VDJC_files)
         self.make_bowtie2_index(recombinome_fasta)
+        self.concatenate_locus_sequence_files(VDJC_files, gapped_V_file)
         missing_dbs = self.make_igblast_db(VDJC_files)
         for s in missing_dbs:
             print("\nIMPORTANT: there is no IgBLAST database for BCR_{segment}\n".format(
@@ -1865,8 +1883,12 @@ class Builder(TracerTask):
             VDJC_files[s] = out_file
             self.check_duplicate(out_file, segment=s,
                                  descriptor="Sequence File")
-            shutil.copy(self.raw_seq_files[s], out_file)
 
+            # Clean up sequence names if long IMGT headers are provided
+            self.clean_IMGT_fasta_files_for_IgBlast_dbs(self.raw_seq_files[s], out_file)
+            #shutil.copy(self.raw_seq_files[s], out_file)
+
+        # Copy IMGT-gapped V segment sequences if provided
         gapped_V_file = None
         if self.gapped:
             fn = "BCR_{locus}_V.fa".format(locus=self.locus_name)
@@ -1875,6 +1897,15 @@ class Builder(TracerTask):
             self.check_duplicate(out_file, segment='V',
                                         descriptor="Sequence File")
             shutil.copy(self.gapped_raw_seq_files['V'], out_file)
+
+
+        # Copy IgBlast auxiliary file for species if provided
+        if self.igblast_aux:
+            fn = "{}_gl.aux".format(self.species)
+            out_file = os.path.join(self.species_dir, 
+                        'imgt_gapped_resources/igblast_dbs', fn)
+            if not os.path.isfile(out_file):
+                shutil.copy(self.igblast_aux, out_file)
 
         return (VDJC_files, gapped_V_file)
 
@@ -1948,6 +1979,70 @@ class Builder(TracerTask):
         except subprocess.CalledProcessError:
             print("bowtie2-build failed")
     
+    def clean_IMGT_fasta_files_for_IgBlast_dbs(self, in_file, out_file):
+        """Clean IMGT germline fasta files for IgBLAST database build.
+        This function is modified from 
+        https://bitbucket.org/kleinstein/immcantation/src/tip/scripts/clean_imgtdb.py"""
+        # Load sequences into memory and process them
+        name_set = set()
+        seq_list = list()
+        for rec in SeqIO.parse(in_file, 'fasta'):
+            if '|' in rec.description:
+                name = rec.description.split('|')[1]
+            else:
+                name = rec.description
+            if name not in name_set:
+                name_set.add(name)
+                seq = SeqRecord(rec.seq.ungap('.').upper(), id=name, name=name, description=name)
+                seq_list.append(seq)
+
+        # Overwrite file
+        with open(out_file, 'w') as out_handle:
+            writer = SeqIO.FastaIO.FastaWriter(out_handle, wrap=None)
+            writer.write_file(seq_list)
+
+    def concatenate_locus_sequence_files(self, VDJC_files, gapped_V_file):
+        """Creates concatenated sequence files for the loci for each segment
+        in the imgt_gapped_resources/raw_seqs directory containing the gapped (V) and
+        ungapped (D, J) sequences used to make the IgBlast databases for lineage
+        reconstruction"""
+
+        if self.gapped:
+            ungapped_dir = os.path.join(self.species_dir, 'raw_seqs')
+            gapped_dir = os.path.join(self.species_dir, 'imgt_gapped_resources/raw_seqs')
+            
+            for s in ['V', 'D', 'J']:
+                
+                fn = "BCR_{segment}.fa".format(segment=s)
+                fasta_file = os.path.join(gapped_dir, fn)
+
+                # Create file if it doesn't already exist
+                open(fasta_file, 'a').close()
+
+                if s == 'V' or s in VDJC_files:
+                    if s == 'V':
+                        raw_file = gapped_V_file
+                    else:
+                        raw_file = VDJC_files[s]
+                    with open(fasta_file) as e:
+                        existing_seqs = SeqIO.to_dict(SeqIO.parse(e, "fasta"))
+                    with open(raw_file) as n:
+                        new_seqs = SeqIO.to_dict(SeqIO.parse(n, "fasta"))
+
+                    non_overwritten_seqs = []
+                    for seq_name, seq in six.iteritems(new_seqs):
+                        if seq_name in existing_seqs:
+                            if not self.force_overwrite:
+                                non_overwritten_seqs.append(seq_name)
+                            else:
+                                existing_seqs.update({seq_name: seq})
+                        else:
+                            existing_seqs.update({seq_name: seq})
+
+                    with open(fasta_file, 'w') as f:
+                        SeqIO.write(existing_seqs.values(), f, "fasta")
+
+
     def make_igblast_db(self, VDJC_files):
         
         igblast_dir = os.path.join(self.species_dir, 'igblast_dbs')
@@ -2013,11 +2108,22 @@ class Builder(TracerTask):
                                                         segment=s))
 
         return missing_dbs
+
     def make_igblast_db_gapped(self, gapped_V_file):
         """Create IgBlast database from IMGT-gapped sequences"""
+
+        # Clean up IMGT-gapped file to remove gaps
+        cleaned_file = os.path.join(self.species_dir, 
+            'imgt_gapped_resources/raw_seqs/BCR_{}_V_cleaned.fa'.format(self.locus_name))
+        self.clean_IMGT_fasta_files_for_IgBlast_dbs(gapped_V_file, cleaned_file)
+
+
+        # Create IgBlast db file from cleaned-up raw sequences
         igblast_dir = os.path.join(self.species_dir, 'imgt_gapped_resources/igblast_dbs')
         makeblastdb = self.get_binary('makeblastdb')
         missing_gapped_dbs = []
+
+
         fn = "BCR_V.fa"
         fasta_file = os.path.join(igblast_dir, fn)
         # Create file if it doesn't already exist
@@ -2025,7 +2131,7 @@ class Builder(TracerTask):
 
         with open(fasta_file) as e:
             existing_seqs = SeqIO.to_dict(SeqIO.parse(e, "fasta"))
-        with open(gapped_V_file) as n:
+        with open(cleaned_file) as n:
             new_seqs = SeqIO.to_dict(SeqIO.parse(n, "fasta"))
         non_overwritten_seqs = []
         for seq_name, seq in six.iteritems(new_seqs):

@@ -502,26 +502,6 @@ def process_hit_table(query_name, query_data, locus):
         return (None)
 
 
-def is_rearrangement_productive(seq):
-    """Returns a tuple of three true/false values (productive, contains stop, in-frame)"""
-    seq_mod_3 = len(seq) % 3
-    if seq_mod_3 == 0:
-        in_frame = True
-    else:
-        in_frame = False
-
-    seq = Seq(seq, IUPAC.unambiguous_dna)
-    aa_seq = seq.translate()
-    contains_stop = "*" in aa_seq
-
-    if in_frame and not contains_stop:
-        productive = True
-    else:
-        productive = False
-
-    return (productive, contains_stop, in_frame)
-
- 
 
 def is_rearrangement_full_length(seq, hit_table, query_name, query_length, 
                                                         output_dir, locus):
@@ -657,7 +637,7 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus,
             in_frame = False
         else:    
             cdr3_length = len(cdr3)
-             # Get CDR3 nt sequence excluding conserved Cys and XGXG motif
+            # Get CDR3 nt sequence excluding conserved Cys and XGXG motif
             cdr3_seq = trinity_seq[cdr3_start-1:cdr3_length*3+cdr3_start-16]
             in_frame = is_cdr3_in_frame(cdr3, locus)
 
@@ -925,7 +905,13 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato,
     cell_names = cells_with_clonal_H
    
     # make edges:
-    loci = ["H", "K", "L"]
+    loci_names = loci
+    loci = []
+    for locus in ["H", "K", "L"]: 
+        if locus in loci_names:
+            loci.append(locus)
+
+        
     if len(cells) > 1:
         for i in range(len(cell_names)):
             current_cell = cell_names[i]
@@ -1005,6 +991,7 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato,
                     
         # Check if cells sharing at least one functional H 
         # chain also share a nonfunctional light chain
+        # Non-productive chains are "shared" if their sets of V- and J genes intersect
         for i in range(len(cell_names)):
             current_cell = cell_names[i]
             comparison_cells = cell_names[i + 1:]
@@ -1017,39 +1004,45 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato,
                     elif comparison_cell == cell.name:
                         comparison_cell = cell
 
-                if G.number_of_edges(current_cell, comparison_cell) > 0:
+                if not IGH_networks and len(loci) > 0:
+                    threshold = 1
+                else:
+                    threshold = 0
+                if G.number_of_edges(current_cell, comparison_cell) > threshold:
 
-                    for locus in ["K", "L"]:
-                        shared_identifiers = 0
-                        col = network_colours["BCR"][locus][0]
+                    for locus in loci:
+                        if locus is not "H":
+                            shared_identifiers = 0
+                            col = network_colours["BCR"][locus][0]
 
-                        if len(current_cell.recombinants["BCR"][locus]) > 0 \
-                            and len(comparison_cell.recombinants["BCR"][locus]) > 0:
-                            for current_recombinant in \
-                                current_cell.recombinants["BCR"][locus]:
-                                if not current_recombinant.productive:
-                                    current_id_set = current_recombinant.all_poss_identifiers
+                            if len(current_cell.recombinants["BCR"][locus]) > 0 \
+                                and len(comparison_cell.recombinants["BCR"][locus]) > 0:
+                                for current_recombinant in \
+                                    current_cell.recombinants["BCR"][locus]:
+                                    if not current_recombinant.productive:
+                                        current_id_set = current_recombinant.all_poss_identifiers
 
-                                    for comparison_recombinant in comparison_cell.recombinants["BCR"][locus]:
-                                        if not comparison_recombinant.productive:
-                                            comparison_id_set = comparison_recombinant.all_poss_identifiers
-                                            if len(current_id_set.intersection(comparison_id_set)) > 0:
-                                                shared_identifiers += 1
-                            if shared_identifiers > 0:
-                                edge_dict = G.get_edge_data(current_cell, comparison_cell)
+                                        for comparison_recombinant in comparison_cell.recombinants["BCR"][locus]:
+                                            if not comparison_recombinant.productive:
+                                                comparison_id_set = comparison_recombinant.all_poss_identifiers
+                                                if len(current_id_set.intersection(comparison_id_set)) > 0:
+                                                    shared_identifiers += 1
+                                if shared_identifiers > 0:
+                                    edge_dict = G.get_edge_data(current_cell, comparison_cell)
                                          
-                                if locus in edge_dict.keys():
-                                    width = 4
-                                    G.add_edge(current_cell, comparison_cell, locus, 
-                                                      penwidth=width, color=col)
+                                    if locus in edge_dict.keys():
+                                        width = 4
+                                        G.add_edge(current_cell, comparison_cell, locus, 
+                                                          penwidth=width, color=col)
                                 
-                                else:
-                                    width = 2 * shared_identifiers
-                                    G.add_edge(current_cell, comparison_cell, locus, 
-                                                      penwidth=width, color=col, style="dashed")
+                                    else:
+                                        width = 2 * shared_identifiers
+                                        G.add_edge(current_cell, comparison_cell, locus, 
+                                                          penwidth=width, color=col, style="dashed")
 
         # Remove edges between cells that only share clonal heavy chain if --IGH_networks flag is not provided
-        if not IGH_networks:
+        #and H is not only locus listed in command line
+        if not IGH_networks and len(loci) > 1:
             for i in range(len(cell_names)):
                 current_cell = cell_names[i]
                 comparison_cells = cell_names[i + 1:]
@@ -1219,6 +1212,14 @@ def bowtie2_alignment(bowtie2, ncores, loci, output_dir, cell_name, synthetic_ge
             fastq_lines_2 = []
             fastq_lines_2_unpaired = []
 
+            # Allow more mismatches for H
+            #if locus == "BCR_H":
+                #command = [bowtie2, '--no-unal', '-p', ncores, '-k', '1', '--np', '0', '--rdg', '1,1', '--rfg', '1,1',
+                        #'-x', "/".join([synthetic_genome_path, locus]), '-1', fastq1, '-2', fastq2, '-S', sam_file,
+                        #'--score-min', 'L,-0.8,-0.8']
+
+            
+            #else:
             command = [bowtie2, '--no-unal', '-p', ncores, '-k', '1', '--np', '0', '--rdg', '1,1', '--rfg', '1,1',
                        '-x', "/".join([synthetic_genome_path, locus]), '-1', fastq1, '-2', fastq2, '-S', sam_file]
 
@@ -1269,9 +1270,7 @@ def bowtie2_alignment(bowtie2, ncores, loci, output_dir, cell_name, synthetic_ge
                 fastq_out_1.write(line)
             for line in fastq_lines_2:
                 fastq_out_2.write(line)
-            #for line in fastq_lines_2_unpaired:
-                #fastq_out_2.write(line)
-
+            
             fastq_out_1.close()
             fastq_out_2.close()
         else:
@@ -1482,7 +1481,8 @@ def run_IgBlast(igblast, loci, output_dir, cell_name, index_location, ig_seqtype
                 break
     DEVNULL.close()
 
-def run_IgBlast_IMGT_gaps(igblast, output_dir, index_location, ig_seqtype, species):
+def run_IgBlast_IMGT_gaps(igblast, output_dir, ungapped_index_location, 
+                            gapped_index_location, ig_seqtype, species):
     """Runs IgBlast for all reconstructed sequences using databases constructed from IMGT-gapped sequences.
         Needed to create tab-delimited Change-O database file with IMGT gaps"""
     
@@ -1499,32 +1499,35 @@ def run_IgBlast_IMGT_gaps(igblast, output_dir, index_location, ig_seqtype, speci
         igblast_species = species_mapper[species]
     
     databases = {}
-    missing_resources = False
-    for segment in ['V', 'D', 'J']:
-        databases[segment] = "{}/{}_ig_{}".format(index_location, igblast_species, segment.lower())
-        if not os.path.isfile(databases[segment]):
-            missing_resources = True
+    databases['V'] = "{}/BCR_V.fa".format(gapped_index_location)
     
-    auxiliary_data = "{}/{}_gl.aux".format(index_location, igblast_species)
+    for segment in ['D', 'J']:
+        databases[segment] = "{}/BCR_{}.fa".format(ungapped_index_location, 
+                                                                segment)
+        
+    
+    auxiliary_data = "{}/{}_gl.aux".format(gapped_index_location, species)
 
     sequence_file = "{}/BCR_sequences.fa".format(output_dir)
     output_file = "{}/igblast_BCR_sequences.fmt7".format(output_dir)
 
-    if os.path.isfile(sequence_file) and missing_resources == False:
+    if os.path.isfile(sequence_file) and os.path.isfile(databases['V']):
         command = [igblast, '-germline_db_V', databases['V'], '-germline_db_J',
                     databases['J'], '-germline_db_D', databases['D'],
-                    '-auxiliary_data', auxiliary_data,
                     '-domain_system', 'imgt',
                     '-organism', igblast_species, '-ig_seqtype', ig_seqtype,
                     '-outfmt', '7 std qseq sseq btop', '-query', sequence_file]
+        if os.path.isfile(auxiliary_data):
+            command += ['-auxiliary_data', auxiliary_data]
 
         with open(output_file, 'w') as out:
             subprocess.check_call(command, stdout=out)
 
         
 
-def run_IgBlast_for_lineage_reconstruction(igblast, locus, output_dir, index_location, ig_seqtype, species):
-    """Runs IgBlast using databases constructed from IMGT-gapped sequences. Needed for germline
+def run_IgBlast_for_lineage_reconstruction(igblast, locus, output_dir, 
+        ungapped_index_location, gapped_index_location, ig_seqtype, species):
+    """Runs IgBlast using databases constructed from IMGT-gapped V sequences. Needed for germline
     reconstruction and lineage reconstruction from clonal sequences"""
 
     species_mapper = {
@@ -1538,10 +1541,12 @@ def run_IgBlast_for_lineage_reconstruction(igblast, locus, output_dir, index_loc
         igblast_species = species_mapper[species]
 
     databases = {}
-    for segment in ['V', 'D', 'J']:
-        databases[segment] = "{}/{}_ig_{}".format(index_location, igblast_species, segment.lower())
+    databases['V'] = "{}/BCR_V.fa".format(gapped_index_location)
+    for segment in ['D', 'J']:
+        databases[segment] = "{}/BCR_{}.fa".format(ungapped_index_location, 
+                                                                    segment)
     
-    auxiliary_data = "{}/{}_gl.aux".format(index_location, igblast_species)
+    auxiliary_data = "{}/{}_gl.aux".format(gapped_index_location, species)
     
     sequence_file = "{}/igblast_input_{}.fa".format(output_dir, locus)
     output_file = "{}/igblast_{}.fmt7".format(output_dir, locus)
@@ -1549,11 +1554,11 @@ def run_IgBlast_for_lineage_reconstruction(igblast, locus, output_dir, index_loc
         
         command = [igblast, '-germline_db_V', databases['V'], '-germline_db_J',
                     databases['J'], '-germline_db_D', databases['D'], 
-                    '-auxiliary_data', auxiliary_data, 
                     '-domain_system', 'imgt', 
                     '-organism', igblast_species, '-ig_seqtype', ig_seqtype,
                     '-outfmt', '7 std qseq sseq btop', '-query', sequence_file]
-        
+        if os.path.isfile(auxiliary_data):
+            command += ['-auxiliary_data', auxiliary_data]
 
         with open(output_file, 'w') as out:    
             subprocess.check_call(command, stdout=out)
@@ -1697,9 +1702,9 @@ def run_MakeDb(MakeDb, locus, outdir, species, gapped_seq_location):
     """Runs MakeDb of Change-O"""
 
     gapped_seqs = {}
-    for segment in ['V', 'D', 'J']:
-        gapped_seqs[segment] = "{}/IG{}.fasta".format(gapped_seq_location, segment)
-
+    gapped_seqs['V'] = "{}/BCR_V.fa".format(gapped_seq_location)
+    for segment in ['D', 'J']:
+        gapped_seqs[segment] = "{}/BCR_{}.fa".format(gapped_seq_location, segment)
     if locus == None:
         makedb_input = "{}/igblast_BCR_sequences.fmt7".format(outdir)
         seq_file = "{}/BCR_sequences.fa".format(outdir)
@@ -1721,8 +1726,11 @@ def run_CreateGermlines(CreateGermlines, locus, outdir, species, gapped_seq_loca
     """Runs CreateGermlines of Change-O"""
 
     gapped_seqs = {}
-    for segment in ['V', 'D', 'J']:
-        gapped_seqs[segment] = "{}/IG{}.fasta".format(gapped_seq_location, segment)
+
+    gapped_seqs['V'] = "{}/BCR_V.fa".format(gapped_seq_location)
+    for segment in ['D', 'J']:
+        gapped_seqs[segment] = "{}/BCR_{}.fa".format(gapped_seq_location, segment)
+
 
     creategermlines_input = "{}/igblast_{}_db-modified.tab".format(outdir, locus)
     if os.path.isfile(creategermlines_input) and os.path.getsize(creategermlines_input) > 0:

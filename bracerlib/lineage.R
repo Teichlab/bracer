@@ -8,47 +8,76 @@ library(dplyr)
 myArgs <- commandArgs(trailingOnly = TRUE)
 outdir <- myArgs[1]
 dnapars_exec <- myArgs[2]
+species <- myArgs[3]
+
 
 ### Read in Change-O db from file if file exists ###
 #Filenames must be joint with output directory path
 
+cat_dbfile <- paste(outdir, "/concatenated_lineage_input.tab", sep="")
 H_dbfile <- paste(outdir, "/igblast_H_db-modified_germ-pass.tab", sep="")
 K_dbfile <- paste(outdir, "/igblast_K_db-modified_germ-pass.tab", sep="")
 L_dbfile <- paste(outdir, "/igblast_L_db-modified_germ-pass.tab", sep="")
 
+cat <- FALSE
 H <- FALSE
 K <- FALSE
 L <- FALSE
 
-if (file.exists(H_dbfile)){
-    H_db <- readChangeoDb(H_dbfile, select = NULL, drop = NULL, seq_upper = TRUE)
-    H <- TRUE
-    }
-if (file.exists(K_dbfile)){
-    K_db <- readChangeoDb(K_dbfile, select = NULL, drop = NULL, seq_upper = TRUE)
-    K <- TRUE
-    }
-if (file.exists(L_dbfile)){
-    L_db <- readChangeoDb(L_dbfile, select = NULL, drop = NULL, seq_upper = TRUE)
-    L <- TRUE
-    }
+if (file.exists(cat_dbfile)){
+    cat_db <- readChangeoDb(cat_dbfile, select = NULL, drop = NULL, seq_upper = TRUE)
+    cat <- TRUE
+} 
+    
+if (cat!=TRUE){
+    if (file.exists(H_dbfile)){
+        H_db <- readChangeoDb(H_dbfile, select = NULL, drop = NULL, seq_upper = TRUE)
+        H <- TRUE
+    } 
+    if (file.exists(K_dbfile)){
+        K_db <- readChangeoDb(K_dbfile, select = NULL, drop = NULL, seq_upper = TRUE)
+        K <- TRUE
+    } 
+    if (file.exists(L_dbfile)){
+        L_db <- readChangeoDb(L_dbfile, select = NULL, drop = NULL, seq_upper = TRUE)
+        L <- TRUE
+    } 
+}
 
 v_cutoff <- 4
 
-# Set background colours and isotypes- MUST MAKE DIFFERENT FOR MOUSE
-colors <- c('#e6f7ff', '#e5ffcc',
-          '#f7dede', '#efbfbf', '#ffffcc',
-          '#f1e6ff', '#e2ccff', '#d4b3ff',
-                '#c599ff', '#b3ffff', 'grey', "cornsilk3")
-isotypes <- c("IgD", "IgM", "IgA1", "IgA2", "IgE", "IgG1", "IgG2",
-                    "IgG3", "IgG4", "IgD/IgM", "Multiple isotypes", "Unknown isotype")
+# Set background colours and isotypes
+if (species=="Hsap"){
+    colors <- c('#e6f7ff', '#e5ffcc', '#f7dede', '#efbfbf', '#ffffcc', '#f1e6ff', 
+            '#e2ccff', '#d4b3ff', '#c599ff', '#b3ffff', 'grey', "cornsilk3")
+    isotypes <- c("IgD", "IgM", "IgA1", "IgA2", "IgE", "IgG1", "IgG2", "IgG3", 
+            "IgG4", "IgD and IgM", "Multiple isotypes", "Unknown isotype")
+} else if (species=="Mmus"){
+    colors <- c('#e6f7ff', '#e5ffcc', '#f7dede', '#f1e6ff', '#e2ccff', 
+            '#d4b3ff', '#c599ff', '#a866ff', '#b3ffff', 'grey', "cornsilk3")
+    isotypes <- c("IgD", "IgM", "IgA", "IgE", "IgG1", "IgG2A", "IgG2B",
+                "IgG2C", "IgG3", "IgD and IgM", "Multiple isotypes", "Unknown isotype")    
+} else {
+    # Set main isotypes for all other species
+    colors <- c('#e6f7ff', '#e5ffcc', '#f7dede', '#ffffcc',
+                '#e2ccff', '#b3ffff', 'grey', "cornsilk3")
+    isotypes <- c("IgD", "IgM", "IgA", "IgE", "IgG", "IgD and IgM", 
+                "Multiple isotypes", "Unknown isotype")
+}
 
-#HEAVY CHAIN
+# CONCATENATED HEAVY AND LIGHT CHAIN / ONLY HEAVY CHAIN
 
 # Make Change-O clone objects
 
-if (H==TRUE){
-    clones <- H_db %>%
+if (cat==TRUE){
+    db <- cat_db
+} else if (H==TRUE){
+    db <- H_db
+}
+
+
+if (H==TRUE | cat==TRUE){
+    clones <- db %>%
         group_by(CLONE) %>%
         do(CHANGEO=makeChangeoClone(., text_fields=c("CELL", "ISOTYPE"), 
                                 add_count=TRUE))
@@ -71,30 +100,51 @@ if (H==TRUE){
     for (graph in graphs){
         CLONE <- graph$clone
         plot(graph)
-        output <- paste(outdir, "/lineage_trees/H", sep="")
+        if (cat==TRUE){
+            output <- paste(outdir, "/lineage_trees/", sep="")
+        } else {
+            output <- paste(outdir, "/lineage_trees/H", sep="")
+        }
 
         pdf(paste0(output, CLONE, ".pdf"))
      
         V(graph)$color <- "grey"
         V(graph)$color[V(graph)$name == "Germline"] <- "black"
-        V(graph)$color[V(graph)$ISOTYPE == "IGHD"] <- colors[1]
-        V(graph)$color[V(graph)$ISOTYPE == "IGHM"] <- colors[2]
-
-        V(graph)$color[V(graph)$ISOTYPE == "IGHA1"] <- colors[3]
-        V(graph)$color[V(graph)$ISOTYPE == "IGHA2"] <- colors[4]
-        V(graph)$color[V(graph)$ISOTYPE == "IGHE"] <- colors[5]
-        V(graph)$color[V(graph)$ISOTYPE == "IGHG1"] <- colors[6]
-        V(graph)$color[V(graph)$ISOTYPE == "IGHG2"] <- colors[7]
-        V(graph)$color[V(graph)$ISOTYPE == "IGHG3"] <- colors[8]
-        V(graph)$color[V(graph)$ISOTYPE == "IGHG4"] <- colors[9]
-        V(graph)$color[V(graph)$ISOTYPE == "IGHDM"] <- colors[10]
-        V(graph)$color[V(graph)$ISOTYPE == "None"] <- colors[12]
+        V(graph)$color[V(graph)$ISOTYPE == "IGHD"] <- '#e6f7ff'
+        V(graph)$color[V(graph)$ISOTYPE == "IGHM"] <- '#e5ffcc'
+        V(graph)$color[V(graph)$ISOTYPE == "IGHA1"] <- '#f7dede'
+        V(graph)$color[V(graph)$ISOTYPE == "IGHA"] <- '#f7dede'
+        V(graph)$color[V(graph)$ISOTYPE == "IGHA2"] <- '#efbfbf'
+        if (species!="Hsap"){
+            if (species!="Mmus"){
+                V(graph)$color[V(graph)$ISOTYPE == "IGHA2"] <- '#f7dede'
+            }
+        }   
+        V(graph)$color[V(graph)$ISOTYPE == "IGHE"] <- '#ffffcc'
+        V(graph)$color[V(graph)$ISOTYPE == "IGHG1"] <- '#f1e6ff'
+        V(graph)$color[V(graph)$ISOTYPE == "IGHG2"] <- '#e2ccff'
+        if (species=="Hsap") {
+            V(graph)$color[V(graph)$ISOTYPE == "IGHG3"] <- '#d4b3ff'
+            V(graph)$color[V(graph)$ISOTYPE == "IGHG4"] <- '#c599ff'
+        } else if (species=="Mmus") {
+            V(graph)$color[V(graph)$ISOTYPE == "IGHG2A"] <- '#e2ccff'
+            V(graph)$color[V(graph)$ISOTYPE == "IGHG2B"] <- '#d4b3ff'
+            V(graph)$color[V(graph)$ISOTYPE == "IGHG2C"] <- '#c599ff'
+            V(graph)$color[V(graph)$ISOTYPE == "IGHG3"] <- '#a866ff'
+        } else {
+            V(graph)$color[V(graph)$ISOTYPE == "IGHG1"] <- '#e2ccff'
+            V(graph)$color[V(graph)$ISOTYPE == "IGHG2A"] <- '#e2ccff'
+            V(graph)$color[V(graph)$ISOTYPE == "IGHG2B"] <- '#e2ccff'
+            V(graph)$color[V(graph)$ISOTYPE == "IGHG2C"] <- '#e2ccff'
+            V(graph)$color[V(graph)$ISOTYPE == "IGHG3"] <- '#e2ccff'
+            V(graph)$color[V(graph)$ISOTYPE == "IGHG4"] <- '#e2ccff'              
+        }
+        V(graph)$color[V(graph)$ISOTYPE == "IGHDM"] <- '#b3ffff'
+        V(graph)$color[V(graph)$ISOTYPE == "None"] <- "cornsilk3"
 
         V(graph)$color[grepl("Inferred", V(graph)$name)] <- "white"
         V(graph)$label <- V(graph)$CELL
         V(graph)$label.cex <- 1.0
-        #If many cells in a node, somehow format so cell names fit within node?
-
 
         # Set node sizes
         V(graph)$size <- 60
@@ -119,9 +169,9 @@ if (H==TRUE){
     
         dev.off()
 
-        }
-
     }
+
+}
 
 # KAPPA CHAIN
 
