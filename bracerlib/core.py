@@ -122,12 +122,15 @@ class Cell(object):
                 "IGHA":'#ffe6e6', "IGHE":'#ffffcc', "IGHG1":'#f1e6ff', 
                 "IGHG2A":'#e2ccff', "IGHG2B":'#d4b3ff', "IGHG2C":'#c599ff',
                 "IGHG3":'#a866ff', "IGHDM":'#b3ffff'}
-        else:
-            # Isotype background colours for Hsap
+        elif self.species == "Hsap":
             isotype_bgcolors = {"IGHD":'#e6f7ff', "IGHM":'#e5ffcc', 
                 "IGHA1":'#ffe6e6', "IGHA2":'#ffcccc', "IGHE":'#ffffcc', 
                 "IGHG1":'#f1e6ff', "IGHG2":'#e2ccff', "IGHG3":'#d4b3ff', 
                 "IGHG4":'#c599ff', "IGHDM":'#b3ffff'}
+        else:
+            isotype_bgcolors = {"IGHD":'#e6f7ff', "IGHM":'#e5ffcc', 
+                "IGHA":'#ffe6e6', "IGHE":'#ffffcc', "IGHG":'#e2ccff', 
+                "IGHDM":'#b3ffff'}
 
         if isotype is None:
             bgcolor = None

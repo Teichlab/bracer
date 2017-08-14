@@ -794,12 +794,23 @@ class Summariser(TracerTask):
         Yaari G, Kleinstein SH. Change-O: a toolkit for analyzing large-scale B cell
         immunoglobulin repertoire sequencing data. Bioinformatics 2015;
         doi: 10.1093/bioinformatics/btv359"""
-
+        #pdb.set_trace()
         if self.infer_lineage and len(component_groups) > 0:
+            # Create IgBlast input files
+            if not self.IGH_networks and not self.loci ==["H"]:
+                # Find the clonal sequences that are shared in each component group
+                clone_groups = self.get_clone_groups_for_component_group(self.loci, 
+                                        cells, component_groups, cell_contig_clones)
+                for locus in self.loci:
+                    self.make_clone_igblast_input_for_concatenation(outdir, locus, 
+                            cells, component_groups, clone_groups, cell_contig_clones)
+            else:
+                for locus in self.loci:
+                    self.make_clone_igblast_input(outdir, locus, cells)
+
             for locus in self.loci:
-                # Align clonal sequences using IgBlast and IMGT-gapped references
-                self.make_clone_igblast_input(outdir, locus, cells)
-                self.IgBlast_germline_reconstruction(outdir, locus, cells)
+                # Align clonal sequences using IgBlast and IMGT-gapped reference
+                self.IgBlast_germline_reconstruction(outdir, locus)
 
                 # Create Change-O database from IMGT-gapped IgBlast results
                 self.create_changeo_db(outdir, locus)
@@ -809,6 +820,10 @@ class Summariser(TracerTask):
 
                 # Reconstruct germline sequences with CreateGermlines
                 self.create_germline_sequences(outdir, locus, cells)
+
+            if not self.IGH_networks and not self.loci == ["H"]:
+                self.concatenate_lineage_databases(outdir, self.loci, 
+                                        component_groups, clone_groups)
 
             # Run lineage reconstruction with Alakazam
             self.create_lineage_trees(outdir, self.species)
@@ -839,6 +854,57 @@ class Summariser(TracerTask):
 
         outfile.close()
 
+
+    def get_clone_groups_for_component_group(self, loci, cells, 
+                        component_groups, cell_contig_clones):
+        """Returns dictionary with number of chains belonging to each locus-specific
+        clone group (determined by Change-O) in each component group to find the
+        clone groups of the most commonly shared chains within each component group
+        """
+        
+        counter = dict()
+        i = 0
+        for g in component_groups:
+            i += 1
+            counter[i] = dict()
+            for l in loci:
+                counter[i][l] = dict()
+                for cell_name in g:
+                    cell = cells[cell_name]
+                    #pdb.set_trace()
+                    for rec in cell.recombinants["BCR"][l]:
+                        contig_name = rec.contig_name + "_" + rec.identifier
+                        if contig_name in cell_contig_clones[l][cell_name].keys():
+                            clone = cell_contig_clones[l][cell_name][contig_name]
+                            clone = clone + "_" + l
+                            if not clone in counter[i][l].keys():
+                                counter[i][l][clone] = 1
+                            else:
+                                counter[i][l][clone] += 1
+                            
+        #pdb.set_trace()
+        # Find most highly shared heavy and light chain
+        top_chain = dict()
+        for i in counter.keys():
+            top_chain[i] = dict()
+            heavy_count = 0
+            light_count = 0
+
+            for l in loci:
+        
+                for clone, count in six.iteritems(counter[i][l]):
+                    if l =="H":
+                        if count > heavy_count:
+                            heavy_count = count
+                            top_chain[i]["heavy"] = clone
+                    else:
+                        if count > light_count:
+                            light_count = count
+                            top_chain[i]["light"] = clone
+                        
+                    
+        return (top_chain)
+        
 
     def write_reconstruction_statistics(self, outfile, loci, cells):
         """Writes statistics for reconstruction of productive chains and 
@@ -1212,6 +1278,45 @@ class Summariser(TracerTask):
         return (clones, cell_clones, cell_contig_clones)
 
 
+    def make_clone_igblast_input_for_concatenation(self, outdir, locus, cells, 
+                        component_groups, clone_groups, cell_contig_clones):
+        """Creates input file for each locus containing sequences belonging to
+        a clone group shared in a component group to use as input for IgBlast in order to obtain 
+        IMGT-gapped sequences for germline sequence assignment by Change-O"""
+
+        igblast_input = "{}/igblast_input_{}.fa".format(outdir, locus)
+        changeo_result = "{}/changeo_input_{}_clone-pass.tab".format(outdir, locus)
+        if not os.path.exists(changeo_result) \
+            or not os.path.getsize(changeo_result) > 0:
+            pass
+
+        else:
+            with open(changeo_result, 'r') as input_file:
+                with open(igblast_input, "w") as output:
+                    for line in input_file:
+                        if len(line) > 0 and not line.startswith("SEQUENCE_ID"):
+                            write = False
+                            fields = line.split("\t")
+                            name = fields[0]
+                            cell = fields[0].split("_TRINITY")[0]
+                            contig_name = fields[0].split("{}_".format(cell))[1]
+                            seq = fields[4] + "\n"
+                            header = ">" + name + "\n"
+                            clone = cell_contig_clones[locus][cell][contig_name] + "_" + locus
+                            i = 0
+                            #pdb.set_trace()
+                            for g in component_groups:
+                                i += 1
+                                top_heavy = clone_groups[i]["heavy"]
+                                top_light = clone_groups[i]["light"]
+                                for cell_name in g:
+                                    if cell == cell_name:
+                                        if clone == top_heavy or clone == top_light:
+                                            output.write(header)
+                                            output.write(seq)
+
+
+
     def make_clone_igblast_input(self, outdir, locus, cells):
         """Creates input file for each locus containing sequences belonging to 
         a clone group to use as input for IgBlast in order to obtain 
@@ -1240,7 +1345,7 @@ class Summariser(TracerTask):
                             output.write(seq)
 
 
-    def IgBlast_germline_reconstruction(self, outdir, locus, cells):
+    def IgBlast_germline_reconstruction(self, outdir, locus):
         
         igblastn = self.get_binary('igblastn')
 
@@ -1340,6 +1445,61 @@ class Summariser(TracerTask):
         igblast_seqtype = 'Ig'
         bracer_func.run_CreateGermlines(CreateGermlines, locus, outdir, 
                                     self.species, gapped_seq_location)
+
+    def concatenate_lineage_databases(self, outdir, loci, component_groups, top_chain):
+        """Concatenates the most commonly shared heavy and light chain
+        database entries for each cell in each component group for
+        lineage reconstruction"""
+
+        output_file = "{}/concatenated_lineage_input.tab".format(outdir)
+        # Read in info for each cell from locus-specific files
+        cell_info = dict()
+        for locus in loci:
+            input_file = "{}/igblast_{}_db-modified_germ-pass.tab".format(outdir, locus)
+            cell_info[locus] = dict()
+            with open(input_file, "r") as input:
+                #pdb.set_trace()
+                for line in input:
+                    if not line.startswith("SEQUENCE_ID"):
+                        info = line.split("\t")
+                        cell_name = line.split("_TRINITY")[0]
+                        cell_info[locus][cell_name] = dict()
+                        cell_info[locus][cell_name]["sequence_imgt"] = info[11]
+                        cell_info[locus][cell_name]["germline_imgt"] = info[48]
+                        cell_info[locus][cell_name]["V_call"] = info[7]
+                        cell_info[locus][cell_name]["J_call"] = info[9]
+                        cell_info[locus][cell_name]["junction_length"] = info[28]
+                        cell_info[locus][cell_name]["isotype"] = info[45]
+
+
+        with open(output_file, "w") as output:
+        
+            header = ("SEQUENCE_ID\tSEQUENCE_IMGT\tCLONE\tGERMLINE_IMGT_D_MASK" + 
+                    "\tV_CALL\tJ_CALL\tJUNCTION_LENGTH\tISOTYPE\tCELL\n")
+                
+            output.write(header)
+            clone = 0
+            for g in component_groups:
+                #pdb.set_trace()
+                # Set clone=component_group number
+                clone += 1
+                light_locus = top_chain[clone]["light"].split("_")[1] 
+                for cell_name in g:
+                    outstring = ""
+                    
+                    sequence_id = cell_name
+                    sequence_imgt = cell_info["H"][cell_name]["sequence_imgt"] + cell_info[light_locus][cell_name]["sequence_imgt"]
+                    germline_imgt = cell_info["H"][cell_name]["germline_imgt"] + cell_info[light_locus][cell_name]["germline_imgt"]
+                    V_call = cell_info["H"][cell_name]["V_call"] + "," + cell_info[light_locus][cell_name]["V_call"]
+                    J_call = cell_info["H"][cell_name]["J_call"] + "," + cell_info[light_locus][cell_name]["J_call"]
+                    junction_length = cell_info["H"][cell_name]["junction_length"]
+                    isotype = cell_info["H"][cell_name]["isotype"]
+                    outstring = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                                        sequence_id, sequence_imgt, clone, 
+                                        germline_imgt, V_call, J_call, 
+                                        junction_length, isotype, cell_name)
+                    output.write(outstring)
+
 
 
     def create_lineage_trees(self, outdir, species):
