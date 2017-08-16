@@ -322,6 +322,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
     if recombinants:
         for locus, rs in six.iteritems(recombinants):
             # Collapse sequences with identical CDR3 nt sequence
+            # or CDR3 nt/junctional Hamming distance <= 0.07 normalised by length
             # and overlapping V- and J segment assignments. 
             recombinants[locus] = collapse_close_sequences(rs, locus)
         cell = Cell(cell_name, recombinants, species=species, loci=loci)
@@ -627,14 +628,49 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus,
     else:
         cdr3_start = cdr3_start - start
         in_frame = True
-
+    #pdb.set_trace()
+    
     # Trim sequence to look for CDR3 in correct region
     if in_frame:
         seq = trinity_seq[cdr3_start - 7:]
         cdr3 = get_cdr3(seq, locus)
         if "Couldn't" in cdr3:
-            cdr3_length = None
+            # Look for out-of-frame cdr3
             in_frame = False
+            cdr3 = None
+            cdr3_length = None
+            cdr3_seq = None
+            dna_seq = trinity_seq[cdr3_start - 1:]
+            cdr3_2, motif_2 = get_out_of_frame_cdr3(dna_seq, locus, 2)
+            cdr3_3, motif_3 = get_out_of_frame_cdr3(dna_seq, locus, 3)
+            if cdr3_2 is None and cdr3_3 is None:
+                cdr3 = None
+                cdr3_length = None
+                cdr3_seq = None
+            elif cdr3_2 and cdr3_3:
+                if (motif_2 == motif_3) or ((motif_2 and motif_3) in [".G.G", "FSDG"]):
+                    if len(cdr3_2) > len(cdr3_3):
+                        cdr3 = cdr3_2
+                        frame = 2
+                    else:
+                        cdr3 = cdr3_3
+                        frame = 3
+                elif motif_2 in ["WG.G", "FG.G"]:
+                    cdr3 = cdr3_2
+                    frame = 2
+                elif motif_3 in ["WG.G", "FG.G"]:
+                    cdr3 = cdr3_3
+                    frame = 3
+                    
+            elif cdr3_2:
+                cdr3 = cdr3_2
+                frame = 2
+            else:
+                cdr3 = cdr3_3
+                frame = 3
+            if not cdr3 is None:
+                cdr3_length = len(cdr3)
+                cdr3_seq = trinity_seq[cdr3_start-1:cdr3_length*3+frame-1+cdr3_start-16]
         else:    
             cdr3_length = len(cdr3)
             # Get CDR3 nt sequence excluding conserved Cys and XGXG motif
@@ -648,6 +684,8 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus,
 
     
     print()
+    
+    
 
     productive_rearrangement = (productive, contains_stop, in_frame)
     bestVJ = [best_V_name, best_J_name]
@@ -655,6 +693,43 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus,
 
     return (productive_rearrangement, bestVJ, cdr3, cdr3_seq)
 
+def get_out_of_frame_cdr3(dna_seq, locus, frame):
+    dna_seq = dna_seq[frame-1:]
+    aaseq = Seq(str(dna_seq), generic_dna).translate()
+    if locus in ["BCR_H", "H"]:
+        motif_start = "W"
+    else:
+        motif_start = "F"
+    motif = motif_start + "G.G"
+    if re.findall(motif, str(aaseq)):
+        indices = [i for i, x in enumerate(aaseq)]
+        if len(re.findall(motif, str(aaseq))) > 1 and str(aaseq).find(re.findall(motif, str(aaseq))[0]) < 15:
+            upper = str(aaseq).find(re.findall(motif, str(aaseq))[1])
+        else:
+            upper = str(aaseq).find(re.findall(motif, str(aaseq))[0])
+        cdr3 = aaseq[0:upper + 4]
+
+    elif re.findall(".G.G", str(aaseq)):
+        indices = [i for i, x in enumerate(aaseq)]
+        upper = str(aaseq).find(re.findall(".G.G", str(aaseq))[0])
+        try:
+            upper2 = str(aaseq).find(re.findall(".G.G", str(aaseq))[1])
+        except:
+            upper2 = 0
+        cdr3 = aaseq[0:upper + 4]
+        motif = ".G.G"
+
+    elif re.findall("FSDG", str(aaseq)):
+        indices = [i for i, x in enumerate(aaseq)]
+        upper = str(aaseq).find(re.findall(".G.G", str(aaseq))[0])
+        cdr3 = aaseq[0:upper + 4]
+        motif = "FSDG"
+
+    else:
+        cdr3 = None
+        motif = None
+
+    return (cdr3, motif)
 
 def get_cdr3(dna_seq, locus):
     aaseq = Seq(str(dna_seq), generic_dna).translate()
@@ -737,7 +812,7 @@ def is_cdr3_in_frame(cdr3, locus):
 def collapse_close_sequences(recombinants, locus):
     contig_names = [r.contig_name for r in recombinants]
     filtered_contig_names = [r.contig_name for r in recombinants]
-
+    #pdb.set_trace()
     uncollapsible_contigs = []
     C_genes = dict()
     if len(recombinants) > 1:
@@ -788,14 +863,14 @@ def collapse_close_sequences(recombinants, locus):
                         if len(base_V_segment.intersection(comp_V_segment)) > 0 \
                                 and len(base_J_segment.intersection(comp_J_segment)) > 0:
                             attempt_collapse = True
-                    elif (hamming_dist(base_cdr3, comp_cdr3) <= 3 and base_name 
+                    elif (hamming_dist(base_cdr3, comp_cdr3)/len(base_cdr3) <= 0.07 and base_name 
                         in filtered_contig_names and comp_name in filtered_contig_names):
                         if (len(base_V_segment.intersection(comp_V_segment)) > 0 
                             and len(base_J_segment.intersection(comp_J_segment)) > 0):
                             attempt_collapse = True
                         
                 elif base_cdr3 is None or comp_cdr3 is None:
-                    if (hamming_dist(base_junc, comp_junc) <= 3 and base_name in filtered_contig_names 
+                    if (hamming_dist(base_junc, comp_junc)/len(base_junc) <= 0.07 and base_name in filtered_contig_names 
                             and comp_name in filtered_contig_names):
                         if (len(base_V_segment.intersection(comp_V_segment)) > 0 
                                 and len(base_J_segment.intersection(comp_J_segment)) > 0):
@@ -1213,14 +1288,14 @@ def bowtie2_alignment(bowtie2, ncores, loci, output_dir, cell_name, synthetic_ge
             fastq_lines_2_unpaired = []
 
             # Allow more mismatches for H
-            #if locus == "BCR_H":
-                #command = [bowtie2, '--no-unal', '-p', ncores, '-k', '1', '--np', '0', '--rdg', '1,1', '--rfg', '1,1',
-                        #'-x', "/".join([synthetic_genome_path, locus]), '-1', fastq1, '-2', fastq2, '-S', sam_file,
-                        #'--score-min', 'L,-0.8,-0.8']
+            if locus == "BCR_H":
+                command = [bowtie2, '--no-unal', '-p', ncores, '-k', '1', '--np', '0', '--rdg', '1,1', '--rfg', '1,1',
+                        '-x', "/".join([synthetic_genome_path, locus]), '-1', fastq1, '-2', fastq2, '-S', sam_file,
+                        '--score-min', 'L,-0.6,-0.6']
 
             
-            #else:
-            command = [bowtie2, '--no-unal', '-p', ncores, '-k', '1', '--np', '0', '--rdg', '1,1', '--rfg', '1,1',
+            else:
+                command = [bowtie2, '--no-unal', '-p', ncores, '-k', '1', '--np', '0', '--rdg', '1,1', '--rfg', '1,1',
                        '-x', "/".join([synthetic_genome_path, locus]), '-1', fastq1, '-2', fastq2, '-S', sam_file]
 
             subprocess.check_call(command)

@@ -333,8 +333,8 @@ class Assembler(TracerTask):
         self.blast()
         cell = self.ig_blast()
 
-        if self.fastq1:
-            self.quantify(cell)
+        #if self.fastq1:
+            #self.quantify(cell)
         
         
         unfiltered_fasta_filename = \
@@ -1203,7 +1203,7 @@ class Summariser(TracerTask):
                 for locus in loci:
                     recs = cell.recombinants["BCR"][locus]
                     for rec in recs:
-                        string = databasedict[locus][rec.contig_name]
+                        string = databasedict[locus][rec.contig_name] + "\n"
                         output.write(string)
 
 
