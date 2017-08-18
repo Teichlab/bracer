@@ -333,8 +333,8 @@ class Assembler(TracerTask):
         self.blast()
         cell = self.ig_blast()
 
-        #if self.fastq1:
-            #self.quantify(cell)
+        if self.fastq1:
+            self.quantify(cell)
         
         
         unfiltered_fasta_filename = \
@@ -395,12 +395,12 @@ class Assembler(TracerTask):
 
         synthetic_genome_path = os.path.join(self.species_root, 
                                 'combinatorial_recombinomes')
-        
+        bowtie2_build = self.get_binary('bowtie2-build')
         # Align with Bowtie 2
         bracer_func.bowtie2_alignment(bowtie2, self.ncores, self.loci, 
                     self.output_dir, self.cell_name, synthetic_genome_path, 
                     self.fastq1, self.fastq2, self.resume_with_existing_files, 
-                    self.single_end)
+                    self.single_end, bowtie2_build)
         print()
 
     def de_novo_assemble(self):

@@ -1256,7 +1256,7 @@ def check_config_file(filename):
 
 
 def bowtie2_alignment(bowtie2, ncores, loci, output_dir, cell_name, synthetic_genome_path, fastq1,
-                      fastq2, should_resume, single_end):
+                      fastq2, should_resume, single_end, bowtie2_build):
     print("##Finding recombinant-derived reads##")
     receptor = "BCR"
     initial_locus_names = ["_".join([receptor,x]) for x in loci]
@@ -1279,64 +1279,66 @@ def bowtie2_alignment(bowtie2, ncores, loci, output_dir, cell_name, synthetic_ge
     for locus in locus_names:
         print("##{}##".format(locus))
         sam_file = "{}/aligned_reads/{}_{}.sam".format(output_dir, cell_name, locus)
+        # Create separate sam file for second round of alignment for H chain
+        sam_file_2 = "{}/aligned_reads/{}_{}_2.sam".format(output_dir, cell_name, locus)
         if not single_end:
+            aligned_fasta = "{}/aligned_reads/{}_{}_aligned.fasta".format(output_dir, cell_name, locus)
             fastq_out_1 = open("{}/aligned_reads/{}_{}_1.fastq".format(output_dir, cell_name, locus), 'w')
-            fastq_lines_1 = []
-            fastq_lines_1_unpaired = []
             fastq_out_2 = open("{}/aligned_reads/{}_{}_2.fastq".format(output_dir, cell_name, locus), 'w')
-            fastq_lines_2 = []
-            fastq_lines_2_unpaired = []
 
-            # Allow more mismatches for H
+            # Run two rounds of alignment for H chain to extract reads mapping solely to the CDR3
             if locus == "BCR_H":
+                #pdb.set_trace()
                 command = [bowtie2, '--no-unal', '-p', ncores, '-k', '1', '--np', '0', '--rdg', '1,1', '--rfg', '1,1',
                         '-x', "/".join([synthetic_genome_path, locus]), '-1', fastq1, '-2', fastq2, '-S', sam_file,
                         '--score-min', 'L,-0.6,-0.6']
 
-            
+                subprocess.check_call(command)
+                # Split the sam file
+                fastq_lines_1, fastq_lines_2, fastq_lines_1_unpaired = split_sam_file_paired(sam_file, fasta=True)
+                with open(aligned_fasta, "w") as input:
+                    for line in fastq_lines_1:
+                        input.write(line)
+                    for line in fastq_lines_2:
+                        input.write(line)
+                    for line in fastq_lines_1_unpaired:
+                        input.write(line)
+                #pdb.set_trace()
+                
+                
+                # Make Bowtie index of aligned reads
+                #bowtie2_build = get_binary('bowtie2-build')
+                index_base = os.path.join(output_dir, 'aligned_reads',
+                                        '{locus}'.format(locus=locus))
+                
+                command = [bowtie2_build, '-q', aligned_fasta, index_base]
+                if os.path.getsize(aligned_fasta) > 0:
+                    try:
+                        subprocess.check_call(command)
+
+                    except subprocess.CalledProcessError:
+                        print("bowtie2-build failed")
+                    try:
+                        #Align all reads against aligned reads in local mode
+                        command = [bowtie2, '--no-unal', '-p', ncores, '-k', '1', '--np', '0', '--rdg', '7,7', '--rfg', '7,7',
+                            '-x', index_base, '-1', fastq1, '-2', fastq2, '-S', sam_file_2, '--local', '--ma', '1', '--mp', '20']
+                        subprocess.check_call(command)
+                        sam_file = sam_file_2
+                    except:
+                        pass
+                
+                fastq_lines_1, fastq_lines_2, fastq_lines_1_unpaired = split_sam_file_paired(sam_file, fasta=False)
+
+                
+
             else:
                 command = [bowtie2, '--no-unal', '-p', ncores, '-k', '1', '--np', '0', '--rdg', '1,1', '--rfg', '1,1',
                        '-x', "/".join([synthetic_genome_path, locus]), '-1', fastq1, '-2', fastq2, '-S', sam_file]
 
-            subprocess.check_call(command)
+                subprocess.check_call(command)
 
-            # Split the sam file for Trinity.
-
-            with open(sam_file) as sam_in:
-                for line in sam_in:
-                    if not line.startswith("@"):
-
-                        line = line.rstrip()
-                        line = line.split("\t")
-                        name = line[0]
-                        seq = line[9]
-                        qual = line[10]
-                        flag = int(line[1])
-                        mate_flag = "{0:b}".format(flag)[-7]
-                        mate_mapped_flag = "{0:b}".format(flag)[-4]
-                        revcomp_flag = "{0:b}".format(flag)[-5]
-
-                        if revcomp_flag == "1":
-                            seq = str(Seq(seq).reverse_complement())
-                            qual = qual[::-1]
-                        if mate_mapped_flag == "0":
-                            if mate_flag == "1":
-                                name_ending = "/1"
-                                fastq_lines_1.append(
-                                    "@{name}{name_ending}\n{seq}\n+\n{qual}\n".format(name=name, 
-                                                    seq=seq, name_ending=name_ending, qual=qual))
-                            else:
-                                name_ending = "/2"
-                                fastq_lines_2.append(
-                                    "@{name}{name_ending}\n{seq}\n+\n{qual}\n".format(name=name, 
-                                                    seq=seq, name_ending=name_ending, qual=qual))
-
-                        else:
-                            name_ending = "/1"
-                            fastq_lines_1_unpaired.append(
-                                "@{name}{name_ending}\n{seq}\n+\n{qual}\n".format(name=name,
-                                seq=seq, name_ending=name_ending, qual=qual))
-
+                # Split the sam file for Trinity.
+                fastq_lines_1, fastq_lines_2, fastq_lines_1_unpaired = split_sam_file_paired(sam_file, fasta=False)
 
 
             for line in fastq_lines_1:
@@ -1379,6 +1381,59 @@ def bowtie2_alignment(bowtie2, ncores, loci, output_dir, cell_name, synthetic_ge
                             name = name + "/1"
                         fastq_out.write("@{name}\n{seq}\n+\n{qual}\n".format(name=name, seq=seq, qual=qual))
                 fastq_out.close()
+
+def split_sam_file_paired(sam_file, fasta=False):
+    fastq_lines_1 = []
+    fastq_lines_2 = []
+    fastq_lines_1_unpaired = []
+    with open(sam_file) as sam_in:
+        for line in sam_in:
+            if not line.startswith("@"):
+                line = line.rstrip()
+                line = line.split("\t")
+                name = line[0]
+                seq = line[9]
+                qual = line[10]
+                flag = int(line[1])
+                mate_flag = "{0:b}".format(flag)[-7]
+                mate_mapped_flag = "{0:b}".format(flag)[-4]
+                revcomp_flag = "{0:b}".format(flag)[-5]
+                if revcomp_flag == "1":
+                    seq = str(Seq(seq).reverse_complement())
+                    qual = qual[::-1]
+                if mate_mapped_flag == "0":
+                    if mate_flag == "1":
+                        name_ending = "/1"
+                        if fasta==False:
+                            fastq_lines_1.append(
+                                "@{name}{name_ending}\n{seq}\n+\n{qual}\n".format(name=name,
+                                seq=seq, name_ending=name_ending, qual=qual))
+                        else:
+                            fastq_lines_1.append(
+                                ">{name}{name_ending}\n{seq}\n".format(name=name,
+                                seq=seq, name_ending=name_ending))
+                    else:
+                        name_ending = "/2"
+                        if fasta==False:
+                            fastq_lines_2.append(
+                                "@{name}{name_ending}\n{seq}\n+\en{qual}\n".format(name=name,
+                                seq=seq, name_ending=name_ending, qual=qual))
+                        else:
+                            fastq_lines_2.append(
+                                ">{name}{name_ending}\n{seq}\n".format(name=name,
+                                seq=seq, name_ending=name_ending))
+                else:
+                    name_ending = "/1"
+                    if fasta==False:
+                        fastq_lines_1_unpaired.append(
+                            ">{name}{name_ending}\n{seq}\n+\n{qual}\n".format(name=name,
+                            seq=seq, name_ending=name_ending, qual=qual))
+                    else:
+                        fastq_lines_1_unpaired.append(
+                            "@{name}{name_ending}\n{seq}\n".format(name=name,
+                                        seq=seq, name_ending=name_ending))
+
+    return(fastq_lines_1, fastq_lines_2, fastq_lines_1_unpaired)
 
 
 def assemble_with_trinity(trinity, loci, output_dir, cell_name, ncores, trinity_grid_conf, 
