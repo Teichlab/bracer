@@ -211,6 +211,12 @@ class Assembler(TracerTask):
                                 help='Maximum permitted length of junction '
                                 'string in recombinant identifier. '
                                 'Used to filter out artefacts.', default=100)
+            parser.add_argument('--no_trimming',
+                                help='Do not trim raw reads to remove adapter sequences '
+                                'and low quality reads.', default=False)
+            parser.add_argument('--keep_trimmed_reads',
+                                help='Do not delete the output files from the trimming step.',
+                                default=False)
             parser.add_argument('cell_name', metavar="<CELL_NAME>", 
                                 help='name of cell for file labels')
             parser.add_argument('output_dir', metavar="<OUTPUT_DIR>",
@@ -236,6 +242,10 @@ class Assembler(TracerTask):
             self.output_dir = args.output_dir
             self.loci = args.loci
             self.max_junc_len = args.max_junc_len
+            self.no_trimming = args.no_trimming
+            self.trimmed_fastq1 = None
+            self.trimmed_fastq2 = None
+            self.keep_trimmed_reads = args.keep_trimmed_reads
             config_file = args.config_file
             
 
@@ -255,7 +265,10 @@ class Assembler(TracerTask):
             self.fragment_sd = kwargs.get('fragment_sd')
             self.loci = kwargs.get('loci')
             self.max_junc_len = kwargs.get('max_junc_len')
+            self.no_trimming = kwargs.get('no_trimming')
+            self.keep_trimmed_reads = kwargs.get('keep_trimmed_reads')
             config_file = kwargs.get('config_file')
+
 
         self.config = self.read_config(config_file)
         self.species_root = self.get_species_root(self.species,
@@ -321,12 +334,16 @@ class Assembler(TracerTask):
         data_dirs = ['aligned_reads', 'Trinity_output', 'IgBLAST_output', 
                     'BLAST_output', 'unfiltered_BCR_seqs', 
                     'expression_quantification', 'filtered_BCR_seqs']
+        if not self.no_trimming:
+            data_dirs.append('trimmed_reads')
 
         for d in data_dirs:
             io.makeOutputDir("{}/{}".format(self.output_dir, d))
 
         # Perform BraCeR's core functions
         if not self.assembled_file:
+            if not self.no_trimming:
+                self.trim_reads()
             self.align()
             self.de_novo_assemble()
 
@@ -390,6 +407,16 @@ class Assembler(TracerTask):
             pickle.dump(cell, pf, protocol=0)
 
 
+    def trim_reads(self):
+        trim_galore = self.get_binary('trim_galore')
+        cutadapt = self.get_binary('cutadapt')
+
+        self.trimmed_fastq1, self.trimmed_fastq2 = bracer_func.run_trim_galore(
+                    trim_galore, cutadapt, self.output_dir, self.cell_name, 
+                    self.fastq1, self.fastq2, self.resume_with_existing_files, 
+                    self.single_end)
+
+
     def align(self):
         bowtie2 = self.get_binary('bowtie2')
 
@@ -400,7 +427,8 @@ class Assembler(TracerTask):
         bracer_func.bowtie2_alignment(bowtie2, self.ncores, self.loci, 
                     self.output_dir, self.cell_name, synthetic_genome_path, 
                     self.fastq1, self.fastq2, self.resume_with_existing_files, 
-                    self.single_end, bowtie2_build)
+                    self.single_end, bowtie2_build, self.trimmed_fastq1,
+                    self.trimmed_fastq2)
         print()
 
     def de_novo_assemble(self):
