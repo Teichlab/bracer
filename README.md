@@ -36,9 +36,11 @@ Note that BraCeR requires Python (>=3.4.0), as one of the required tools have th
     - Please note that Trinity requires a working installation of [Bowtie v1](http://bowtie-bio.sourceforge.net).
 3. [IgBLAST](http://www.ncbi.nlm.nih.gov/igblast/faq.html#standalone) - required for analysis of assembled contigs. (ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/).
 4. [BLAST](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/ ) - required for determination of isotype. (ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/).
-5. [Kallisto](http://pachterlab.github.io/kallisto/) - software for quantification of BCR expression
+5. [Kallisto](http://pachterlab.github.io/kallisto/) - software for quantification of BCR expression.
 6. [Graphviz](http://www.graphviz.org) - Dot and Neato drawing programs required for visualisation of clonotype graphs. This is optional - see the [`--no_networks` option](#options-1) to [`summarise`](#summarise-summary-and-clonotype-networks).
 7. [PHYLIP] - dnapars program of PHYLIP is required for lineage reconstruction. This is optional - see the [`--infer_lineage` option](#options-1) to [`summarise`](#summarise-summary-and-clonotype-networks).   
+8. [Trim Galore!](https://www.bioinformatics.babraham.ac.uk/projects/trim_galore/) - required for adapter and quality trimming (optional).
+9. [Cutadapt]
 	
 ##### Installing IgBlast 
 Downloading the executable files from `ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/<version_number>` is not sufficient for a working IgBlast installation. You must also download the `internal_data` directory (ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/internal_data) and put it into the same directory as the igblast executable. This is also described in the igblast README file.
@@ -55,6 +57,7 @@ You should also ensure to set the `$IGDATA` environment variable to point to the
 7. It seems that v1.11 of Networkx behaves differently when writing dot files for use with Graphviz. If you have this (or later versions) you also need to install [PyDotPlus](http://pydotplus.readthedocs.org).
 8. [Future](http://python-future.org/index.html) for compatibility with Python 2.
 9. [Change-O](http://changeo.readthedocs.io/)
+10. [Cutadapt](https://github.com/marcelm/cutadapt/)
 
 
 Note: Seaborn depends on the module statsmodels, which if updated through other packages may cause problems in Seaborn. If such issues arise, try to uninstall statsmodels and install again:
@@ -115,6 +118,8 @@ Edit `~/.bracerrc` (or a copy) so that the paths within the `[tool_locations]` s
 	changeo_path = /path/to/directory_containing_changeo_scripts
 	rscript_path = /path/to/Rscript
 	dnapars_path = /path/to/dnapars
+	trim_galore_path = /path/to/trim_galore
+	cutadapt_path = /path/to/cutadapt
 		
 		
 
@@ -203,7 +208,8 @@ BraCeR has three modes: *assemble*, *summarise* and *build*.
 * `--fragment_sd <int>` : Estimated standard deviation of average fragment length in the sequencing library. Used for Kallisto quantification. Required for single-end data. Can also be set for paired-end data if you don't want Kallisto to estimate it directly.
 * `--loci`: Space-separated list of loci to reconstruct (default: ['H', 'K', 'L']).
 * `--max_junc_len` <int>:  Maximum permitted length of CDR3 nucleotide sequence or junction string. Used to filter out artefacts (default: 100). 
-
+* `--no_trimming` : Skip adapter and quality trimming of raw reads.
+* `--keep_trimmed_reads` : Do not delete files containing trimmed raw reads.
  
 
 #### Output 
@@ -293,3 +299,8 @@ The following output files are generated:
 #### Options
 
 * `-f/--force_overwrite` : Force overwrite of existing resources
+* `-c/--config_file <conf_file>` : config file to use. Default = `~/.bracerrc`
+* `--C_db <alt_C_seqs>` : Specify alternative FASTA file (if other than the one used to make recombinomes) containing all C gene sequences for creation of BLAST database to correctly identify isotype (optional)
+* `--V_gapped <gapped_V_seqs>` :  FASTA file containing IMGT-gapped V reference  sequences (optional). Required for lineage reconstruction and creation of IMGT-gapped tab-delimited databases
+* `--igblast_aux <igblast_auxiliary_file>` : IgBlast auxiliary file for species
+* `--resource_dir <resource_dir>` : Root directory for resources
