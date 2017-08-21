@@ -1257,8 +1257,10 @@ def check_config_file(filename):
 
 def run_trim_galore(trim_galore, cutadapt, output_dir, cell_name, fastq1,
                     fastq2, should_resume, single_end):
+    """Trimming raw reads using Trim Galore/Cutadapt to remove adapter
+    sequences and low-quality reads"""
+
     print("##Trimming raw reads##")
-    #pdb.set_trace()
     
     trimmed_read_path = "{}/trimmed_reads/{}_".format(output_dir, cell_name)
     if ".gz" in (fastq1 or fastq2):
@@ -1281,10 +1283,11 @@ def run_trim_galore(trim_galore, cutadapt, output_dir, cell_name, fastq1,
                 print("Resuming with existing trimmed reads")
                 return(fastq1_out, fastq2_out)
 
+    print("Detecting installed version of Cutadapt: ")
+
     trimmed_read_dir = "{}/trimmed_reads".format(output_dir)
 
     if not single_end:
-        
         command = [trim_galore, fastq1, fastq2, '--paired', '--suppress_warn',
                   '--path_to_cutadapt', cutadapt, '--no_report_file',
                   '-o', trimmed_read_dir]
@@ -1293,10 +1296,13 @@ def run_trim_galore(trim_galore, cutadapt, output_dir, cell_name, fastq1,
                   cutadapt, '--no_report_file', '-o', trimmed_read_dir]
     try:
         subprocess.check_call(command)
+        print("Trimming completed")
     except subprocess.CalledProcessError:
         print("trim_galore failed")
         
     return(fastq1_out, fastq2_out)
+
+
 
 def bowtie2_alignment(bowtie2, ncores, loci, output_dir, cell_name, 
                       synthetic_genome_path, fastq1, fastq2, should_resume, 
@@ -1390,7 +1396,7 @@ def bowtie2_alignment(bowtie2, ncores, loci, output_dir, cell_name,
 
             # Split the sam file for Trinity.
             fastq_lines_1, fastq_lines_2, fastq_lines_1_unpaired = split_sam_file_paired(
-                                                                        sam_file, fasta=False)
+                                                                    sam_file, fasta=False)
 
             for line in fastq_lines_1:
                 fastq_out_1.write(line)
@@ -1511,28 +1517,31 @@ def split_sam_file_paired(sam_file, fasta=False):
                         name_ending = "/1"
                         if fasta==False:
                             fastq_lines_1.append(
-                                "@{name}{name_ending}\n{seq}\n+\n{qual}\n".format(name=name,
-                                seq=seq, name_ending=name_ending, qual=qual))
+                                "@{name}{name_ending}\n{seq}\n+\n{qual}\n".format(
+                                name=name, seq=seq, name_ending=name_ending, 
+                                qual=qual))
                         else:
                             fastq_lines_1.append(
-                                ">{name}{name_ending}\n{seq}\n".format(name=name,
-                                seq=seq, name_ending=name_ending))
+                                ">{name}{name_ending}\n{seq}\n".format(
+                                name=name, seq=seq, name_ending=name_ending))
                     else:
                         name_ending = "/2"
                         if fasta==False:
                             fastq_lines_2.append(
-                                "@{name}{name_ending}\n{seq}\n+\en{qual}\n".format(name=name,
-                                seq=seq, name_ending=name_ending, qual=qual))
+                                "@{name}{name_ending}\n{seq}\n+\en{qual}\n".format(
+                                name=name, seq=seq, name_ending=name_ending, 
+                                qual=qual))
                         else:
                             fastq_lines_2.append(
-                                ">{name}{name_ending}\n{seq}\n".format(name=name,
-                                seq=seq, name_ending=name_ending))
+                                ">{name}{name_ending}\n{seq}\n".format(
+                                name=name, seq=seq, name_ending=name_ending))
                 else:
                     name_ending = "/1"
                     if fasta==False:
                         fastq_lines_1_unpaired.append(
-                            ">{name}{name_ending}\n{seq}\n+\n{qual}\n".format(name=name,
-                            seq=seq, name_ending=name_ending, qual=qual))
+                            ">{name}{name_ending}\n{seq}\n+\n{qual}\n".format(
+                            name=name, seq=seq, name_ending=name_ending, 
+                            qual=qual))
                     else:
                         fastq_lines_1_unpaired.append(
                             "@{name}{name_ending}\n{seq}\n".format(name=name,
@@ -1546,8 +1555,10 @@ def assemble_with_trinity(trinity, loci, output_dir, cell_name, ncores, trinity_
     print("##Assembling Trinity Contigs##")
     receptor = "BCR"
     if should_resume:
-        trinity_report_successful = "{}/Trinity_output/successful_trinity_assemblies.txt".format(output_dir)
-        trinity_report_unsuccessful = "{}/Trinity_output/unsuccessful_trinity_assemblies.txt".format(output_dir)
+        trinity_report_successful = "{}/Trinity_output/successful_trinity_assemblies.txt".format(
+                                                                                    output_dir)
+        trinity_report_unsuccessful = "{}/Trinity_output/unsuccessful_trinity_assemblies.txt".format(
+                                                                                    output_dir)
         if (os.path.isfile(trinity_report_successful) and os.path.isfile(trinity_report_unsuccessful)) and (
                         os.path.getsize(trinity_report_successful) > 0 or os.path.getsize(
                     trinity_report_unsuccessful) > 0):
@@ -1640,8 +1651,8 @@ def assemble_with_trinity(trinity, loci, output_dir, cell_name, ncores, trinity_
 
 
 
-def run_IgBlast(igblast, loci, output_dir, cell_name, index_location, ig_seqtype, species,
-                should_resume, assembled_file):
+def run_IgBlast(igblast, loci, output_dir, cell_name, index_location, 
+                ig_seqtype, species, should_resume, assembled_file):
     """Running IgBlast for reconstructed sequences in a cell using ungapped
     IMGT reference sequences"""
 
@@ -1665,23 +1676,24 @@ def run_IgBlast(igblast, loci, output_dir, cell_name, index_location, ig_seqtype
 
     if should_resume:
         for locus in initial_locus_names:
-            igblast_out = "{output_dir}/IgBLAST_output/{cell_name}_{receptor}_{locus}.IgBLASTOut".format(
-                        output_dir=output_dir,cell_name=cell_name, receptor=receptor, locus=locus)
+            igblast_out = "{}/IgBLAST_output/{}_{}_{}.IgBLASTOut".format(
+                                    output_dir, cell_name, receptor, locus)
             if (os.path.isfile(igblast_out) and os.path.getsize(igblast_out) > 0):
                 locus_names.remove(locus)
-                print("Resuming with existing IgBLAST output for {locus}".format(locus=locus))
+                print("Resuming with existing IgBLAST output for {}".format(locus))
         
         if len(locus_names) == 0:    
             return
     
-    print("Performing IgBlast on {locus_names}".format(locus_names = locus_names))
+    print("Performing IgBlast on {}".format(locus_names))
 
     databases = {}
     for segment in ['V', 'D', 'J']:
         databases[segment] = "{}/{}_{}.fa".format(index_location, receptor, segment)
 
     # Lines below suppress Igblast warning about not having an auxliary file.
-    # Taken from http://stackoverflow.com/questions/11269575/how-to-hide-output-of-subprocess-in-python-2-7
+    # Taken from http://stackoverflow.com/questions/11269575/how-to-hide-output-
+    #of-subprocess-in-python-2-7
     DEVNULL = open(os.devnull, 'wb')
 
     num_alignments_V = '20'
@@ -1694,22 +1706,25 @@ def run_IgBlast(igblast, loci, output_dir, cell_name, index_location, ig_seqtype
     for locus in locus_names:
         if assembled_file is None:
             print("##{}##".format(locus))
-            trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(output_dir, cell_name, locus)
+            trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(
+                                                output_dir, cell_name, locus)
         
         if os.path.isfile(trinity_fasta):
-            command = [igblast, '-germline_db_V', databases['V'], '-germline_db_J', 
-                      databases['J'], '-germline_db_D', databases['D'], '-domain_system', 
-                      'imgt', '-organism', igblast_species, '-ig_seqtype', ig_seqtype, 
-                      '-show_translation', '-num_alignments_V', num_alignments_V,
-                       '-num_alignments_D', num_alignments_D, '-num_alignments_J', 
-                       num_alignments_J, '-outfmt', '7', '-query', trinity_fasta]
+            command = [igblast, '-germline_db_V', databases['V'], 
+                      '-germline_db_J', databases['J'], '-germline_db_D', 
+                      databases['D'], '-domain_system', 'imgt', '-organism', 
+                      igblast_species, '-ig_seqtype', ig_seqtype, 
+                      '-show_translation', '-num_alignments_V', 
+                      num_alignments_V, '-num_alignments_D', num_alignments_D, 
+                      '-num_alignments_J', num_alignments_J, '-outfmt', '7', 
+                      '-query', trinity_fasta]
 
             if assembled_file is None:
-                igblast_out = "{output_dir}/IgBLAST_output/{cell_name}_{locus}.IgBLASTOut".format(
-                               output_dir=output_dir, cell_name=cell_name, locus=locus)
+                igblast_out = "{}/IgBLAST_output/{}_{}.IgBLASTOut".format(
+                                                output_dir, cell_name, locus)
             else:
-                igblast_out = "{output_dir}/IgBLAST_output/{cell_name}.IgBLASTOut".format(
-                               output_dir=output_dir, cell_name=cell_name)
+                igblast_out = "{}/IgBLAST_output/{}.IgBLASTOut".format(
+                                                output_dir, cell_name)
                                                                                               
  
             with open(igblast_out, 'w') as out:
@@ -1720,8 +1735,9 @@ def run_IgBlast(igblast, loci, output_dir, cell_name, index_location, ig_seqtype
 
 def run_IgBlast_IMGT_gaps(igblast, output_dir, ungapped_index_location, 
                             gapped_index_location, ig_seqtype, species):
-    """Runs IgBlast for all reconstructed sequences using databases constructed from IMGT-gapped sequences.
-        Needed to create tab-delimited Change-O database file with IMGT gaps"""
+    """Runs IgBlast for all reconstructed sequences using databases 
+    constructed from IMGT-gapped sequences. Needed to create tab-delimited 
+    Change-O database file with IMGT gaps"""
     
     species_mapper = {
         'Mmus': 'mouse',
@@ -1764,8 +1780,9 @@ def run_IgBlast_IMGT_gaps(igblast, output_dir, ungapped_index_location,
 
 def run_IgBlast_for_lineage_reconstruction(igblast, locus, output_dir, 
         ungapped_index_location, gapped_index_location, ig_seqtype, species):
-    """Runs IgBlast using databases constructed from IMGT-gapped V sequences. Needed for germline
-    reconstruction and lineage reconstruction from clonal sequences"""
+    """Runs IgBlast using databases constructed from IMGT-gapped V sequences. 
+    Needed for germline reconstruction and lineage reconstruction from 
+    clonal sequences"""
 
     species_mapper = {
         'Mmus': 'mouse',
@@ -1843,15 +1860,17 @@ def run_Blast(blast, loci, output_dir, cell_name, index_location, species,
     for locus in locus_names:
         if assembled_file is None:
             print("##{}##".format(locus))
-            trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(output_dir, cell_name, locus)
+            trinity_fasta = "{}/Trinity_output/{}_{}.Trinity.fasta".format(
+                                            output_dir, cell_name, locus)
 
 
         if os.path.isfile(trinity_fasta):
-            command = [blast, '-db', database, '-evalue', '0.001',
-                        '-num_alignments', '1', '-outfmt', '5', '-query', trinity_fasta]
+            command = [blast, '-db', database, '-evalue', '0.001', 
+                      '-num_alignments', '1', '-outfmt', '5', '-query', 
+                      trinity_fasta]
                             
-            blast_out = "{output_dir}/BLAST_output/{cell_name}_{locus}.xml".format(
-                            output_dir=output_dir, cell_name=cell_name, locus=locus)
+            blast_out = "{}/BLAST_output/{}_{}.xml".format(output_dir, 
+                                                    cell_name, locus)
 
             with open(blast_out, 'w') as out:
                 subprocess.check_call(command, stdout=out, stderr=DEVNULL)
@@ -1860,33 +1879,52 @@ def run_Blast(blast, loci, output_dir, cell_name, index_location, species,
 
 
 
-def quantify_with_kallisto(kallisto, cell, output_dir, cell_name, kallisto_base_transcriptome, fastq1, fastq2,
-                           ncores, should_resume, single_end, fragment_length, fragment_sd):
+def quantify_with_kallisto(kallisto, cell, output_dir, cell_name, 
+                           kallisto_base_transcriptome, fastq1, fastq2, ncores, 
+                           should_resume, single_end, fragment_length, 
+                           fragment_sd, trimmed_fastq1, trimmed_fastq2
+                           keep_trimmed_reads):
+
     print("##Running Kallisto##")
     if should_resume:
         if os.path.isfile("{}/expression_quantification/abundance.tsv".format(output_dir)):
             print("Resuming with existing Kallisto output")
             return
 
+    # Look for trimmed reads
+    if not single_end:
+        if (trimmed_fastq1 and trimmed_fastq2) is not None:
+            if os.path.isfile(trimmed_fastq1) and os.path.isfile(trimmed_fastq2):
+                fastq1 = trimmed_fastq1
+                fastq2 = trimmed_fastq2
+    else:
+        if trimmed_fastq1 is not None:
+            if os.path.isfile(trimmed_fastq1):
+                fastq1 = trimmed_fastq1
+
+
     print("##Making Kallisto indices##")
     kallisto_dirs = ['kallisto_index']
     for d in kallisto_dirs:
-        bracerlib.io.makeOutputDir("{}/expression_quantification/{}".format(output_dir, d))
-    fasta_filename = "{output_dir}/unfiltered_BCR_seqs/{cell_name}_BCRseqs.fa".format(output_dir=output_dir,
-                                                                                      cell_name=cell_name)
+        bracerlib.io.makeOutputDir("{}/expression_quantification/{}".format(
+                                                            output_dir, d))
+    fasta_filename = "{}/unfiltered_BCR_seqs/{}_BCRseqs.fa".format(output_dir,
+                                                                    cell_name)
     fasta_file = open(fasta_filename, 'w')
     fasta_file.write(cell.get_fasta_string())
     fasta_file.close()
 
-    output_transcriptome = "{}/expression_quantification/kallisto_index/{}_transcriptome.fa".format(output_dir,
-                                                                                                    cell_name)
+    output_transcriptome = "{}/expression_quantification/kallisto_index/{}_transcriptome.fa".format(
+                                                            output_dir, cell_name)
+
     with open(output_transcriptome, 'w') as outfile:
         for fname in [kallisto_base_transcriptome, fasta_filename]:
             with open(fname) as infile:
                 for line in infile:
                     outfile.write(line)
 
-    idx_file = "{}/expression_quantification/kallisto_index/{}_transcriptome.idx".format(output_dir, cell_name)
+    idx_file = "{}/expression_quantification/kallisto_index/{}_transcriptome.idx".format(
+                                                                output_dir, cell_name)
 
     index_command = [kallisto, 'index', '-i', idx_file, output_transcriptome]
     subprocess.check_call(index_command)
@@ -1894,20 +1932,33 @@ def quantify_with_kallisto(kallisto, cell, output_dir, cell_name, kallisto_base_
 
     if not single_end:
         if not fragment_length:
-            kallisto_command = [kallisto, 'quant', '-i', idx_file, '-t', ncores, '-o',
-                                "{}/expression_quantification".format(output_dir), fastq1, fastq2]
+            kallisto_command = [kallisto, 'quant', '-i', idx_file, '-t', 
+                                ncores, '-o', "{}/expression_quantification".format(
+                                output_dir), fastq1, fastq2]
         else:
-            kallisto_command = [kallisto, 'quant', '-i', idx_file, '-t', ncores, '-l', fragment_length, '-o',
-                                "{}/expression_quantification".format(output_dir), fastq1, fastq2]
+            kallisto_command = [kallisto, 'quant', '-i', idx_file, '-t', ncores, 
+                                '-l', fragment_length, '-o',
+                                "{}/expression_quantification".format(
+                                output_dir), fastq1, fastq2]
 
     else: 
-        kallisto_command = [kallisto, 'quant', '-i', idx_file, '-t', ncores, '--single', '-l', fragment_length, 
-                            '-s', fragment_sd, '-o', "{}/expression_quantification".format(output_dir), fastq1] 
+        kallisto_command = [kallisto, 'quant', '-i', idx_file, '-t', ncores, 
+                            '--single', '-l', fragment_length, '-s', fragment_sd, 
+                            '-o', "{}/expression_quantification".format(output_dir), 
+                            fastq1] 
+
     subprocess.check_call(kallisto_command) 
 
  
-    # delete index file because it's huge and unecessary. Delete transcriptome file 
-    shutil.rmtree("{}/expression_quantification/kallisto_index/".format(output_dir)) 
+    # Delete index file because it's huge and unecessary. Delete transcriptome file 
+    shutil.rmtree("{}/expression_quantification/kallisto_index/".format(output_dir))
+
+    # Delete trimmed reads
+    if not keep_trimmed_reads:
+        for f in [trimmed_fastq1, trimmed_fastq2]: 
+            if not f is None:
+                if os.path.isfile(f):
+                    os.path.remove(f)
 
 
 def run_DefineClones(DefineClones, locus, outdir, species, distance): 

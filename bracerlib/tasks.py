@@ -213,10 +213,10 @@ class Assembler(TracerTask):
                                 'Used to filter out artefacts.', default=100)
             parser.add_argument('--no_trimming',
                                 help='Do not trim raw reads to remove adapter sequences '
-                                'and low quality reads.', default=False)
+                                'and low quality reads.', action = "store_true")
             parser.add_argument('--keep_trimmed_reads',
                                 help='Do not delete the output files from the trimming step.',
-                                default=False)
+                                action = "store_true")
             parser.add_argument('cell_name', metavar="<CELL_NAME>", 
                                 help='name of cell for file labels')
             parser.add_argument('output_dir', metavar="<OUTPUT_DIR>",
@@ -258,7 +258,7 @@ class Assembler(TracerTask):
             self.assembled_file = kwargs.get('assembled_file')
             self.species = kwargs.get('species')
             self.resume_with_existing_files = kwargs.get(
-                'resume_with_existing_files')
+                            'resume_with_existing_files')
             self.output_dir = kwargs.get('output_dir')
             self.single_end = kwargs.get('single_end')
             self.fragment_length = kwargs.get('fragment_length')
@@ -537,7 +537,8 @@ class Assembler(TracerTask):
                 kallisto, cell, self.output_dir, self.cell_name, 
                 kallisto_base_transcriptome, self.fastq1, self.fastq2, 
                 self.ncores, self.resume_with_existing_files, self.single_end, 
-                self.fragment_length, self.fragment_sd)
+                self.fragment_length, self.fragment_sd, self.trimmed_fastq1,
+                self.trimmed_fastq2, self.keep_trimmed_reads)
         print()
 
         counts = bracer_func.load_kallisto_counts(
