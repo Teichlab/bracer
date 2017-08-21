@@ -1265,12 +1265,21 @@ def run_trim_galore(trim_galore, cutadapt, output_dir, cell_name, fastq1,
         ending = "fq.gz"
     else:
         ending = "fq"
-    fastq1_out = "{}R1_val_1.{}".format(trimmed_read_path, ending)
-    fastq2_out = "{}R2_val_2.{}".format(trimmed_read_path, ending)
+    if not single_end:
+        fastq1_out = "{}R1_val_1.{}".format(trimmed_read_path, ending)
+        fastq2_out = "{}R2_val_2.{}".format(trimmed_read_path, ending)
+    else:
+        fastq1_out = "{}R1_trimmed.{}".format(trimmed_read_path, ending)
+        fastq2_out = None
     if should_resume:
-        if os.path.isfile(fastq1_out) and os.path.isfile(fastq2_out):
-            print("Resuming with existing trimmed reads")
-            return(fastq1_out, fastq2_out)
+        if not single_end:
+            if os.path.isfile(fastq1_out) and os.path.isfile(fastq2_out):
+                print("Resuming with existing trimmed reads")
+                return(fastq1_out, fastq2_out)
+        else:
+            if os.path.isfile(fastq1_out):
+                print("Resuming with existing trimmed reads")
+                return(fastq1_out, fastq2_out)
 
     trimmed_read_dir = "{}/trimmed_reads".format(output_dir)
 
@@ -1279,11 +1288,13 @@ def run_trim_galore(trim_galore, cutadapt, output_dir, cell_name, fastq1,
         command = [trim_galore, fastq1, fastq2, '--paired', '--suppress_warn',
                   '--path_to_cutadapt', cutadapt, '--no_report_file',
                   '-o', trimmed_read_dir]
-
-        try:
-            subprocess.check_call(command)
-        except subprocess.CalledProcessError:
-            print("trim_galore failed")
+    else:
+        command = [trim_galore, fastq1, '--suppress_warn', '--path_to_cutadapt',
+                  cutadapt, '--no_report_file', '-o', trimmed_read_dir]
+    try:
+        subprocess.check_call(command)
+    except subprocess.CalledProcessError:
+        print("trim_galore failed")
         
     return(fastq1_out, fastq2_out)
 
@@ -1314,6 +1325,8 @@ def bowtie2_alignment(bowtie2, ncores, loci, output_dir, cell_name,
     for locus in locus_names:
         print("##{}##".format(locus))
         sam_file = "{}/aligned_reads/{}_{}.sam".format(output_dir, cell_name, locus)
+        aligned_fasta = "{}/aligned_reads/{}_{}_aligned.fasta".format(
+                            output_dir, cell_name, locus)
 
         if not single_end:
             # Look for trimmed reads
@@ -1322,25 +1335,21 @@ def bowtie2_alignment(bowtie2, ncores, loci, output_dir, cell_name,
                     fastq1 = trimmed_fastq1
                     fastq2 = trimmed_fastq2
             
-            aligned_fasta = "{}/aligned_reads/{}_{}_aligned.fasta".format(
-                                            output_dir, cell_name, locus)
             fastq_out_1 = open("{}/aligned_reads/{}_{}_1.fastq".format(
                                     output_dir, cell_name, locus), 'w')
             fastq_out_2 = open("{}/aligned_reads/{}_{}_2.fastq".format(
                                     output_dir, cell_name, locus), 'w')
-
-            # Run two rounds of alignment for H chain to extract reads 
-            #mapping to the CDR3
-            if locus == "BCR_H":
+            
                 
-                command = [bowtie2, '--no-unal', '-p', ncores, '-k', '1', 
-                          '--np', '0', '--rdg', '1,1', '--rfg', '1,1', '-x', 
-                          "/".join([synthetic_genome_path, locus]), '-1', 
-                          fastq1, '-2', fastq2, '-S', sam_file, '--score-min', 
-                          'L,-0.6,-0.6']
-                subprocess.check_call(command)
+            command = [bowtie2, '--no-unal', '-p', ncores, '-k', '1', 
+                      '--np', '0', '--rdg', '1,1', '--rfg', '1,1', '-x', 
+                      "/".join([synthetic_genome_path, locus]), '-1', 
+                      fastq1, '-2', fastq2, '-S', sam_file, '--score-min', 
+                      'L,-0.6,-0.6']
+            subprocess.check_call(command)
 
-                # Split the sam file
+            if locus == "BCR_H":
+                # Split the sam file for second alignment
                 fastq_lines_1, fastq_lines_2, fastq_lines_1_unpaired = split_sam_file_paired(
                                                                         sam_file, fasta=True)
                 with open(aligned_fasta, "w") as input:
@@ -1378,19 +1387,9 @@ def bowtie2_alignment(bowtie2, ncores, loci, output_dir, cell_name,
                     except:
                         pass
                 
-                fastq_lines_1, fastq_lines_2, fastq_lines_1_unpaired = split_sam_file_paired(
-                                                                        sam_file, fasta=False)
 
-            else:
-                command = [bowtie2, '--no-unal', '-p', ncores, '-k', '1', 
-                          '--np', '0', '--rdg', '1,1', '--rfg', '1,1', '-x', 
-                          "/".join([synthetic_genome_path, locus]), '-1', 
-                          fastq1, '-2', fastq2, '-S', sam_file]
-
-                subprocess.check_call(command)
-
-                # Split the sam file for Trinity.
-                fastq_lines_1, fastq_lines_2, fastq_lines_1_unpaired = split_sam_file_paired(
+            # Split the sam file for Trinity.
+            fastq_lines_1, fastq_lines_2, fastq_lines_1_unpaired = split_sam_file_paired(
                                                                         sam_file, fasta=False)
 
             for line in fastq_lines_1:
@@ -1416,30 +1415,77 @@ def bowtie2_alignment(bowtie2, ncores, loci, output_dir, cell_name,
                       '-S', sam_file]
 
             subprocess.check_call(command)
+            
+            if locus == "BCR_H":
+                # Split the sam file for second alignment
+                out_lines = split_sam_file_unpaired(sam_file, fasta=True)
 
-            with open(sam_file) as sam_in:
-                for line in sam_in:
-                    if not line.startswith("@"):
+                with open(aligned_fasta, "w") as input:
+                    for line in out_lines:
+                        input.write(line)
 
-                        line = line.rstrip()
-                        line = line.split("\t")
-                        name = line[0]
-                        seq = line[9]
-                        qual = line[10]
-                        flag = int(line[1])
-                        if not flag == 0:
-                            revcomp_flag = "{0:b}".format(flag)[-5]
-                        else:
-                            revcomp_flag = "0"
+                # Create separate sam file for second round of alignment
+                sam_file_2 = "{}/aligned_reads/{}_{}_2.sam".format(output_dir,
+                                                        cell_name, locus)
 
-                        if revcomp_flag == "1":
-                            seq = str(Seq(seq).reverse_complement())
-                            qual = qual[::-1]
-                        # Add /1 to name to avoid trouble with Trinity
-                        if not name[len(name)-2:len(name)] == ("/1" or "/2"):
-                            name = name + "/1"
-                        fastq_out.write("@{name}\n{seq}\n+\n{qual}\n".format(name=name, seq=seq, qual=qual))
-                fastq_out.close()
+                # Make Bowtie index of aligned reads
+                index_base = os.path.join(
+                        output_dir, 'aligned_reads', '{}'.format(locus))
+
+                command = [bowtie2_build, '-q', aligned_fasta, index_base]
+
+                if os.path.getsize(aligned_fasta) > 0:
+                    try:
+                        subprocess.check_call(command)
+                    except subprocess.CalledProcessError:
+                        print("bowtie2-build failed")
+                    try:
+                        #Align all reads against aligned reads in local mode
+                        command = [bowtie2, '--no-unal', '-p', ncores, '-k',
+                                  '1', '--np', '0', '--rdg', '7,7', '--rfg',
+                                  '7,7', '-x', index_base, '-U', fastq1, '-S', 
+                                  sam_file_2, '--local', '--ma', '1', '--mp', '20']
+                        subprocess.check_call(command)
+                        sam_file = sam_file_2
+                    except:
+                        pass
+
+            # Split the sam file for Trinity
+            out_lines = split_sam_file_unpaired(sam_file, fasta=False)
+            for line in out_lines:
+                fastq_out.write(line)
+            fastq_out.close()
+
+
+def split_sam_file_unpaired(sam_file, fasta=False):
+    out_lines = []
+    with open(sam_file) as sam_in:
+        for line in sam_in:
+            if not line.startswith("@"):
+                line = line.rstrip()
+                line = line.split("\t")
+                name = line[0]
+                seq = line[9]
+                qual = line[10]
+                flag = int(line[1])
+                if not flag == 0:
+                    revcomp_flag = "{0:b}".format(flag)[-5]
+                else:
+                    revcomp_flag = "0"
+                if revcomp_flag == "1":
+                    seq = str(Seq(seq).reverse_complement())
+                    qual = qual[::-1]
+                # Add /1 to name to avoid trouble with Trinity
+                if not name[len(name)-2:len(name)] == ("/1" or "/2"):
+                    name = name + "/1"
+                if fasta==False:
+                    out_lines.append("@{name}\n{seq}\n+\n{qual}\n".format(
+                                            name=name, seq=seq, qual=qual))
+                else:
+                    out_lines.append(">{}\n{}\n".format(name, seq))
+
+    return(out_lines)
+
 
 def split_sam_file_paired(sam_file, fasta=False):
     fastq_lines_1 = []
