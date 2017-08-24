@@ -40,7 +40,6 @@ Note that BraCeR requires Python (>=3.4.0), as one of the required tools have th
 6. [Graphviz](http://www.graphviz.org) - Dot and Neato drawing programs required for visualisation of clonotype graphs. This is optional - see the [`--no_networks` option](#options-1) to [`summarise`](#summarise-summary-and-clonotype-networks).
 7. [PHYLIP] - dnapars program of PHYLIP is required for lineage reconstruction. This is optional - see the [`--infer_lineage` option](#options-1) to [`summarise`](#summarise-summary-and-clonotype-networks).   
 8. [Trim Galore!](https://www.bioinformatics.babraham.ac.uk/projects/trim_galore/) - required for adapter and quality trimming (optional).
-9. [Cutadapt]
 	
 ##### Installing IgBlast 
 Downloading the executable files from `ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/<version_number>` is not sufficient for a working IgBlast installation. You must also download the `internal_data` directory (ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/internal_data) and put it into the same directory as the igblast executable. This is also described in the igblast README file.
