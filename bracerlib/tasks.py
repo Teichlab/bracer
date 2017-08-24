@@ -346,7 +346,7 @@ class Assembler(TracerTask):
                 self.trim_reads()
             self.align()
             self.de_novo_assemble()
-
+        
         self.blast()
         cell = self.ig_blast()
 
@@ -825,6 +825,7 @@ class Summariser(TracerTask):
         doi: 10.1093/bioinformatics/btv359"""
         #pdb.set_trace()
         if self.infer_lineage and len(component_groups) > 0:
+            pdb.set_trace()
             # Create IgBlast input files
             if not self.IGH_networks and not self.loci ==["H"]:
                 # Find the clonal sequences that are shared in each component group

@@ -1,4 +1,5 @@
 ##############################################################################
+
 #                         Functions for use with                             #
 # BraCeR - a tool to reconstruct BCR sequences from single-cell RNA-seq data #    
 #                                                                            #
@@ -37,7 +38,7 @@ import bracerlib.io
 import copy
 
 import pdb
-
+import gzip
 
 
 def hamming_dist(str1, str2):
@@ -628,7 +629,6 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus,
     else:
         cdr3_start = cdr3_start - start
         in_frame = True
-    #pdb.set_trace()
     
     # Trim sequence to look for CDR3 in correct region
     if in_frame:
@@ -648,7 +648,7 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus,
                 cdr3_length = None
                 cdr3_seq = None
             elif cdr3_2 and cdr3_3:
-                if (motif_2 == motif_3) or ((motif_2 and motif_3) in [".G.G", "FSDG"]):
+                if (motif_2 == motif_3) or ((motif_2 and motif_3) in [".G.G", "FSDG", "WSQG"]):
                     if len(cdr3_2) > len(cdr3_3):
                         cdr3 = cdr3_2
                         frame = 2
@@ -719,9 +719,15 @@ def get_out_of_frame_cdr3(dna_seq, locus, frame):
         cdr3 = aaseq[0:upper + 4]
         motif = ".G.G"
 
-    elif re.findall("FSDG", str(aaseq)):
+    elif re.findall("WSQG", str(aaseq)) and locus in ["BCR_H", "H"]:
         indices = [i for i, x in enumerate(aaseq)]
-        upper = str(aaseq).find(re.findall(".G.G", str(aaseq))[0])
+        upper = str(aaseq).find(re.findall("WSQG", str(aaseq))[0])
+        cdr3 = aaseq[0:upper + 4]
+        motif = "WSQG"
+
+    elif re.findall("FSDG", str(aaseq)) and locus in ["BCR_K", "K"]:
+        indices = [i for i, x in enumerate(aaseq)]
+        upper = str(aaseq).find(re.findall("FSDG", str(aaseq))[0])
         cdr3 = aaseq[0:upper + 4]
         motif = "FSDG"
 
@@ -777,9 +783,20 @@ def get_cdr3(dna_seq, locus):
             cdr3 = aaseq[lower2:upper2 + 4]
         else:
             cdr3 = "Couldn't find conserved cysteine"
+
+    elif re.findall("WSQG", str(aaseq)) and re.findall('C', str(aaseq)):
+        indices = [i for i, x in enumerate(aaseq) if x == 'C']
+        upper = str(aaseq).find(re.findall("WSQG", str(aaseq))[0])
+        for i in indices:
+            if i < upper:
+                lower = i
+        if lower:
+            cdr3 = aaseq[lower:upper + 4]
+        else:
+            cdr3 = "Couldn't find conserved cysteine"
                         
     
-    elif re.findall("FSDG", str(aaseq)) and re.findall('C', str(aaseq)):
+    elif re.findall("FSDG", str(aaseq)) and re.findall('C', str(aaseq)) and locus in ["BCR_K", "K"]:
         indices = [i for i, x in enumerate(aaseq) if x == 'C']
         upper = str(aaseq).find(re.findall("FSDG", str(aaseq))[0])
         lower = False
@@ -812,7 +829,6 @@ def is_cdr3_in_frame(cdr3, locus):
 def collapse_close_sequences(recombinants, locus):
     contig_names = [r.contig_name for r in recombinants]
     filtered_contig_names = [r.contig_name for r in recombinants]
-    #pdb.set_trace()
     uncollapsible_contigs = []
     C_genes = dict()
     if len(recombinants) > 1:
@@ -1158,8 +1174,8 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato,
             for cell in component:
                 members.append(cell.name)
 
-
-        component_groups.append(members)
+        if not members == []:
+            component_groups.append(members)
 
     return (G, drawing_tool, component_groups)
 
@@ -1255,23 +1271,72 @@ def check_config_file(filename):
         exit(1)
 
 
+def detect_read_length(fastq1):
+    """Detects read length in order to determine if a second round
+    of alignment for heavy chain should be performed."""
+    sum_length = 0
+    count = 0
+    read_length = 0
+    #pdb.set_trace()
+    if fastq1 is not None:
+        if os.path.exists(fastq1):
+            if ".gz" in fastq1:
+                with gzip.open(fastq1, 'r') as f:
+                    for line in f:
+                        if count > 10000:
+                            break
+                        if not line.startswith(b'@') and not line.startswith(b'+'):
+                            line = line.strip()
+                            length = len(line)
+                            sum_length += length
+                            count += 1
+                            
+        
+            else:
+                with open(fastq1, "r") as input:
+                    for line in input:
+                        if count < 10000:
+                            if not line.startswith("@") and not line.startswith("+"):
+                                line = line.strip()
+                                length = len(line)
+                                sum_length += length
+                                count += 1
+    if count == 0:
+        short_reads = True
+    else:
+        read_length = sum_length / count
+        if read_length > 50:
+            short_reads = False
+        else:
+            short_reads = True
+
+    return(short_reads, read_length)
+
+
 def run_trim_galore(trim_galore, cutadapt, output_dir, cell_name, fastq1,
                     fastq2, should_resume, single_end):
     """Trimming raw reads using Trim Galore/Cutadapt to remove adapter
-    sequences and low-quality reads"""
+    sequences and low-quality reads."""
 
     print("##Trimming raw reads##")
+    # Look for existing trimmed reads
+    fastq1_base = fastq1.split(".f")[0]
+    fastq2_base = fastq2.split(".f")[0]
+    if "/" in fastq1_base:
+        fastq1_base = fastq1_base.split("/")[-1]
+    if "/" in fastq2_base:
+        fastq2_base = fastq2_base.split("/")[-1]
     
-    trimmed_read_path = "{}/trimmed_reads/{}_".format(output_dir, cell_name)
+    trimmed_read_path = "{}/trimmed_reads".format(output_dir)
     if ".gz" in (fastq1 or fastq2):
         ending = "fq.gz"
     else:
         ending = "fq"
     if not single_end:
-        fastq1_out = "{}R1_val_1.{}".format(trimmed_read_path, ending)
-        fastq2_out = "{}R2_val_2.{}".format(trimmed_read_path, ending)
+        fastq1_out = "{}/{}_val_1.{}".format(trimmed_read_path, fastq1_base, ending)
+        fastq2_out = "{}/{}_val_2.{}".format(trimmed_read_path, fastq2_base, ending)
     else:
-        fastq1_out = "{}R1_trimmed.{}".format(trimmed_read_path, ending)
+        fastq1_out = "{}/R1_trimmed.{}".format(trimmed_read_path, ending)
         fastq2_out = None
     if should_resume:
         if not single_end:
@@ -1327,7 +1392,15 @@ def bowtie2_alignment(bowtie2, ncores, loci, output_dir, cell_name,
         return
     
     print("Attempting new assembly for {}\n".format(locus_names))
-    
+    #pdb.set_trace()   
+    short_reads, read_length = detect_read_length(fastq1)
+
+    print("Detected average R1 read length: ")
+    print(read_length)
+
+    if short_reads:
+        print("Short read length detected. BraCeR will run two rounds of alignment for heavy chain\n") 
+
     for locus in locus_names:
         print("##{}##".format(locus))
         sam_file = "{}/aligned_reads/{}_{}.sam".format(output_dir, cell_name, locus)
@@ -1354,7 +1427,7 @@ def bowtie2_alignment(bowtie2, ncores, loci, output_dir, cell_name,
                       'L,-0.6,-0.6']
             subprocess.check_call(command)
 
-            if locus == "BCR_H":
+            if locus == "BCR_H" and short_reads == True:
                 # Split the sam file for second alignment
                 fastq_lines_1, fastq_lines_2, fastq_lines_1_unpaired = split_sam_file_paired(
                                                                         sam_file, fasta=True)
@@ -1882,7 +1955,7 @@ def run_Blast(blast, loci, output_dir, cell_name, index_location, species,
 def quantify_with_kallisto(kallisto, cell, output_dir, cell_name, 
                            kallisto_base_transcriptome, fastq1, fastq2, ncores, 
                            should_resume, single_end, fragment_length, 
-                           fragment_sd, trimmed_fastq1, trimmed_fastq2
+                           fragment_sd, trimmed_fastq1, trimmed_fastq2,
                            keep_trimmed_reads):
 
     print("##Running Kallisto##")
@@ -1958,7 +2031,7 @@ def quantify_with_kallisto(kallisto, cell, output_dir, cell_name,
         for f in [trimmed_fastq1, trimmed_fastq2]: 
             if not f is None:
                 if os.path.isfile(f):
-                    os.path.remove(f)
+                    os.remove(f)
 
 
 def run_DefineClones(DefineClones, locus, outdir, species, distance): 
