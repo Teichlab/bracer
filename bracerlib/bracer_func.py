@@ -1624,7 +1624,7 @@ def split_sam_file_paired(sam_file, fasta=False):
 
 
 def assemble_with_trinity(trinity, loci, output_dir, cell_name, ncores, trinity_grid_conf, 
-                          JM, version, should_resume, single_end, species):
+                          JM, version, should_resume, single_end, species, no_normalise):
     print("##Assembling Trinity Contigs##")
     receptor = "BCR"
     if should_resume:
@@ -1645,7 +1645,9 @@ def assemble_with_trinity(trinity, loci, output_dir, cell_name, ncores, trinity_
 
     memory_string = '--max_memory' if (version == '2') else '--JM'
     base_command = base_command + ['--seqType', 'fq', memory_string, JM, 
-            '--CPU', ncores, '--full_cleanup', '--no_normalize_reads']
+            '--CPU', ncores, '--full_cleanup']
+    if no_normalise:
+        base_command = base_command + ['--no_normalize_reads']
 
     locus_names = ["_".join([receptor,x]) for x in loci]
     
