@@ -243,8 +243,6 @@ class Assembler(TracerTask):
             self.loci = args.loci
             self.max_junc_len = args.max_junc_len
             self.no_trimming = args.no_trimming
-            self.trimmed_fastq1 = None
-            self.trimmed_fastq2 = None
             self.keep_trimmed_reads = args.keep_trimmed_reads
             config_file = args.config_file
             
@@ -269,7 +267,8 @@ class Assembler(TracerTask):
             self.keep_trimmed_reads = kwargs.get('keep_trimmed_reads')
             config_file = kwargs.get('config_file')
 
-
+        self.trimmed_fastq1 = None
+        self.trimmed_fastq2 = None
         self.config = self.read_config(config_file)
         self.species_root = self.get_species_root(self.species,
                                             root=resource_dir)
@@ -825,7 +824,7 @@ class Summariser(TracerTask):
         doi: 10.1093/bioinformatics/btv359"""
         #pdb.set_trace()
         if self.infer_lineage and len(component_groups) > 0:
-            pdb.set_trace()
+            #pdb.set_trace()
             # Create IgBlast input files
             if not self.IGH_networks and not self.loci ==["H"]:
                 # Find the clonal sequences that are shared in each component group
@@ -1487,19 +1486,19 @@ class Summariser(TracerTask):
         for locus in loci:
             input_file = "{}/igblast_{}_db-modified_germ-pass.tab".format(outdir, locus)
             cell_info[locus] = dict()
-            with open(input_file, "r") as input:
-                #pdb.set_trace()
-                for line in input:
-                    if not line.startswith("SEQUENCE_ID"):
-                        info = line.split("\t")
-                        cell_name = line.split("_TRINITY")[0]
-                        cell_info[locus][cell_name] = dict()
-                        cell_info[locus][cell_name]["sequence_imgt"] = info[11]
-                        cell_info[locus][cell_name]["germline_imgt"] = info[48]
-                        cell_info[locus][cell_name]["V_call"] = info[7]
-                        cell_info[locus][cell_name]["J_call"] = info[9]
-                        cell_info[locus][cell_name]["junction_length"] = info[28]
-                        cell_info[locus][cell_name]["isotype"] = info[45]
+            if os.path.isfile(input_file):
+                with open(input_file, "r") as input:
+                    for line in input:
+                        if not line.startswith("SEQUENCE_ID"):
+                            info = line.split("\t")
+                            cell_name = line.split("_TRINITY")[0]
+                            cell_info[locus][cell_name] = dict()
+                            cell_info[locus][cell_name]["sequence_imgt"] = info[11]
+                            cell_info[locus][cell_name]["germline_imgt"] = info[48]
+                            cell_info[locus][cell_name]["V_call"] = info[7]
+                            cell_info[locus][cell_name]["J_call"] = info[9]
+                            cell_info[locus][cell_name]["junction_length"] = info[28]
+                            cell_info[locus][cell_name]["isotype"] = info[45]
 
 
         with open(output_file, "w") as output:
@@ -1510,7 +1509,6 @@ class Summariser(TracerTask):
             output.write(header)
             clone = 0
             for g in component_groups:
-                #pdb.set_trace()
                 # Set clone=component_group number
                 clone += 1
                 light_locus = top_chain[clone]["light"].split("_")[1] 
@@ -1782,9 +1780,11 @@ class Tester(TracerTask):
                                 action="store_true")
             parser.add_argument('--infer_lineage', help='Construct lineage trees '
                                 'for clone groups shown in clonal network', 
-                                action = "store_true")
+                                action ="store_true")
             parser.add_argument('--output', '-o', 
                                 help='Directory for output data of test')
+            parser.add_argument('--no_trimming', help='Do not trim reads',
+                                action="store_true")
             
             args = parser.parse_args(sys.argv[2:])
 
@@ -1796,6 +1796,7 @@ class Tester(TracerTask):
             self.no_networks = args.no_networks
             self.resume = args.resume_with_existing_files
             self.infer_lineage = args.infer_lineage
+            self.no_trimming = args.no_trimming
         else:
             self.resource_dir = kwargs.get('resource_dir')
             self.output_dir = kwargs.get('output')
@@ -1805,7 +1806,11 @@ class Tester(TracerTask):
             self.no_networks = kwargs.get('no_networks')
             self.resume = kwargs.get('resume_with_existing_files')
             self.infer_lineage = kwargs.get('infer_lineage')
+            self.no_trimming = kwargs.get('no_trimming')
 
+        self.trimmed_fastq1 = None
+        self.trimmed_fastq2 = None
+        self.keep_trimmed_reads = False
 
     def run(self):
         test_dir = os.path.join(base_dir, 'test_data')
@@ -1824,7 +1829,9 @@ class Tester(TracerTask):
                       resume_with_existing_files=self.resume, species='Hsap', 
                       fastq1=f1, fastq2=f2, cell_name=name, output_dir=out_dir,
                       single_end=False, fragment_length=False, fragment_sd=False, 
-                      loci=['H', 'K', 'L'], max_junc_len=100).run()
+                      loci=['H', 'K', 'L'], max_junc_len=100, 
+                      no_trimming=self.no_trimming, trimmed_fastq1=self.trimmed_fastq1,
+                      trimmed_fastq2=self.trimmed_fastq2).run()
 
         Summariser(resource_dir=self.resource_dir, config_file=self.config_file, 
                    use_unfiltered=False, graph_format=self.graph_format, 

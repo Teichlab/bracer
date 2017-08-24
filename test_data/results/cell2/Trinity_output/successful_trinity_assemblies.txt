@@ -1,0 +1,1 @@
+cell2	['BCR_H', 'BCR_L']

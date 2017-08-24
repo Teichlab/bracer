@@ -1,0 +1,41 @@
+BCR_H reconstruction:	3 / 3 (100.0%)
+BCR_K reconstruction:	0 / 3 (0.0%)
+BCR_L reconstruction:	3 / 3 (100.0%)
+
+Paired HK productive reconstruction:	0 / 3 (0.0%)
+Paired HL productive reconstruction:	3 / 3 (100.0%)
+Paired KL productive reconstruction:	0 / 3 (0.0%)
+
++--------+----------------+---------------+----------------+
+|        | 0 recombinants | 1 recombinant | 2 recombinants |
++--------+----------------+---------------+----------------+
+| all H  | 0              | 3 (100%)      | 0 (0%)         |
+| all K  | 2              | 1 (100%)      | 0 (0%)         |
+| all L  | 0              | 3 (100%)      | 0 (0%)         |
+| prod H | 0              | 3 (100%)      | 0 (0%)         |
+| prod K | 3              | 0 (N/A%)      | 0 (N/A%)       |
+| prod L | 0              | 3 (100%)      | 0 (0%)         |
++--------+----------------+---------------+----------------+
+##Proportion of full-length sequences of all recovered sequences##
+
+	H	K	L	
+all	3/3 (100%)	1/1 (100%)	2/3 (67%)	
+prod	3/3 (100%)	0/0 (N/A%)	2/3 (67%)	
+
+##Isotype of cells with productive heavy chain##
+
+Isotype	cells	% of cells
+IGHG1	1	33.33
+IGHA1	2	66.67
+
+
+#Clonotype groups#
+This is a text representation of the groups shown in clonotype_network_with_identifiers.pdf.
+It does not exclude cells that only share heavy chain and not light chain if Summarise is run with --IGH_networks.
+
+cell2, cell3
+
+
+#Cells with no reconstructed sequences#
+None
+

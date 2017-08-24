@@ -1,0 +1,94 @@
+# IGBLASTN 2.2.29+
+# Query: TRINITY_DN0_c0_g1_i1 len=685 path=[1:0-684] [-1, 1, -2]
+# Database: /nfs/team205/il5/software/bracer/resources/Hsap/igblast_dbs/BCR_V.fa /nfs/team205/il5/software/bracer/resources/Hsap/igblast_dbs/BCR_D.fa /nfs/team205/il5/software/bracer/resources/Hsap/igblast_dbs/BCR_J.fa
+# Domain classification requested: imgt
+
+# Note that your query represents the minus strand of a V gene and has been converted to the plus strand. The sequence positions refer to the converted sequence. 
+
+# V-(D)-J rearrangement summary for query sequence (Top V gene match, Top J gene match, Chain type, stop codon, V-J frame, Productive, Strand).  Multiple equivalent top matches having the same score and percent identity, if present, are separated by a comma.
+IGLV2-14*01	IGLJ3*01,IGLJ2*01	VL	No	N/A	N/A	-
+
+# V-(D)-J junction details based on top germline gene matches (V end, V-J junction, J start).  Note that possible overlapping nucleotides at VDJ junction (i.e, nucleotides that could be assigned to either rearranging gene) are indicated in parentheses (i.e., (TACT)) but are not included under the V, D, or J gene itself
+ACTCT	N/A	TGTGG	
+
+# Alignment summary between query and top germline V gene hit (from, to, length, matches, mismatches, gaps, percent identity)
+FR1-IMGT	15	89	75	75	0	0	100
+CDR1-IMGT	90	116	27	21	6	0	77.8
+FR2-IMGT	117	167	51	49	2	0	96.1
+CDR2-IMGT	168	176	9	8	1	0	88.9
+FR3-IMGT	177	284	108	106	2	0	98.1
+CDR3-IMGT (germline)	285	310	26	24	2	0	92.3
+Total	N/A	N/A	296	283	13	0	95.6
+
+# Hit table (the first field indicates the chain type of the hit)
+# Fields: query id, subject id, % identity, alignment length, mismatches, gap opens, gaps, q. start, q. end, s. start, s. end, evalue, bit score
+# 25 hits found
+V	reversed|TRINITY_DN0_c0_g1_i1	IGLV2-14*01	95.61	296	13	0	0	15	310	1	296	6e-120	  422
+V	reversed|TRINITY_DN0_c0_g1_i1	IGLV2-14*02	93.24	296	20	0	0	15	310	1	296	2e-113	  400
+V	reversed|TRINITY_DN0_c0_g1_i1	IGLV2-14*04	95.60	273	12	0	0	38	310	1	273	4e-110	  389
+V	reversed|TRINITY_DN0_c0_g1_i1	IGLV2-14*03	95.24	273	13	0	0	38	310	1	273	4e-109	  386
+V	reversed|TRINITY_DN0_c0_g1_i1	IGLV2-23*02	91.50	294	25	0	0	15	308	1	294	1e-107	  382
+V	reversed|TRINITY_DN0_c0_g1_i1	IGLV2-23*03	91.16	294	26	0	0	15	308	1	294	8e-107	  378
+V	reversed|TRINITY_DN0_c0_g1_i1	IGLV2-23*01	91.16	294	26	0	0	15	308	1	294	8e-107	  378
+V	reversed|TRINITY_DN0_c0_g1_i1	IGLV2-18*02	90.82	294	27	0	0	15	308	1	294	7e-106	  375
+V	reversed|TRINITY_DN0_c0_g1_i1	IGLV2-8*01	90.75	292	27	0	0	15	306	1	292	6e-105	  372
+V	reversed|TRINITY_DN0_c0_g1_i1	IGLV2-18*03	90.48	294	28	0	0	15	308	1	294	6e-105	  372
+V	reversed|TRINITY_DN0_c0_g1_i1	IGLV2-18*01	90.48	294	28	0	0	15	308	1	294	6e-105	  372
+V	reversed|TRINITY_DN0_c0_g1_i1	IGLV2-8*02	90.41	292	28	0	0	15	306	1	292	5e-104	  369
+V	reversed|TRINITY_DN0_c0_g1_i1	IGLV2-11*01	90.14	294	29	0	0	15	308	1	294	5e-104	  369
+V	reversed|TRINITY_DN0_c0_g1_i1	IGLV2-18*04	90.14	294	29	0	0	15	308	1	294	5e-104	  369
+V	reversed|TRINITY_DN0_c0_g1_i1	IGLV2-11*02	89.80	294	30	0	0	15	308	1	294	5e-103	  366
+V	reversed|TRINITY_DN0_c0_g1_i1	IGLV2-8*03	89.96	269	27	0	0	38	306	1	269	4e-94	  336
+V	reversed|TRINITY_DN0_c0_g1_i1	IGLV2-11*03	89.67	271	28	0	0	38	308	1	271	4e-94	  336
+V	reversed|TRINITY_DN0_c0_g1_i1	IGLV2-5*02	86.39	294	40	0	0	15	308	1	294	1e-93	  335
+V	reversed|TRINITY_DN0_c0_g1_i1	IGLV2-NL1*01	86.46	288	39	0	0	15	302	1	288	8e-92	  329
+V	reversed|TRINITY_DN0_c0_g1_i1	IGLV2-5*01	85.71	294	42	0	0	15	308	1	294	8e-92	  329
+J	reversed|TRINITY_DN0_c0_g1_i1	IGLJ3*01	100.00	38	0	0	0	311	348	1	38	1e-17	75.8
+J	reversed|TRINITY_DN0_c0_g1_i1	IGLJ2*01	100.00	38	0	0	0	311	348	1	38	1e-17	75.8
+J	reversed|TRINITY_DN0_c0_g1_i1	IGLJ3*02	100.00	31	0	0	0	318	348	8	38	2e-13	61.9
+J	reversed|TRINITY_DN0_c0_g1_i1	IGLJ5*01	95.45	22	1	0	0	327	348	17	38	1e-05	36.2
+J	reversed|TRINITY_DN0_c0_g1_i1	IGLJ7*01	89.66	29	3	0	0	318	346	8	36	4e-05	34.2
+# IGBLASTN 2.2.29+
+# Query: TRINITY_DN1_c0_g1_i1 len=298 path=[276:0-297] [-1, 276, -2]
+# Database: /nfs/team205/il5/software/bracer/resources/Hsap/igblast_dbs/BCR_V.fa /nfs/team205/il5/software/bracer/resources/Hsap/igblast_dbs/BCR_D.fa /nfs/team205/il5/software/bracer/resources/Hsap/igblast_dbs/BCR_J.fa
+# Domain classification requested: imgt
+
+# V-(D)-J rearrangement summary for query sequence (Top V gene match, Top J gene match, Chain type, stop codon, V-J frame, Productive, Strand).  Multiple equivalent top matches having the same score and percent identity, if present, are separated by a comma.
+IGLV1-40*01	N/A	VL	No	N/A	N/A	+
+
+# V-(D)-J junction details based on top germline gene matches (V end, V-J junction, J start).  Note that possible overlapping nucleotides at VDJ junction (i.e, nucleotides that could be assigned to either rearranging gene) are indicated in parentheses (i.e., (TACT)) but are not included under the V, D, or J gene itself
+TGGTT	N/A	N/A	
+
+# Alignment summary between query and top germline V gene hit (from, to, length, matches, mismatches, gaps, percent identity)
+FR1-IMGT	1	69	69	69	0	0	100
+CDR1-IMGT	70	96	27	26	1	0	96.3
+FR2-IMGT	97	147	51	50	1	0	98
+CDR2-IMGT	148	156	9	7	2	0	77.8
+FR3-IMGT	157	264	108	105	3	0	97.2
+CDR3-IMGT (germline)	265	292	28	26	2	0	92.9
+Total	N/A	N/A	292	283	9	0	96.9
+
+# Hit table (the first field indicates the chain type of the hit)
+# Fields: query id, subject id, % identity, alignment length, mismatches, gap opens, gaps, q. start, q. end, s. start, s. end, evalue, bit score
+# 20 hits found
+V	TRINITY_DN1_c0_g1_i1	IGLV1-40*01	96.92	292	9	0	0	1	292	7	298	3e-122	  428
+V	TRINITY_DN1_c0_g1_i1	IGLV1-40*02	96.88	288	9	0	0	5	292	11	298	3e-120	  422
+V	TRINITY_DN1_c0_g1_i1	IGLV1-40*03	96.52	287	10	0	0	5	291	11	297	6e-119	  417
+V	TRINITY_DN1_c0_g1_i1	IGLV1-50*01	92.04	289	23	0	0	1	289	7	295	1e-107	  380
+V	TRINITY_DN1_c0_g1_i1	IGLV1-44*01	85.57	291	39	1	3	1	291	7	294	7e-89	  318
+V	TRINITY_DN1_c0_g1_i1	IGLV1-47*02	84.88	291	41	1	3	1	291	7	294	5e-87	  311
+V	TRINITY_DN1_c0_g1_i1	IGLV1-47*01	84.54	291	42	1	3	1	291	7	294	4e-86	  308
+V	TRINITY_DN1_c0_g1_i1	IGLV1-51*02	83.39	289	45	1	3	1	289	7	292	2e-82	  296
+V	TRINITY_DN1_c0_g1_i1	IGLV1-51*01	83.04	289	46	1	3	1	289	7	292	2e-81	  293
+V	TRINITY_DN1_c0_g1_i1	IGLV1-36*01	82.82	291	47	1	3	1	291	7	294	2e-81	  293
+V	TRINITY_DN1_c0_g1_i1	IGLV1-41*01	85.23	264	36	1	3	1	264	7	267	5e-79	  285
+V	TRINITY_DN1_c0_g1_i1	IGLV1-41*02	82.52	286	47	1	3	1	286	7	289	5e-79	  285
+V	TRINITY_DN1_c0_g1_i1	IGLV1-62*01	78.42	292	62	1	1	1	292	7	297	1e-69	  254
+V	TRINITY_DN1_c0_g1_i1	IGLV2-11*01	77.34	278	63	0	0	4	281	10	287	6e-65	  238
+V	TRINITY_DN1_c0_g1_i1	IGLV2-11*02	77.34	278	63	0	0	4	281	10	287	6e-65	  238
+V	TRINITY_DN1_c0_g1_i1	IGLV2-18*02	76.98	278	64	0	0	4	281	10	287	5e-64	  235
+V	TRINITY_DN1_c0_g1_i1	IGLV2-18*03	76.62	278	65	0	0	4	281	10	287	4e-63	  232
+V	TRINITY_DN1_c0_g1_i1	IGLV2-8*01	76.62	278	65	0	0	4	281	10	287	4e-63	  232
+V	TRINITY_DN1_c0_g1_i1	IGLV2-18*01	76.62	278	65	0	0	4	281	10	287	4e-63	  232
+V	TRINITY_DN1_c0_g1_i1	IGLV2-11*03	77.65	264	59	0	0	18	281	1	264	4e-62	  229
+# BLAST processed 2 queries

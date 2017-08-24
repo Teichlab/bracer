@@ -1,0 +1,15 @@
+------------------
+##cell2##
+------------------
+
+#BCR_L#
+
+##reversed|TRINITY_DN0_c0_g1_i1##
+C segment:	IGLC2*02
+
+Segment	query_id	subject_id	% identity	alignment length	mismatches	gap opens	gaps	q start	q end	s start	s end	evalue	bit score
+C	reversed|TRINITY_DN0_c0_g1_i1	IGLC2*02	100.00	318	0	NA	0	348	665	1	318	9e-171	588.355
+
+##TRINITY_DN1_c0_g1_i1##
+No C segment found
+

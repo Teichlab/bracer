@@ -1,0 +1,54 @@
+# IGBLASTN 2.2.29+
+# Query: TRINITY_DN0_c0_g1_i1 len=712 path=[1:0-711] [-1, 1, -2]
+# Database: /nfs/team205/il5/software/bracer/resources/Hsap/igblast_dbs/BCR_V.fa /nfs/team205/il5/software/bracer/resources/Hsap/igblast_dbs/BCR_D.fa /nfs/team205/il5/software/bracer/resources/Hsap/igblast_dbs/BCR_J.fa
+# Domain classification requested: imgt
+
+# Note that your query represents the minus strand of a V gene and has been converted to the plus strand. The sequence positions refer to the converted sequence. 
+
+# V-(D)-J rearrangement summary for query sequence (Top V gene match, Top D gene match, Top J gene match, Chain type, stop codon, V-J frame, Productive, Strand).  Multiple equivalent top matches having the same score and percent identity, if present, are separated by a comma.
+IGHV3-9*01	IGHD3-10*01	IGHJ4*02	VH	No	N/A	N/A	-
+
+# V-(D)-J junction details based on top germline gene matches (V end, V-D junction, D region, D-J junction, J start).  Note that possible overlapping nucleotides at VDJ junction (i.e, nucleotides that could be assigned to either rearranging gene) are indicated in parentheses (i.e., (TACT)) but are not included under the V, D, or J gene itself
+AAAAG	G	CTATGGTTCGGGGA	ATCATTACCCCCTGGCGCCCACTC	TTGAC	
+
+# Alignment summary between query and top germline V gene hit (from, to, length, matches, mismatches, gaps, percent identity)
+FR1-IMGT	8	82	75	72	3	0	96
+CDR1-IMGT	83	106	24	23	1	0	95.8
+FR2-IMGT	107	157	51	48	3	0	94.1
+CDR2-IMGT	158	181	24	19	5	0	79.2
+FR3-IMGT	182	295	114	111	3	0	97.4
+CDR3-IMGT (germline)	296	302	7	7	0	0	100
+Total	N/A	N/A	295	280	15	0	94.9
+
+# Hit table (the first field indicates the chain type of the hit)
+# Fields: query id, subject id, % identity, alignment length, mismatches, gap opens, gaps, q. start, q. end, s. start, s. end, evalue, bit score
+# 28 hits found
+V	reversed|TRINITY_DN0_c0_g1_i1	IGHV3-9*01	94.92	295	15	0	0	8	302	1	295	1e-117	  414
+V	reversed|TRINITY_DN0_c0_g1_i1	IGHV3-9*03	94.58	295	16	0	0	8	302	1	295	1e-116	  411
+V	reversed|TRINITY_DN0_c0_g1_i1	IGHV3-9*02	94.58	295	16	0	0	8	302	1	295	1e-116	  411
+V	reversed|TRINITY_DN0_c0_g1_i1	IGHV3-43*02	88.47	295	34	0	0	8	302	1	295	9e-100	  355
+V	reversed|TRINITY_DN0_c0_g1_i1	IGHV3-20*01	88.14	295	35	0	0	8	302	1	295	8e-99	  352
+V	reversed|TRINITY_DN0_c0_g1_i1	IGHV3-20*02	87.80	295	36	0	0	8	302	1	295	7e-98	  349
+V	reversed|TRINITY_DN0_c0_g1_i1	IGHV3-43*01	87.80	295	36	0	0	8	302	1	295	7e-98	  349
+V	reversed|TRINITY_DN0_c0_g1_i1	IGHV3-43D*01	87.80	295	36	0	0	8	302	1	295	7e-98	  349
+V	reversed|TRINITY_DN0_c0_g1_i1	IGHV3-48*04	85.08	295	44	0	0	8	302	1	295	2e-90	  324
+V	reversed|TRINITY_DN0_c0_g1_i1	IGHV3-48*02	84.75	295	45	0	0	8	302	1	295	2e-89	  321
+V	reversed|TRINITY_DN0_c0_g1_i1	IGHV3-48*01	84.75	295	45	0	0	8	302	1	295	2e-89	  321
+V	reversed|TRINITY_DN0_c0_g1_i1	IGHV3-48*03	84.75	295	45	0	0	8	302	1	295	2e-89	  321
+V	reversed|TRINITY_DN0_c0_g1_i1	IGHV3-69-1*01	85.08	295	41	1	3	8	302	1	292	2e-88	  318
+V	reversed|TRINITY_DN0_c0_g1_i1	IGHV3-69-1*02	84.75	295	42	1	3	8	302	1	292	1e-87	  315
+V	reversed|TRINITY_DN0_c0_g1_i1	IGHV3-23*04	84.07	295	47	0	0	8	302	1	295	1e-87	  315
+V	reversed|TRINITY_DN0_c0_g1_i1	IGHV3-23D*01	83.73	295	48	0	0	8	302	1	295	1e-86	  311
+V	reversed|TRINITY_DN0_c0_g1_i1	IGHV3-21*04	83.73	295	48	0	0	8	302	1	295	1e-86	  311
+V	reversed|TRINITY_DN0_c0_g1_i1	IGHV3-23*01	83.73	295	48	0	0	8	302	1	295	1e-86	  311
+V	reversed|TRINITY_DN0_c0_g1_i1	IGHV3-11*05	83.90	292	47	0	0	11	302	4	295	4e-86	  310
+V	reversed|TRINITY_DN0_c0_g1_i1	IGHV3-11*01	83.90	292	47	0	0	11	302	4	295	4e-86	  310
+D	reversed|TRINITY_DN0_c0_g1_i1	IGHD3-10*01	100.00	14	0	0	0	304	317	7	20	0.001	28.4
+D	reversed|TRINITY_DN0_c0_g1_i1	IGHD5-18*01	100.00	9	0	0	0	303	311	10	18	1.4	18.4
+D	reversed|TRINITY_DN0_c0_g1_i1	IGHD3-10*02	100.00	9	0	0	0	309	317	11	19	1.4	18.4
+J	reversed|TRINITY_DN0_c0_g1_i1	IGHJ4*02	97.62	42	1	0	0	342	383	7	48	1e-17	75.8
+J	reversed|TRINITY_DN0_c0_g1_i1	IGHJ4*01	95.24	42	2	0	0	342	383	7	48	3e-15	67.9
+J	reversed|TRINITY_DN0_c0_g1_i1	IGHJ5*02	97.14	35	1	0	0	349	383	17	51	2e-13	61.9
+J	reversed|TRINITY_DN0_c0_g1_i1	IGHJ4*03	92.86	42	3	0	0	342	383	7	48	7e-13	60.0
+J	reversed|TRINITY_DN0_c0_g1_i1	IGHJ1*01	94.44	36	2	0	0	348	383	17	52	1e-11	56.0
+# BLAST processed 1 queries
