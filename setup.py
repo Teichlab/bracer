@@ -14,7 +14,7 @@ def package_files(directory):
             paths.append(os.path.join('..', path, filename))
     return paths
 
-extra_files = package_files('test_data')
+extra_files = package_files('test_data') + package_files('resources')
 
 
 setup(
