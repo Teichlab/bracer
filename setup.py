@@ -23,7 +23,7 @@ setup(
     author="Mike Stubbington, Ida Lindeman, Guy Emerton",
     entry_points={
         'console_scripts': [
-            'bracer=bracer.bracerlib.__main__'
+            'bracer=bracerlib.__main__'
         ]
     },
     author_email="mike.stubbington@sanger.ac.uk",
@@ -52,6 +52,7 @@ setup(
         "six>=1.10.0",
         "mock>=2.0.0",
         "future>=0.15.2",
-        "changeo>=0.3.7"
+        "changeo>=0.3.7",
+        "cutadapt>=1.14.0"
     ]
 )
