@@ -26,14 +26,13 @@ BraCeR is written in Python and so can just be downloaded, made executable (with
 
 BraCeR relies on several additional tools and Python modules that you should install. BraCeR also requires R (>= 3.1.2) and some R packages for lineage reconstruction (optional).
 
-Note that BraCeR requires Python (>=3.4.0), as one of the required tools have this as a requirement.
+Note that BraCeR requires Python (>=3.4.0), as one of the required tools has this as a requirement.
 
 ### Pre-requisites
 
 #### Software 
 1. [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml) - required for alignment of reads to synthetic BCR genomes.
-2. [Trinity](https://github.com/trinityrnaseq/trinityrnaseq/wiki) - required for assembly of reads into BCR contigs. BraCeR works with both version 1 and version 2 of Trinity. It should automatically detect the version that is installed or you can [specify it in the config file](https://github.com/Teichlab/bracer#trinity-options).
-    - Please note that Trinity requires a working installation of [Bowtie v1](http://bowtie-bio.sourceforge.net).
+2. [Trinity](https://github.com/trinityrnaseq/trinityrnaseq/wiki) - required for assembly of reads into BCR contigs. BraCeR requires Trinity v2.4.0.
 3. [IgBLAST](http://www.ncbi.nlm.nih.gov/igblast/faq.html#standalone) - required for analysis of assembled contigs. (ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/).
 4. [BLAST](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/ ) - required for determination of isotype. (ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/).
 5. [Kallisto](http://pachterlab.github.io/kallisto/) - software for quantification of BCR expression.
@@ -129,19 +128,6 @@ Edit `~/.bracerrc` (or a copy) so that the paths within the `[tool_locations]` s
 	max_jellyfish_memory = 1G
 
 Trinity needs to know the maximum memory available to it for the Jellyfish component. Specify this here.
-
-
-#### Trinity version 
-    #uncomment the line below to explicitly specify Trinity version. Options are '1' or '2'
-    #trinity_version = 2
-
-BraCeR will automatically detect the version of Trinity you have installed. You can also explicitly specify it here if you wish.
-
-##### HPC configuration 
-    #uncomment the line below if you've got a configuration file for Trinity to use a computing grid #
-    trinity_grid_conf = /path/to/trinity/grid.conf
-
-Trinity can parallelise contig assembly by submitting jobs across a compute cluster. If you're running in such an environment you can specify an optional trinity config file here. See the Trinity documentation for more information.
   
 
 #### Base transcriptomes for Kallisto 
@@ -258,7 +244,7 @@ For each cell, an `/<output_directory>/<cell_name>` directory will be created. T
 * `--no_networks` : Don't try to draw clonotype network graphs. This is useful if you don't have a working installation of Graphviz.
 * `--IGH_networks` : Base clonality only on heavy chain (allow different or no light chains in a clonotype). Default=False.
 * `--dist <float>` : Distance value to use for clonal inference by Change-O. Heavily mutated datasets may require a higher distance value, whereas datasets enriched in naive B cells may require a lower value. Default=0.2.
-* `--no_multiplets` : Exclude cells containing more than two recombinants for a locus from downstream analyses, including networks and clonotype analysis. Forces BraCeR to run with `-u/--use_unfiltered`. Default=False.
+* `--include_multiplets` : Do not exclude cells containing more than two recombinants for a locus from downstream analyses, including networks and clonotype analysis. Default=False.
 * `--infer_lineage` : Construct lineage trees for clone groups shown in clonal network. Do not use if you do not have dnapars (PHYLIP), R and the required R packages installed. Default=False.
 
 
