@@ -348,6 +348,7 @@ class Assembler(TracerTask):
         
         self.blast()
         cell = self.ig_blast()
+        self.create_changeo_db()
 
         if self.fastq1:
             self.quantify(cell)
@@ -499,6 +500,16 @@ class Assembler(TracerTask):
                     self.assembled_file)
         print()
         
+        # Run IgBlast of assembled contigs using IMGT-gapped references
+        gapped_index_location = os.path.join(self.species_root,
+                                        'imgt_gapped_resources/igblast_dbs')
+        bracer_func.run_IgBlast_IMGT_gaps_for_cell(igblastn, self.loci, 
+                    self.output_dir, self.cell_name, igblast_index_location, 
+                    gapped_index_location, igblast_seqtype, self.species, 
+                    self.assembled_file)
+        self.create_changeo_db()
+
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             cell = io.parse_IgBLAST(self.loci, self.output_dir, self.cell_name, 
@@ -509,6 +520,25 @@ class Assembler(TracerTask):
                                                             self.species)
 
         return cell
+
+
+    def create_changeo_db(self):
+        """Creates Change-O database from IgBlast result files after alignment
+        to imgt-gapped sequences for CDR3 detection"""
+        try:
+            MakeDb =  self.config.get('tool_locations', 'changeo_path') + "/MakeDb.py"
+            if not os.path.is_file(MakeDb):
+                MakeDb = "MakeDb.py"
+        except:
+            MakeDb = "MakeDb.py"
+
+        gapped_seq_location = os.path.join(self.species_root,
+                            'imgt_gapped_resources/raw_seqs')
+
+        # Run MakeDb from Change-O toolkit
+        for locus in self.loci:
+            bracer_func.run_MakeDb_for_cell(MakeDb, locus, self.output_dir, 
+                        self.species, gapped_seq_location, self.cell_name)
 
 
     def blast(self):
@@ -597,10 +627,11 @@ class Summariser(TracerTask):
                                 'distance value, whereas datasets enriched ' \
                                 'in naive B cells may require a lower value.', 
                                 default='0.2')
-            parser.add_argument('--no_multiplets', help='Exclude cells containing \
-                                more than two recombinants for a locus from \
-                                downstream analyses, including networks and \
-                                clonotype analysis', action = "store_true")
+            parser.add_argument('--include_multiplets', help='Do not exclude \
+                                cells containing more than two recombinants \
+                                for a locus from downstream analyses, \
+                                including networks and clonotype analysis', 
+                                action = "store_true")
             parser.add_argument('--infer_lineage', 
                                 help='Construct lineage trees for clone groups \
                                 shown in clonal network', action = "store_true")
@@ -614,7 +645,7 @@ class Summariser(TracerTask):
             self.use_unfiltered = args.use_unfiltered
             self.draw_graphs = not args.no_networks
             self.IGH_networks = args.IGH_networks
-            self.no_multiplets = args.no_multiplets
+            self.no_multiplets = not args.include_multiplets
             self.loci = args.loci
             self.species = args.species
             config_file = args.config_file
@@ -639,8 +670,6 @@ class Summariser(TracerTask):
         self.species_dir = self.get_species_root(self.species,
                                             root=resource_dir)
 
-        if self.no_multiplets:
-            self.use_unfiltered = True
         
         
     def run(self):
@@ -703,12 +732,28 @@ class Summariser(TracerTask):
         outfile.write(t.get_string())
         outfile.write("\n")
 
-        # If using unfiltered, name potential multiplets (cells with more
+        # Name potential multiplets (cells with more
         # than two recombinants for a locus
+        #pdb.set_trace()
         multiplets = []
         if self.use_unfiltered:
             multiplets = self.detect_multiplets(self.no_multiplets, outfile, 
                                                         cells, self.loci)
+        else:
+            #Identify multiplets if using filtered recombinants
+            unf_cells = {}
+            unf_pkl_dir = "unfiltered_BCR_seqs"
+            unf_outdir = "{}/unfiltered_BCR_summary".format(self.root_dir)
+            for d in subdirectories:
+                unf_pkl = "{root_dir}/{d}/{pkl_dir}/{d}.pkl".format(
+                    pkl_dir=unf_pkl_dir, d=d, root_dir=self.root_dir)
+                if os.path.isfile(unf_pkl):
+                    with open(unf_pkl, 'rb') as unf_pkl:
+                        cl = pickle.load(unf_pkl)
+                    unf_cells[d] = cl
+            multiplets = self.detect_multiplets(self.no_multiplets, outfile,
+                                                        unf_cells, self.loci)
+
 
         # Create Change-O db file for filtered multiplets if --no_multuplets
         if self.no_multiplets and len(multiplets) > 0:
@@ -1064,6 +1109,10 @@ class Summariser(TracerTask):
             outfile.write("\nThe following cells are likely multiplets or "
                 "contaminated as they contain more than two recombinants for "
                 "a locus, and were excluded from downstream analyses.\n")
+        else:
+             outfile.write("\nThe following cells are likely multiplets or "
+             "contaminated as they contain more than two recombinants for "
+             "a locus. Consider removing them from downstream analysis.\n")
         found_multi = False
         for cell in cells.values():
             if cell.has_excess_recombinants:

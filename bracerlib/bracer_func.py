@@ -168,6 +168,53 @@ def parse_alignment_summary(alignment_summary):
             
     return (start, cdr3_start)    
 
+
+def get_gapped_db_string(locus, query_name, cell_name, output_dir):
+    #pdb.set_trace()
+    gapped_db_file = "{}/IgBLAST_output/{}_{}_db-pass.tab".format(
+                        output_dir, cell_name, locus)
+    gapped_db_string = ""
+    if os.path.isfile(gapped_db_file):
+        with open(gapped_db_file, "r") as input:
+            for line in input:
+                if line.startswith("TRINITY"):
+                    info = line.split("\t")
+                    if info[0].split()[0] == query_name:
+                        gapped_db_string = line
+                        break
+    return (gapped_db_string)
+
+
+def parse_gapped_db_string(gapped_db_string):
+    info = gapped_db_string.split("\t")
+    productive = info[2]
+    in_frame = info[3]
+    stop = info[4]
+    indels = info[6]
+    junction = info[29]
+    cdr3_seq = info[36]
+    if productive == "T":
+        productive = True
+    else:
+        productive = False
+    if in_frame == "T":
+        in_frame = True
+    else:
+        in_frame = False
+    if stop == "T":
+        stop = True
+    else:
+        stop = False
+    if indels == "T":
+        indels = True
+    else:
+        indels = False
+
+    return (productive, in_frame, stop, indels, junction, cdr3_seq)
+
+
+
+
 def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, 
                 output_dir, species, loci_for_segments, loci, 
                 max_junc_string_length, assembled_file):
@@ -209,7 +256,11 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
                         best_J = remove_allele_stars(
                                  rearrangement_summary[1].split(",")[0])
 
-
+                    # Get info from gapped_db_string
+                    gapped_db_string = get_gapped_db_string(locus, query_name, cell_name, output_dir)
+                    if "\t" in gapped_db_string:
+                        (productive, in_frame, stop, indels, junc_string, cdr3_seq) = \
+                                parse_gapped_db_string(gapped_db_string)
                     
 
                     identifier = best_V + "_" + junc_string + "_" + best_J
@@ -271,13 +322,24 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
                     trinity_seq = trinity_seq[start_coord:end_coord]
                     cdr3_seq = None
 
-                    
+                    # Get recombinant info from ungapped sequences
                     fasta_line_for_contig = trinity_seq
                     (is_productive, bestVJNames, cdr3, cdr3_seq) = (
                         get_fasta_line_for_contig_assembly(trinity_seq, good_hits,
                         returned_locus, IMGT_seqs, cell_name, query_name, 
                         loci_for_segments, full_length, alignment_summary, 
                         rearrangement_summary))
+                    productive = is_productive[0]
+                    stop_codon = is_productive[1]
+                    in_frame = is_productive[2]
+
+                    #pdb.set_trace()
+                    # Replace with productivity info from IMGT-gapped sequences
+                    # if available
+                    if "\t" in gapped_db_string:
+                        (productive, in_frame, stop_codon, indels, junc_string, cdr3_seq) = \
+                            parse_gapped_db_string(gapped_db_string)
+                        cdr3 = Seq(str(cdr3_seq), generic_dna).translate()
                     
 
                     #Identify the most likely V and J genes
@@ -298,14 +360,14 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
                         for J in all_J_names:    
                             i = V + "_" + J
                             all_poss_identifiers.add(i)
+                    
 
                     if len(junc_string) < int(max_junc_string_length):
                         rec = Recombinant(contig_name=query_name, 
                                 locus=returned_locus, identifier=identifier, 
                                 all_poss_identifiers=all_poss_identifiers, 
-                                productive=is_productive[0], 
-                                stop_codon=is_productive[1], 
-                                in_frame=is_productive[2], TPM=0.0, 
+                                productive=productive, stop_codon=stop_codon, 
+                                in_frame=in_frame, TPM=0.0, 
                                 dna_seq=fasta_line_for_contig, hit_table=good_hits, 
                                 summary=rearrangement_summary, 
                                 junction_details=junction_list, 
@@ -317,7 +379,8 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
                                 V_genes=V_genes, J_genes=J_genes, cdr3=cdr3, 
                                 C_gene=C_gene, C_info_line=C_info_line, 
                                 cdr3_seq=cdr3_seq, junc_string=junc_string,
-                                untrimmed_seq=untrimmed_seq)
+                                untrimmed_seq=untrimmed_seq, 
+                                gapped_db_string=gapped_db_string)
                         recombinants[locus].append(rec)
 
     if recombinants:
@@ -1808,6 +1871,69 @@ def run_IgBlast(igblast, loci, output_dir, cell_name, index_location,
                 break
     DEVNULL.close()
 
+
+def run_IgBlast_IMGT_gaps_for_cell(igblast, loci, output_dir, cell_name, 
+            ungapped_index_location, gapped_index_location, ig_seqtype, 
+            species, assembled_file):
+    """Running IgBlast for reconstructed sequences in a cell using IMGT-gapped
+    reference sequences in order to determine CDR3 sequences and productivity"""
+    species_mapper = {
+            'Mmus': 'mouse',
+            'Hsap': 'human',
+            'Rat' : 'rat',
+            'rat' : 'rat',
+            'Rno' : 'rat'
+    }
+    receptor = "BCR"
+    igblast_species = species
+    if species in species_mapper.keys():
+        igblast_species = species_mapper[species]
+
+    initial_locus_names = ["_".join([receptor,x]) for x in loci]
+    locus_names = copy.copy(initial_locus_names)
+
+    #databases = {}
+    #databases['V'] = "{}/BCR_V.fa".format(gapped_index_location)
+    
+    #for segment in ['D', 'J']:
+        #databases[segment] = "{}/BCR_{}.fa".format(ungapped_index_location,
+                                                                #segment)
+
+    auxiliary_data = "{}/{}_gl.aux".format(gapped_index_location, species)
+
+    if assembled_file is not None:
+        sequence_file = "{}/Trinity_output/{}.fasta".format(output_dir, cell_name)
+        output_file = "{}/IgBLAST_output/{}.fmt7".format(output_dir, cell_name)
+
+    for locus in locus_names:
+        #pdb.set_trace()
+        databases = {}
+        databases['V'] = "{}/{}_V.fa".format(gapped_index_location, locus)
+        databases['J'] = "{}/{}_J.fa".format(gapped_index_location, locus)
+        if locus == "BCR_H":
+            databases['D'] = "{}/{}_D.fa".format(gapped_index_location, locus)
+
+        if assembled_file is None:
+            sequence_file = "{}/Trinity_output/{}_{}.Trinity.fasta".format(
+                                                output_dir, cell_name, locus)
+            output_file = "{}/IgBLAST_output/{}_{}.fmt7".format(
+                                                output_dir, cell_name, locus)
+            
+        if os.path.isfile(sequence_file):
+            command = [igblast, '-germline_db_V', databases['V'], '-germline_db_J',
+                         databases['J'], '-domain_system', 'imgt',
+                         '-organism', igblast_species, '-ig_seqtype', ig_seqtype,
+                         '-outfmt', '7 std qseq sseq btop', '-query', sequence_file]
+            if locus == "BCR_H":
+                command += ['-germline_db_D', databases['D']]
+            if os.path.isfile(auxiliary_data):
+                command += ['-auxiliary_data', auxiliary_data]
+            with open(output_file, 'w') as out:
+                subprocess.check_call(command, stdout=out)
+            if assembled_file is not None:
+                break
+
+
 def run_IgBlast_IMGT_gaps(igblast, output_dir, ungapped_index_location, 
                             gapped_index_location, ig_seqtype, species):
     """Runs IgBlast for all reconstructed sequences using databases 
@@ -1833,7 +1959,6 @@ def run_IgBlast_IMGT_gaps(igblast, output_dir, ungapped_index_location,
         databases[segment] = "{}/BCR_{}.fa".format(ungapped_index_location, 
                                                                 segment)
         
-    
     auxiliary_data = "{}/{}_gl.aux".format(gapped_index_location, species)
 
     sequence_file = "{}/BCR_sequences.fa".format(output_dir)
@@ -1845,6 +1970,7 @@ def run_IgBlast_IMGT_gaps(igblast, output_dir, ungapped_index_location,
                     '-domain_system', 'imgt',
                     '-organism', igblast_species, '-ig_seqtype', ig_seqtype,
                     '-outfmt', '7 std qseq sseq btop', '-query', sequence_file]
+                    
         if os.path.isfile(auxiliary_data):
             command += ['-auxiliary_data', auxiliary_data]
 
@@ -1877,6 +2003,7 @@ def run_IgBlast_for_lineage_reconstruction(igblast, locus, output_dir,
     
     auxiliary_data = "{}/{}_gl.aux".format(gapped_index_location, species)
     
+
     sequence_file = "{}/igblast_input_{}.fa".format(output_dir, locus)
     output_file = "{}/igblast_{}.fmt7".format(output_dir, locus)
     if os.path.isfile(sequence_file):
@@ -2059,6 +2186,29 @@ def run_DefineClones(DefineClones, locus, outdir, species, distance):
                         '--model', model, '--dist', dist, '--sf', "JUNCTION", '--norm', 'len'] 
  
         subprocess.check_call(command) 
+
+def run_MakeDb_for_cell(MakeDb, locus, outdir, species, gapped_seq_location, cell_name):
+    gapped_seqs = {}
+    #pdb.set_trace()
+    gapped_seqs['V'] = "{}/BCR_V.fa".format(gapped_seq_location)
+    for segment in ['D', 'J']:
+        gapped_seqs[segment] = "{}/BCR_{}.fa".format(gapped_seq_location, segment)
+    if locus == None:
+        makedb_input = "{}/IgBLAST_output/{}.fmt7".format(outdir, cell_name)
+        seq_file = "{}/Trinity_output/{}.fa".format(outdir, cell_name)
+
+    else:
+        makedb_input =  "{}/IgBLAST_output/{}_BCR_{}.fmt7".format(outdir, cell_name, locus)
+        seq_file = "{}/Trinity_output/{}_BCR_{}.Trinity.fasta".format(outdir, cell_name, locus)
+        
+
+    if os.path.isfile(makedb_input) and os.path.getsize(makedb_input) > 0:
+        if os.path.isfile(seq_file) and os.path.getsize(seq_file) > 0:
+            command = [MakeDb, 'igblast', '-i', makedb_input, '-s', seq_file,
+                        '-r', gapped_seqs["V"], gapped_seqs["D"],
+                        gapped_seqs["J"], '--regions', '--scores']
+            subprocess.check_call(command)
+
 
 
 def run_MakeDb(MakeDb, locus, outdir, species, gapped_seq_location):
