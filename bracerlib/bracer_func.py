@@ -216,8 +216,9 @@ def parse_gapped_db_string(gapped_db_string):
 
 
 def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs, 
-                output_dir, species, loci_for_segments, loci, 
+                output_dir, species, loci_for_segments, loci,
                 max_junc_string_length, assembled_file):
+
 
     alignment_dict = defaultdict(dict)
     recombinants = {}
@@ -339,8 +340,19 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
                     if "\t" in gapped_db_string:
                         (productive, in_frame, stop_codon, indels, junc_string, cdr3_seq) = \
                             parse_gapped_db_string(gapped_db_string)
+                        if "-" in cdr3_seq:
+                            pdb.set_trace()
+                            new_cdr3_seq = ""
+                            for l in cdr3_seq:
+                                if not l == "-":
+                                    new_cdr3_seq += l
+                            cdr3_seq = new_cdr3_seq
+                        #if not len(cdr3_seq)%3 == 0:
+                            #pdb.set_trace()
+                        #remainer = len(cdr3_seq)%3
+                        
+                        #cdr3 = Seq(str(cdr3_seq[:len(cdr3_seq)-remainer]), generic_dna).translate()
                         cdr3 = Seq(str(cdr3_seq), generic_dna).translate()
-                    
 
                     #Identify the most likely V and J genes
                     if locus in ["H", "BCR_H"]:
@@ -1910,8 +1922,8 @@ def run_IgBlast_IMGT_gaps_for_cell(igblast, loci, output_dir, cell_name,
         databases = {}
         databases['V'] = "{}/{}_V.fa".format(gapped_index_location, locus)
         databases['J'] = "{}/{}_J.fa".format(gapped_index_location, locus)
-        if locus == "BCR_H":
-            databases['D'] = "{}/{}_D.fa".format(gapped_index_location, locus)
+        
+        databases['D'] = "{}/BCR_H_D.fa".format(gapped_index_location)
 
         if assembled_file is None:
             sequence_file = "{}/Trinity_output/{}_{}.Trinity.fasta".format(
@@ -1920,12 +1932,12 @@ def run_IgBlast_IMGT_gaps_for_cell(igblast, loci, output_dir, cell_name,
                                                 output_dir, cell_name, locus)
             
         if os.path.isfile(sequence_file):
-            command = [igblast, '-germline_db_V', databases['V'], '-germline_db_J',
-                         databases['J'], '-domain_system', 'imgt',
+            command = [igblast, '-germline_db_V', databases['V'], '-germline_db_J', 
+                         databases['J'], '-germline_db_D', databases['D'],
+                         '-domain_system', 'imgt',
                          '-organism', igblast_species, '-ig_seqtype', ig_seqtype,
                          '-outfmt', '7 std qseq sseq btop', '-query', sequence_file]
-            if locus == "BCR_H":
-                command += ['-germline_db_D', databases['D']]
+            
             if os.path.isfile(auxiliary_data):
                 command += ['-auxiliary_data', auxiliary_data]
             with open(output_file, 'w') as out:
@@ -1996,11 +2008,16 @@ def run_IgBlast_for_lineage_reconstruction(igblast, locus, output_dir,
         igblast_species = species_mapper[species]
 
     databases = {}
-    databases['V'] = "{}/BCR_V.fa".format(gapped_index_location)
+    """databases['V'] = "{}/BCR_V.fa".format(gapped_index_location)
     for segment in ['D', 'J']:
-        databases[segment] = "{}/BCR_{}.fa".format(ungapped_index_location, 
+        databases[segment] = "{}/BCR_{}.fa".format(ungapped_index_location, 8
                                                                     segment)
-    
+    """
+    databases['V'] = "{}/BCR_{}_V.fa".format(gapped_index_location, locus)
+    databases['J'] = "{}/BCR_{}_J.fa".format(gapped_index_location, locus)
+    databases['D'] = "{}/BCR_H_D.fa".format(gapped_index_location)
+
+
     auxiliary_data = "{}/{}_gl.aux".format(gapped_index_location, species)
     
 

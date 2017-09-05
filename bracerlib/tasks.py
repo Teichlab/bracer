@@ -340,11 +340,11 @@ class Assembler(TracerTask):
             io.makeOutputDir("{}/{}".format(self.output_dir, d))
 
         # Perform BraCeR's core functions
-        if not self.assembled_file:
+        """if not self.assembled_file:
             if not self.no_trimming:
                 self.trim_reads()
             self.align()
-            self.de_novo_assemble()
+            self.de_novo_assemble()"""
         
         self.blast()
         cell = self.ig_blast()
@@ -831,9 +831,10 @@ class Summariser(TracerTask):
         self.create_database_file(outdir, self.loci, cells, cell_contig_clones)
 
         # Create database file in the Change-O format with IMGT-gaps
-        self.create_igblast_IMGT_gapped_input(outdir, cells, self.loci)
-        self.run_IgBlast_IMGT_gapped(outdir)
-        self.create_changeo_db(outdir, locus=None)
+        #self.create_igblast_IMGT_gapped_input(outdir, cells, self.loci)
+        #self.run_IgBlast_IMGT_gapped(outdir)
+        #self.create_changeo_db(outdir, locus=None)
+        self.create_IMGT_gapped_db(outdir, cells, self.loci, cell_contig_clones)
         # Modify database to include information from BraCeR
 
         # Make isotype usage table and plot isotype distributions
@@ -1645,6 +1646,60 @@ class Summariser(TracerTask):
         bracer_func.run_IgBlast_IMGT_gaps(igblastn, outdir, 
             ungapped_igblast_index_location, gapped_igblast_index_location, 
                                     igblast_seqtype, self.species)
+
+    def create_IMGT_gapped_db(self, outdir, cells, loci, cell_contig_clones):
+        """Creates IMGT-gapped Change-O database from each recombinant's
+        IMGT-gapped db-string"""
+        
+        db_file = "{}/IMGT_gapped_db.tab".format(outdir)
+        header = "CELL\tSEQUENCE_ID\tLOCUS\t" 
+
+        header += ("TRINITY_STRING\tSEQUENCE_INPUT\tFUNCTIONAL\tIN_FRAME\tSTOP\t"
+            "MUTATED_INVARIANT\tINDELS\tV_CALL\tD_CALL\tJ_CALL\tSEQUENCE_VDJ"
+            "\tSEQUENCE_IMGT\tV_SEQ_START\tV_SEQ_LENGTH\tV_GERM_START_VDJ\t"
+            "V_GERM_LENGTH_VDJ\tV_GERM_START_IMGT\tV_GERM_LENGTH_IMGT\t"
+            "NP1_LENGTH\tD_SEQ_START\tD_SEQ_LENGTH\tD_GERM_START\t"
+            "D_GERM_LENGTH\tNP2_LENGTH\tJ_SEQ_START\tJ_SEQ_LENGTH\t"
+            "J_GERM_START\tJ_GERM_LENGTH\tJUNCTION_LENGTH\tJUNCTION\t"
+            "FWR1_IMGT\tFWR2_IMGT\tFWR3_IMGT\tFWR4_IMGT\tCDR1_IMGT\t"
+            "CDR2_IMGT\tCDR3_IMGT\tV_SCORE\tV_IDENTITY\tV_EVALUE\tV_BTOP\t"
+            "J_SCORE\tJ_IDENTITY\tJ_EVALUE\tJ_BTOP")
+        header += "\tISOTYPE\tC_GENE\tCLONE\n"
+        #pdb.set_trace()
+        with open(db_file, "w") as output:
+            output.write(header)
+            for cell in cells.values():
+                for locus in loci:
+                    recs = cell.recombinants["BCR"][locus]
+                    if recs:
+                        for rec in recs:
+                            try:
+                                db_string = rec.gapped_db_string
+                            except:
+                                db_string = ""
+                                #pdb.set_trace()
+                            sequence_id = "{}_{}_{}".format(cell.name, 
+                                                rec.contig_name, locus)
+                            full_contig_name = "{}_{}".format(rec.contig_name, rec.identifier)
+                            C_gene = rec.C_gene
+                            if C_gene == None or C_gene == "None":
+                                isotype = "Unknown"
+                            elif "*" in C_gene:
+                                isotype = C_gene.split("*")[0]
+                            else:
+                                isotype = None
+                            try:
+                                clone = cell_contig_clones[locus][cell.name][full_contig_name]
+                            except:
+                                clone = None
+                            outline = "{}\t{}\t{}\t".format(cell.name, sequence_id, locus)
+                            if len(db_string) > 0:
+                                outline += db_string.strip()
+                            else:
+                                outline += 44*"\t"
+                            outline += "\t{}\t{}\t{}\n".format(isotype, C_gene, clone)
+                            output.write(outline)
+        
 
 
     def count_full_length_sequences(self, loci, cells):
