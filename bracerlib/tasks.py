@@ -1600,6 +1600,11 @@ class Summariser(TracerTask):
 
         dnapars = self.get_binary('dnapars')
         script = self.get_rscript_path()
+        # Look for alternative species names
+        if ("Hsap" or "human" or "hsap") in species:
+            species = "Hsap"
+        elif ("Mmus" or "mouse" or "mmus") in species:
+            species = "Mmus"
         command = Rscript + " " + script + " {} {} {}".format(outdir, dnapars, species) 
         subprocess.check_call(command, shell=True)
 
@@ -2034,7 +2039,7 @@ class Builder(TracerTask):
         VDJC_files, gapped_V_file  = self.copy_raw_files()
         recombinome_fasta = self.make_recombinomes(VDJC_files)
         self.make_bowtie2_index(recombinome_fasta)
-        self.concatenate_locus_sequence_files(VDJC_files, gapped_V_file)
+        #self.concatenate_locus_sequence_files(VDJC_files, gapped_V_file)
         missing_dbs = self.make_igblast_db(VDJC_files)
         for s in missing_dbs:
             print("\nIMPORTANT: there is no IgBLAST database for BCR_{segment}\n".format(
@@ -2043,10 +2048,10 @@ class Builder(TracerTask):
                     segment=s))
 
         if self.gapped:
-            missing_gapped_dbs = self.make_igblast_db_gapped(gapped_V_file)
+            missing_gapped_dbs = self.make_igblast_db_gapped(gapped_V_file, VDJC_files)
             for s in missing_gapped_dbs:
-                print("\nIMPORTANT: there is no IgBLAST database for IMGT-gapped BCR_{segment}\n".format(
-                                            segment=s))
+                print("\nIMPORTANT: there is no IgBLAST database for IMGT-gapped BCR_{}_{}\n".format(
+                                            self.locus, s))
                 print("Run build with --V_gapped and IMGT-gapped BCR_V segments before using bracer assemble\n")
     
     def check_colour(self, c):
@@ -2230,7 +2235,8 @@ class Builder(TracerTask):
             for V_name, V_seq in six.iteritems(seqs['V']):
                 for J_name, J_seq in six.iteritems(seqs['J']):
                     for C_name, C_seq in six.iteritems(seqs['C']):
-                        chr_name = ">chr={V_name}_{J_name}_{C_name}_C_region".format(J_name=J_name, V_name=V_name, C_name=C_name)
+                        chr_name = ">chr={V_name}_{J_name}_{C_name}_C_region".format(
+                                        J_name=J_name, V_name=V_name, C_name=C_name)
                         seq = N_leader_string + V_seq.lower() + N_junction_string + J_seq.lower() + C_seq.upper()
                         seqs_to_write.append("{chr_name}\n{seq}\n".format(seq=seq, chr_name=chr_name))
                     
@@ -2277,11 +2283,11 @@ class Builder(TracerTask):
             writer = SeqIO.FastaIO.FastaWriter(out_handle, wrap=None)
             writer.write_file(seq_list)
 
-    def concatenate_locus_sequence_files(self, VDJC_files, gapped_V_file):
-        """Creates concatenated sequence files for the loci for each segment
+    """def concatenate_locus_sequence_files(self, VDJC_files, gapped_V_file):
+        """"""Creates concatenated sequence files for the loci for each segment
         in the imgt_gapped_resources/raw_seqs directory containing the gapped (V) and
         ungapped (D, J) sequences used to make the IgBlast databases for lineage
-        reconstruction"""
+        reconstruction""""""
 
         if self.gapped:
             ungapped_dir = os.path.join(self.species_dir, 'raw_seqs')
@@ -2317,7 +2323,7 @@ class Builder(TracerTask):
 
                     with open(fasta_file, 'w') as f:
                         SeqIO.write(existing_seqs.values(), f, "fasta")
-
+    """
 
     def make_igblast_db(self, VDJC_files):
         
@@ -2388,59 +2394,63 @@ class Builder(TracerTask):
 
         return missing_dbs
 
-    def make_igblast_db_gapped(self, gapped_V_file):
-        """Create IgBlast database from IMGT-gapped sequences"""
-
-        # Clean up IMGT-gapped file to remove gaps
-        cleaned_file = os.path.join(self.species_dir, 
-            'imgt_gapped_resources/raw_seqs/BCR_{}_V_cleaned.fa'.format(self.locus_name))
-        self.clean_IMGT_fasta_files_for_IgBlast_dbs(gapped_V_file, cleaned_file)
-
-
-        # Create IgBlast db file from cleaned-up raw sequences
+    def make_igblast_db_gapped(self, gapped_V_file, VDJC_files):
+        """Create locus-specific IgBlast databases from IMGT-gapped sequences"""
+        
         igblast_dir = os.path.join(self.species_dir, 'imgt_gapped_resources/igblast_dbs')
         makeblastdb = self.get_binary('makeblastdb')
         missing_gapped_dbs = []
+        
+        gene_segs = "VDJ"
+        for s in gene_segs:
+            if s=="V":
+                # Clean up IMGT-gapped file to remove gaps
+                cleaned_file = os.path.join(self.species_dir, 
+                        'imgt_gapped_resources/raw_seqs/BCR_{}_V_cleaned.fa'.format(
+                                                                self.locus_name))
+                self.clean_IMGT_fasta_files_for_IgBlast_dbs(gapped_V_file, cleaned_file)
+            elif s in VDJC_files:
+                cleaned_file = VDJC_files[s]
 
+            fn = "BCR_{}_{}.fa".format(self.locus_name, s)
+            fasta_file = os.path.join(igblast_dir, fn)
+            # Create file if it doesn't already exist
+            open(fasta_file, 'a').close()
 
-        fn = "BCR_V.fa"
-        fasta_file = os.path.join(igblast_dir, fn)
-        # Create file if it doesn't already exist
-        open(fasta_file, 'a').close()
-
-        with open(fasta_file) as e:
-            existing_seqs = SeqIO.to_dict(SeqIO.parse(e, "fasta"))
-        with open(cleaned_file) as n:
-            new_seqs = SeqIO.to_dict(SeqIO.parse(n, "fasta"))
-        non_overwritten_seqs = []
-        for seq_name, seq in six.iteritems(new_seqs):
-            if seq_name in existing_seqs:
-                if not self.force_overwrite:
-                    non_overwritten_seqs.append(seq_name)
+            with open(fasta_file) as e:
+                existing_seqs = SeqIO.to_dict(SeqIO.parse(e, "fasta"))
+            with open(cleaned_file) as n:
+                new_seqs = SeqIO.to_dict(SeqIO.parse(n, "fasta"))
+            non_overwritten_seqs = []
+            for seq_name, seq in six.iteritems(new_seqs):
+                if seq_name in existing_seqs:
+                    if not self.force_overwrite:
+                        non_overwritten_seqs.append(seq_name)
+                    else:
+                        existing_seqs.update({seq_name: seq})
                 else:
                     existing_seqs.update({seq_name: seq})
-            else:
-                existing_seqs.update({seq_name: seq})
-        with open(fasta_file, 'w') as f:
-            SeqIO.write(existing_seqs.values(), f, "fasta")
+            with open(fasta_file, 'w') as f:
+                SeqIO.write(existing_seqs.values(), f, "fasta")
 
-        if len(existing_seqs) == 0:
-            missing_gapped_dbs.append('V')
+            if len(existing_seqs) == 0:
+                missing_gapped_dbs.append(s)
 
-        if len(non_overwritten_seqs) > 0:
-            print('The follwing IgBLAST DB sequences for '
-                'BCR_V already found in {file}.'.format(file=fasta_file))
-            print('These sequences were not overwritten. '
-                'Use --force_overwrite to replace with new ones')
-            for seq in non_overwritten_seqs:
-                print(seq)
+            if len(non_overwritten_seqs) > 0:
+                print('The follwing IgBLAST DB sequences for '
+                    'BCR_{locus}_{s} already found in {file}.'.format(
+                                locus=self.locus, s=s, file=fasta_file))
+                print('These sequences were not overwritten. '
+                    'Use --force_overwrite to replace with new ones')
+                for seq in non_overwritten_seqs:
+                    print(seq)
 
-        command = [makeblastdb, '-parse_seqids', '-dbtype', 'nucl',
-                                                '-in', fasta_file]
+            command = [makeblastdb, '-parse_seqids', '-dbtype', 'nucl',
+                                                    '-in', fasta_file]
 
-        try:
-            subprocess.check_call(command)
-        except subprocess.CalledProcessError:
-            print("makeblastdb failed for BCR_V (IMGT-gapped)")
+            try:
+                subprocess.check_call(command)
+            except subprocess.CalledProcessError:
+                print("makeblastdb failed for BCR_{}_{} (IMGT-gapped)".format(self.locus, s))
 
         return missing_gapped_dbs

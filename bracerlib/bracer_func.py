@@ -1805,14 +1805,19 @@ def run_IgBlast(igblast, loci, output_dir, cell_name, index_location,
     if assembled_file is None:
         print ("Ig_seqtype:", ig_seqtype)
     
-    species_mapper = {
-        'Mmus': 'mouse',
-        'Hsap': 'human',
-        'Rat': 'rat'
-    }
-    igblast_species = species
-    if species in species_mapper.keys():
-        igblast_species = species_mapper[species]
+    if 'Hsap' in species:
+        igblast_species = 'human'
+    elif 'Mmus' in species:
+        igblast_species = 'mouse'
+    else:
+        species_mapper = {
+            'Mmus': 'mouse',
+            'Hsap': 'human',
+            'Rat': 'rat'
+        }
+        igblast_species = species
+        if species in species_mapper.keys():
+            igblast_species = species_mapper[species]
     initial_locus_names = ["_".join([receptor,x]) for x in loci]
     locus_names = copy.copy(initial_locus_names)
 
@@ -1881,17 +1886,23 @@ def run_IgBlast_IMGT_gaps_for_cell(igblast, loci, output_dir, cell_name,
             species, assembled_file):
     """Running IgBlast for reconstructed sequences in a cell using IMGT-gapped
     reference sequences in order to determine CDR3 sequences and productivity"""
-    species_mapper = {
+    receptor = "BCR"
+    if 'Hsap' in species:
+        igblast_species = 'human'
+    elif 'Mmus' in species:
+        igblast_species = 'mouse'
+    else:
+        species_mapper = {
             'Mmus': 'mouse',
             'Hsap': 'human',
             'Rat' : 'rat',
             'rat' : 'rat',
             'Rno' : 'rat'
-    }
-    receptor = "BCR"
-    igblast_species = species
-    if species in species_mapper.keys():
-        igblast_species = species_mapper[species]
+        }
+
+        igblast_species = species
+        if species in species_mapper.keys():
+            igblast_species = species_mapper[species]
 
     initial_locus_names = ["_".join([receptor,x]) for x in loci]
     locus_names = copy.copy(initial_locus_names)
@@ -1938,16 +1949,21 @@ def run_IgBlast_for_lineage_reconstruction(igblast, locus, output_dir,
     """Runs IgBlast using databases constructed from IMGT-gapped V sequences. 
     Needed for germline reconstruction and lineage reconstruction from 
     clonal sequences"""
+    
+    if 'Hsap' in species:
+        igblast_species = 'human'
+    elif 'Mmus' in species:
+        igblast_species = 'mouse'
+    else:
+        species_mapper = {
+            'Mmus': 'mouse',
+            'Hsap': 'human',
+            'Rat' : 'rat'
+        }
 
-    species_mapper = {
-        'Mmus': 'mouse',
-        'Hsap': 'human',
-        'Rat' : 'rat'
-    }
-
-    igblast_species = species
-    if species in species_mapper.keys():
-        igblast_species = species_mapper[species]
+        igblast_species = species
+        if species in species_mapper.keys():
+            igblast_species = species_mapper[species]
 
     databases = {}
     databases['V'] = "{}/BCR_{}_V.fa".format(gapped_index_location, locus)
@@ -1981,16 +1997,21 @@ def run_Blast(blast, loci, output_dir, cell_name, index_location, species,
     receptor = "BCR"
 
     print("##Running BLAST##") 
+    
+    if 'Hsap' in species:
+        igblast_species = 'human'
+    elif 'Mmus' in species:
+        igblast_species = 'mouse'
+    else:
+        species_mapper = {
+            'Mmus': 'mouse',
+            'Hsap': 'human',
+            'Rno' : 'rat'
+        }
 
-    species_mapper = {
-        'Mmus': 'mouse',
-        'Hsap': 'human',
-        'Rat' : 'rat'
-    }
-
-    igblast_species = species
-    if species in species_mapper.keys():
-        blast_species = species_mapper[species]
+        igblast_species = species
+        if species in species_mapper.keys():
+            blast_species = species_mapper[species]
     initial_locus_names = ["_".join([receptor,x]) for x in loci]
     locus_names = copy.copy(initial_locus_names)
 
@@ -2128,10 +2149,10 @@ def run_DefineClones(DefineClones, locus, outdir, species, distance):
     """Runs DefineClones of Change-O"""
 
     # Set model to Hamming distance if species is not Mmus or Hsap 
-    if species == "Mmus": 
+    if ("Mmus" or "mouse") in species: 
         model = "mk_rs5nf" 
         dist = "0.2" 
-    elif species == "Hsap": 
+    elif ("Hsap" or "human") in species: 
         model = "hh_s5f" 
         dist = "0.2" 
     else: 
