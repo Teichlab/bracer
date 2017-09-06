@@ -340,15 +340,14 @@ class Assembler(TracerTask):
             io.makeOutputDir("{}/{}".format(self.output_dir, d))
 
         # Perform BraCeR's core functions
-        """if not self.assembled_file:
+        if not self.assembled_file:
             if not self.no_trimming:
                 self.trim_reads()
             self.align()
             self.de_novo_assemble()
-        """
+        
         self.blast()
         cell = self.ig_blast()
-        #self.create_changeo_db()
 
         if self.fastq1:
             self.quantify(cell)
@@ -755,7 +754,7 @@ class Summariser(TracerTask):
                                                         unf_cells, self.loci)
 
 
-        # Create Change-O db file for filtered multiplets if --no_multuplets
+        # Create Change-O db file for filtered multiplets if no_multuplets is True
         if self.no_multiplets and len(multiplets) > 0:
             self.create_multiplet_database_file(outdir, self.loci, cells, 
                                                             multiplets)
@@ -826,8 +825,8 @@ class Summariser(TracerTask):
                 if not cell_name in cells_with_clonal_H:
                     cells_with_clonal_H.append(cell_name)
 
-        # Create Change-O database file containing all sequences with info 
-        # from BraCeR (not IMGT-gapped)
+        # Create Change-O compatible database file containing all sequences 
+        #with info from BraCeR (not IMGT-gapped)
         self.create_database_file(outdir, self.loci, cells, cell_contig_clones)
 
         # Create database file in the Change-O format with IMGT-gaps
@@ -874,7 +873,7 @@ class Summariser(TracerTask):
         outfile.write("\n\n")
 
         # Reconstruct lineages - optional
-        """These steps use MakeDb and CreateGermlines of the Change-O toolkit
+        """These steps use MakeDb and CreateGermlines of the Change-O toolkit.
         Change-O reference: Gupta NT*, Vander Heiden JA*, Uduman M, Gadala-Maria D
         Yaari G, Kleinstein SH. Change-O: a toolkit for analyzing large-scale B cell
         immunoglobulin repertoire sequencing data. Bioinformatics 2015;
@@ -894,7 +893,7 @@ class Summariser(TracerTask):
                     self.make_clone_igblast_input(outdir, locus, cells)
 
             for locus in self.loci:
-                # Align clonal sequences using IgBlast and IMGT-gapped reference
+                # Align clonal sequences using IgBlast and IMGT-gapped references
                 self.IgBlast_germline_reconstruction(outdir, locus)
 
                 # Create Change-O database from IMGT-gapped IgBlast results
@@ -942,10 +941,10 @@ class Summariser(TracerTask):
 
     def get_clone_groups_for_component_group(self, loci, cells, 
                         component_groups, cell_contig_clones):
-        """Returns dictionary with number of chains belonging to each locus-specific
-        clone group (determined by Change-O) in each component group to find the
-        clone groups of the most commonly shared chains within each component group
-        """
+        """Returns dictionary with number of chains belonging to each 
+        locus-specific clone group (determined by Change-O) in each component 
+        group in the clonal network to find the locus-specific clone groups 
+        of the most commonly shared chains within each component group"""
         
         counter = dict()
         i = 0
@@ -956,7 +955,6 @@ class Summariser(TracerTask):
                 counter[i][l] = dict()
                 for cell_name in g:
                     cell = cells[cell_name]
-                    #pdb.set_trace()
                     for rec in cell.recombinants["BCR"][l]:
                         contig_name = rec.contig_name + "_" + rec.identifier
                         if contig_name in cell_contig_clones[l][cell_name].keys():
@@ -967,7 +965,6 @@ class Summariser(TracerTask):
                             else:
                                 counter[i][l][clone] += 1
                             
-        #pdb.set_trace()
         # Find most highly shared heavy and light chain
         top_chain = dict()
         for i in counter.keys():
@@ -976,7 +973,6 @@ class Summariser(TracerTask):
             light_count = 0
 
             for l in loci:
-        
                 for clone, count in six.iteritems(counter[i][l]):
                     if l =="H":
                         if count > heavy_count:
@@ -986,7 +982,6 @@ class Summariser(TracerTask):
                         if count > light_count:
                             light_count = count
                             top_chain[i]["light"] = clone
-                        
                     
         return (top_chain)
         
@@ -1231,8 +1226,10 @@ class Summariser(TracerTask):
 
     def create_database_file(self, outdir, loci, cells, cell_contig_clones):
         """Creates a tab-delimited Change-O database containing all 
-        reconstructed sequences and info from BraCeR (not from alignment
-        to IMGT-gapped reference sequences by IgBlast through Change-O"""
+        reconstructed sequences and info from BraCeR using ungapped IMGT
+        reference sequences, although CDR3 sequence and producivity info
+        comes from alignment to IMGT-gapped references and parsing with
+        Change-O if info is available."""
 
         changeo_string = ("CELL\tSEQUENCE_ID\tCONTIG_NAME\tLOCUS\tFUNCTIONAL\t"
                         "IN_FRAME\tSTOP\tINDELS\tV_CALL\tTOP_V_ALLELE\tD_CALL"
@@ -1272,7 +1269,7 @@ class Summariser(TracerTask):
 
     def create_multiplet_database_file(self, outdir, loci, cells, multiplets):
         """Creates a tab-delimited Change-O database containing all potential
-        multiplets filtered out if --no_multiplets option is given"""
+        multiplets filtered out unless --include_multiplets option is given"""
         
         changeo_string = ("CELL\tSEQUENCE_ID\tCONTIG_NAME\tLOCUS\tFUNCTIONAL\t"
                         "IN_FRAME\tSTOP\tINDELS\tV_CALL\tTOP_V_ALLELE\tD_CALL"
@@ -1370,8 +1367,9 @@ class Summariser(TracerTask):
     def make_clone_igblast_input_for_concatenation(self, outdir, locus, cells, 
                         component_groups, clone_groups, cell_contig_clones):
         """Creates input file for each locus containing sequences belonging to
-        a clone group shared in a component group to use as input for IgBlast in order to obtain 
-        IMGT-gapped sequences for germline sequence assignment by Change-O"""
+        a clone group shared in a component group to use as input for IgBlast 
+        in order to obtain IMGT-gapped sequences for germline sequence 
+        assignment by Change-O"""
 
         igblast_input = "{}/igblast_input_{}.fa".format(outdir, locus)
         changeo_result = "{}/changeo_input_{}_clone-pass.tab".format(outdir, locus)
@@ -1393,7 +1391,7 @@ class Summariser(TracerTask):
                             header = ">" + name + "\n"
                             clone = cell_contig_clones[locus][cell][contig_name] + "_" + locus
                             i = 0
-                            #pdb.set_trace()
+                            
                             for g in component_groups:
                                 i += 1
                                 top_heavy = clone_groups[i]["heavy"]
@@ -1537,6 +1535,7 @@ class Summariser(TracerTask):
         bracer_func.run_CreateGermlines(CreateGermlines, locus, outdir, 
                 self.species, gapped_seq_location, ungapped_seq_location)
 
+
     def concatenate_lineage_databases(self, outdir, loci, component_groups, top_chain):
         """Concatenates the most commonly shared heavy and light chain
         database entries for each cell in each component group for
@@ -1605,45 +1604,6 @@ class Summariser(TracerTask):
         subprocess.check_call(command, shell=True)
 
 
-    """def create_igblast_IMGT_gapped_input(self, outdir, cells, loci):
-        """"""Creates FASTA file with all sequences for all cells as input for
-        IgBlast for creation of IMGT-gapped Change-O database containing
-        all sequences""""""
-
-        igblast_input = "{}/BCR_sequences.fa".format(outdir)
-        with open(igblast_input, "w") as output:
-            for cell in cells.values():
-                for locus in loci:
-                    recs = cell.recombinants["BCR"][locus]
-                    if recs:
-                        for rec in recs:
-                            sequence_id = "{}_{}_{}".format(cell.name, 
-                                            rec.contig_name, locus)
-                            header = ">{}\n".format(sequence_id)
-                            sequence_line = rec.dna_seq + "\n"
-                            output.write(header)
-                            output.write(sequence_line)
-    """
-
-    """def run_IgBlast_IMGT_gapped(self, outdir):
-        """"""Runs IgBlast on all reconstructed sequences using IMGT-gapped
-        reference sequences for creation of IMGT-gapped Change-O database
-        containing all reconstructed sequences""""""
-
-        igblastn = self.get_binary('igblastn')
-
-        # Reference data locations
-        ungapped_igblast_index_location = os.path.join(self.species_dir,
-                                                        'igblast_dbs')
-        gapped_igblast_index_location = os.path.join(self.species_dir,
-                                    'imgt_gapped_resources/igblast_dbs')
-        igblast_seqtype = 'Ig'
-        
-        # IgBlast sequences
-        bracer_func.run_IgBlast_IMGT_gaps(igblastn, outdir, 
-            ungapped_igblast_index_location, gapped_igblast_index_location, 
-                                    igblast_seqtype, self.species)"""
-
     def create_IMGT_gapped_db(self, outdir, cells, loci, cell_contig_clones):
         """Creates IMGT-gapped Change-O database from each recombinant's
         IMGT-gapped db-string"""
@@ -1674,7 +1634,6 @@ class Summariser(TracerTask):
                                 db_string = rec.gapped_db_string
                             except:
                                 db_string = ""
-                                #pdb.set_trace()
                             sequence_id = "{}_{}_{}".format(cell.name, 
                                                 rec.contig_name, locus)
                             full_contig_name = "{}_{}".format(rec.contig_name, rec.identifier)
