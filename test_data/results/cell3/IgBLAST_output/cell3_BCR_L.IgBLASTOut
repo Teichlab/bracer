@@ -1,6 +1,6 @@
 # IGBLASTN 2.2.29+
 # Query: TRINITY_DN0_c0_g1_i1 len=683 path=[1:0-682] [-1, 1, -2]
-# Database: /nfs/team205/il5/software/bracer/resources/Hsap/igblast_dbs/BCR_V.fa /nfs/team205/il5/software/bracer/resources/Hsap/igblast_dbs/BCR_D.fa /nfs/team205/il5/software/bracer/resources/Hsap/igblast_dbs/BCR_J.fa
+# Database: /nfs/team205/il5/bracer/resources/Hsap/igblast_dbs/BCR_V.fa /nfs/team205/il5/bracer/resources/Hsap/igblast_dbs/BCR_D.fa /nfs/team205/il5/bracer/resources/Hsap/igblast_dbs/BCR_J.fa
 # Domain classification requested: imgt
 
 # Note that your query represents the minus strand of a V gene and has been converted to the plus strand. The sequence positions refer to the converted sequence. 

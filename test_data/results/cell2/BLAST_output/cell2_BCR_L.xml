@@ -4,10 +4,10 @@
   <BlastOutput_program>blastn</BlastOutput_program>
   <BlastOutput_version>BLASTN 2.2.31+</BlastOutput_version>
   <BlastOutput_reference>Zheng Zhang, Scott Schwartz, Lukas Wagner, and Webb Miller (2000), &quot;A greedy algorithm for aligning DNA sequences&quot;, J Comput Biol 2000; 7(1-2):203-14.</BlastOutput_reference>
-  <BlastOutput_db>/nfs/team205/il5/software/bracer/resources/Hsap/igblast_dbs/BCR_c.fa</BlastOutput_db>
+  <BlastOutput_db>/nfs/team205/il5/bracer/resources/Hsap/igblast_dbs/BCR_C_all.fa</BlastOutput_db>
   <BlastOutput_query-ID>Query_1</BlastOutput_query-ID>
-  <BlastOutput_query-def>TRINITY_DN0_c0_g1_i1 len=685 path=[1:0-684] [-1, 1, -2]</BlastOutput_query-def>
-  <BlastOutput_query-len>685</BlastOutput_query-len>
+  <BlastOutput_query-def>TRINITY_DN0_c0_g1_i1 len=682 path=[660:0-681] [-1, 660, -2]</BlastOutput_query-def>
+  <BlastOutput_query-len>682</BlastOutput_query-len>
   <BlastOutput_param>
     <Parameters>
       <Parameters_expect>0.001</Parameters_expect>
@@ -22,8 +22,8 @@
 <Iteration>
   <Iteration_iter-num>1</Iteration_iter-num>
   <Iteration_query-ID>Query_1</Iteration_query-ID>
-  <Iteration_query-def>TRINITY_DN0_c0_g1_i1 len=685 path=[1:0-684] [-1, 1, -2]</Iteration_query-def>
-  <Iteration_query-len>685</Iteration_query-len>
+  <Iteration_query-def>TRINITY_DN0_c0_g1_i1 len=682 path=[660:0-681] [-1, 660, -2]</Iteration_query-def>
+  <Iteration_query-len>682</Iteration_query-len>
 <Iteration_hits>
 <Hit>
   <Hit_num>1</Hit_num>
@@ -36,9 +36,9 @@
       <Hsp_num>1</Hsp_num>
       <Hsp_bit-score>588.355</Hsp_bit-score>
       <Hsp_score>318</Hsp_score>
-      <Hsp_evalue>9.27291e-171</Hsp_evalue>
-      <Hsp_query-from>21</Hsp_query-from>
-      <Hsp_query-to>338</Hsp_query-to>
+      <Hsp_evalue>9.23133e-171</Hsp_evalue>
+      <Hsp_query-from>18</Hsp_query-from>
+      <Hsp_query-to>335</Hsp_query-to>
       <Hsp_hit-from>318</Hsp_hit-from>
       <Hsp_hit-to>1</Hsp_hit-to>
       <Hsp_query-frame>1</Hsp_query-frame>
@@ -59,7 +59,7 @@
       <Statistics_db-num>65</Statistics_db-num>
       <Statistics_db-len>18998</Statistics_db-len>
       <Statistics_hsp-len>16</Statistics_hsp-len>
-      <Statistics_eff-space>12013902</Statistics_eff-space>
+      <Statistics_eff-space>11960028</Statistics_eff-space>
       <Statistics_kappa>0.46</Statistics_kappa>
       <Statistics_lambda>1.28</Statistics_lambda>
       <Statistics_entropy>0.85</Statistics_entropy>

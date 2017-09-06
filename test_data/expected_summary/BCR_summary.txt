@@ -16,6 +16,13 @@ Paired KL productive reconstruction:	0 / 3 (0.0%)
 | prod K | 3              | 0 (N/A%)      | 0 (N/A%)       |
 | prod L | 0              | 3 (100%)      | 0 (0%)         |
 +--------+----------------+---------------+----------------+
+
+
+##Cells with more than two recombinants for a locus##
+
+The following cells are likely multiplets or contaminated as they contain more than two recombinants for a locus. Consider removing them from downstream analysis.
+None
+
 ##Proportion of full-length sequences of all recovered sequences##
 
 	H	K	L	
@@ -25,8 +32,8 @@ prod	3/3 (100%)	0/0 (N/A%)	2/3 (67%)
 ##Isotype of cells with productive heavy chain##
 
 Isotype	cells	% of cells
-IGHG1	1	33.33
 IGHA1	2	66.67
+IGHG1	1	33.33
 
 
 #Clonotype groups#
