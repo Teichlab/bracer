@@ -344,11 +344,11 @@ class Assembler(TracerTask):
             if not self.no_trimming:
                 self.trim_reads()
             self.align()
-            self.de_novo_assemble()"""
-        
+            self.de_novo_assemble()
+        """
         self.blast()
         cell = self.ig_blast()
-        self.create_changeo_db()
+        #self.create_changeo_db()
 
         if self.fastq1:
             self.quantify(cell)
@@ -534,11 +534,13 @@ class Assembler(TracerTask):
 
         gapped_seq_location = os.path.join(self.species_root,
                             'imgt_gapped_resources/raw_seqs')
+        ungapped_seq_location = os.path.join(self.species_root, 'raw_seqs')
 
         # Run MakeDb from Change-O toolkit
         for locus in self.loci:
             bracer_func.run_MakeDb_for_cell(MakeDb, locus, self.output_dir, 
-                        self.species, gapped_seq_location, self.cell_name)
+                        self.species, gapped_seq_location, 
+                        ungapped_seq_location, self.cell_name)
 
 
     def blast(self):
@@ -687,7 +689,6 @@ class Summariser(TracerTask):
             rscript = self.get_binary("rscript")
             R = self.get_binary("R")
                     
-            # Check that Alakazam is installed
         
         cells = {}
         empty_cells = []
@@ -734,7 +735,6 @@ class Summariser(TracerTask):
 
         # Name potential multiplets (cells with more
         # than two recombinants for a locus
-        #pdb.set_trace()
         multiplets = []
         if self.use_unfiltered:
             multiplets = self.detect_multiplets(self.no_multiplets, outfile, 
@@ -760,7 +760,7 @@ class Summariser(TracerTask):
             self.create_multiplet_database_file(outdir, self.loci, cells, 
                                                             multiplets)
 
-        # Delete likely multiplets from downstream analyses if --no_multiplets 
+        # Delete likely multiplets from downstream analyses unless --include_multiplets 
         if self.no_multiplets and len(multiplets) > 0:
             for cell_name in multiplets:
                 del cells[cell_name]
@@ -831,11 +831,7 @@ class Summariser(TracerTask):
         self.create_database_file(outdir, self.loci, cells, cell_contig_clones)
 
         # Create database file in the Change-O format with IMGT-gaps
-        #self.create_igblast_IMGT_gapped_input(outdir, cells, self.loci)
-        #self.run_IgBlast_IMGT_gapped(outdir)
-        #self.create_changeo_db(outdir, locus=None)
         self.create_IMGT_gapped_db(outdir, cells, self.loci, cell_contig_clones)
-        # Modify database to include information from BraCeR
 
         # Make isotype usage table and plot isotype distributions
         isotype_counter = self.count_isotype_usage(cells)
@@ -883,9 +879,8 @@ class Summariser(TracerTask):
         Yaari G, Kleinstein SH. Change-O: a toolkit for analyzing large-scale B cell
         immunoglobulin repertoire sequencing data. Bioinformatics 2015;
         doi: 10.1093/bioinformatics/btv359"""
-        #pdb.set_trace()
+
         if self.infer_lineage and len(component_groups) > 0:
-            #pdb.set_trace()
             # Create IgBlast input files
             if not self.IGH_networks and not self.loci ==["H"]:
                 # Find the clonal sequences that are shared in each component group
@@ -1470,11 +1465,12 @@ class Summariser(TracerTask):
 
         gapped_seq_location = os.path.join(self.species_dir,
                             'imgt_gapped_resources/raw_seqs')
+        ungapped_seq_location = os.path.join(self.species_dir, 'raw_seqs')
         igblast_seqtype = 'Ig'
 
         # Run MakeDb from Change-O toolkit
         bracer_func.run_MakeDb(MakeDb, locus, outdir, self.species, 
-                                                gapped_seq_location)
+                        gapped_seq_location, ungapped_seq_location)
         
 
     def modify_changeo_db(self, outdir, locus, cells, cell_contig_clones):
@@ -1536,9 +1532,10 @@ class Summariser(TracerTask):
 
         gapped_seq_location = os.path.join(self.species_dir,
                             'imgt_gapped_resources/raw_seqs')
-        igblast_seqtype = 'Ig'
+        ungapped_seq_location = os.path.join(self.species_dir, 'raw_seqs')
+
         bracer_func.run_CreateGermlines(CreateGermlines, locus, outdir, 
-                                    self.species, gapped_seq_location)
+                self.species, gapped_seq_location, ungapped_seq_location)
 
     def concatenate_lineage_databases(self, outdir, loci, component_groups, top_chain):
         """Concatenates the most commonly shared heavy and light chain
@@ -1608,10 +1605,10 @@ class Summariser(TracerTask):
         subprocess.check_call(command, shell=True)
 
 
-    def create_igblast_IMGT_gapped_input(self, outdir, cells, loci):
-        """Creates FASTA file with all sequences for all cells as input for
+    """def create_igblast_IMGT_gapped_input(self, outdir, cells, loci):
+        """"""Creates FASTA file with all sequences for all cells as input for
         IgBlast for creation of IMGT-gapped Change-O database containing
-        all sequences"""
+        all sequences""""""
 
         igblast_input = "{}/BCR_sequences.fa".format(outdir)
         with open(igblast_input, "w") as output:
@@ -1626,12 +1623,12 @@ class Summariser(TracerTask):
                             sequence_line = rec.dna_seq + "\n"
                             output.write(header)
                             output.write(sequence_line)
+    """
 
-
-    def run_IgBlast_IMGT_gapped(self, outdir):
-        """Runs IgBlast on all reconstructed sequences using IMGT-gapped
+    """def run_IgBlast_IMGT_gapped(self, outdir):
+        """"""Runs IgBlast on all reconstructed sequences using IMGT-gapped
         reference sequences for creation of IMGT-gapped Change-O database
-        containing all reconstructed sequences"""
+        containing all reconstructed sequences""""""
 
         igblastn = self.get_binary('igblastn')
 
@@ -1645,7 +1642,7 @@ class Summariser(TracerTask):
         # IgBlast sequences
         bracer_func.run_IgBlast_IMGT_gaps(igblastn, outdir, 
             ungapped_igblast_index_location, gapped_igblast_index_location, 
-                                    igblast_seqtype, self.species)
+                                    igblast_seqtype, self.species)"""
 
     def create_IMGT_gapped_db(self, outdir, cells, loci, cell_contig_clones):
         """Creates IMGT-gapped Change-O database from each recombinant's
@@ -1665,7 +1662,7 @@ class Summariser(TracerTask):
             "CDR2_IMGT\tCDR3_IMGT\tV_SCORE\tV_IDENTITY\tV_EVALUE\tV_BTOP\t"
             "J_SCORE\tJ_IDENTITY\tJ_EVALUE\tJ_BTOP")
         header += "\tISOTYPE\tC_GENE\tCLONE\n"
-        #pdb.set_trace()
+
         with open(db_file, "w") as output:
             output.write(header)
             for cell in cells.values():
@@ -1997,11 +1994,13 @@ class Builder(TracerTask):
                                 default=False)
             parser.add_argument('--V_gapped', metavar="<GAPPED_V_SEQS>", nargs='?',
                                 help='FASTA file containing IMGT-gapped V '
-                                'reference sequences (optional). Required '
-                                'for lineage reconstruction and creation of '
-                                'IMGT-gapped tab-delimited databases', default=False)
+                                'reference sequences (optional, but highly recommended). '
+                                'Required for accurate CDR3 detection, lineage '
+                                'reconstruction and creation of IMGT-gapped '
+                                'tab-delimited databases', default=False)
             parser.add_argument('--igblast_aux', metavar="<IGBLAST_AUXILARY_FILE>",
-                                nargs='?', help='IgBlast auxiliary file for species',
+                                nargs='?', help='IgBlast auxiliary file for species. '
+                                'See IgBLAST documentation for details.',
                                 default=False)
             
             args = parser.parse_args(sys.argv[2:])
@@ -2194,7 +2193,10 @@ class Builder(TracerTask):
             gene_segs += 'c'
 
         for s in gene_segs:
-            fn = "BCR_{locus}_{s}.fa".format(locus=self.locus_name, s=s)
+            seg = s
+            if seg == "c":
+                seg = "C_all"
+            fn = "BCR_{locus}_{seg}.fa".format(locus=self.locus_name, seg=seg)
             out_file = os.path.join(self.species_dir, 'raw_seqs', fn)
             VDJC_files[s] = out_file
             self.check_duplicate(out_file, segment=s,
@@ -2202,7 +2204,6 @@ class Builder(TracerTask):
 
             # Clean up sequence names if long IMGT headers are provided
             self.clean_IMGT_fasta_files_for_IgBlast_dbs(self.raw_seq_files[s], out_file)
-            #shutil.copy(self.raw_seq_files[s], out_file)
 
         # Copy IMGT-gapped V segment sequences if provided
         gapped_V_file = None
@@ -2377,7 +2378,10 @@ class Builder(TracerTask):
             gene_segs += 'C'
 
         for s in gene_segs:
-            fn = "BCR_{segment}.fa".format(segment=s)
+            seg = s
+            if s == "c":
+                seg = "C_all"
+            fn = "BCR_{segment}.fa".format(segment=seg)
             fasta_file = os.path.join(igblast_dir, fn)
 
             # Create file if it doesn't already exist
@@ -2409,7 +2413,7 @@ class Builder(TracerTask):
                 if len(non_overwritten_seqs) > 0:
                     print('The follwing IgBLAST DB sequences for '
                           'BCR_{segment} already found in {file}.'.format(
-                                            segment=s, file=fasta_file))
+                                            segment=seg, file=fasta_file))
                     print('These sequences were not overwritten. '
                           'Use --force_overwrite to replace with new ones')
                     for seq in non_overwritten_seqs:
@@ -2421,7 +2425,7 @@ class Builder(TracerTask):
                     subprocess.check_call(command)
                 except subprocess.CalledProcessError:
                     print("makeblastdb failed for BCR_{segment}".format(
-                                                        segment=s))
+                                                        segment=seg))
 
         return missing_dbs
 
