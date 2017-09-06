@@ -1863,8 +1863,8 @@ class Tester(TracerTask):
                                 action ="store_true")
             parser.add_argument('--output', '-o', 
                                 help='Directory for output data of test')
-            parser.add_argument('--no_trimming', help='Do not trim reads',
-                                action="store_true")
+            #parser.add_argument('--no_trimming', help='Do not trim reads',
+                                #action="store_true")
             
             args = parser.parse_args(sys.argv[2:])
 
@@ -1876,7 +1876,7 @@ class Tester(TracerTask):
             self.no_networks = args.no_networks
             self.resume = args.resume_with_existing_files
             self.infer_lineage = args.infer_lineage
-            self.no_trimming = args.no_trimming
+            #self.no_trimming = args.no_trimming
         else:
             self.resource_dir = kwargs.get('resource_dir')
             self.output_dir = kwargs.get('output')
@@ -1886,7 +1886,7 @@ class Tester(TracerTask):
             self.no_networks = kwargs.get('no_networks')
             self.resume = kwargs.get('resume_with_existing_files')
             self.infer_lineage = kwargs.get('infer_lineage')
-            self.no_trimming = kwargs.get('no_trimming')
+            #self.no_trimming = kwargs.get('no_trimming')
 
         self.trimmed_fastq1 = None
         self.trimmed_fastq2 = None
@@ -1910,7 +1910,7 @@ class Tester(TracerTask):
                       fastq1=f1, fastq2=f2, cell_name=name, output_dir=out_dir,
                       single_end=False, fragment_length=False, fragment_sd=False, 
                       loci=['H', 'K', 'L'], max_junc_len=100, 
-                      no_trimming=self.no_trimming, trimmed_fastq1=self.trimmed_fastq1,
+                      no_trimming=True, trimmed_fastq1=self.trimmed_fastq1,
                       trimmed_fastq2=self.trimmed_fastq2).run()
 
         Summariser(resource_dir=self.resource_dir, config_file=self.config_file, 
@@ -2039,7 +2039,6 @@ class Builder(TracerTask):
         VDJC_files, gapped_V_file  = self.copy_raw_files()
         recombinome_fasta = self.make_recombinomes(VDJC_files)
         self.make_bowtie2_index(recombinome_fasta)
-        #self.concatenate_locus_sequence_files(VDJC_files, gapped_V_file)
         missing_dbs = self.make_igblast_db(VDJC_files)
         for s in missing_dbs:
             print("\nIMPORTANT: there is no IgBLAST database for BCR_{segment}\n".format(
@@ -2283,47 +2282,6 @@ class Builder(TracerTask):
             writer = SeqIO.FastaIO.FastaWriter(out_handle, wrap=None)
             writer.write_file(seq_list)
 
-    """def concatenate_locus_sequence_files(self, VDJC_files, gapped_V_file):
-        """"""Creates concatenated sequence files for the loci for each segment
-        in the imgt_gapped_resources/raw_seqs directory containing the gapped (V) and
-        ungapped (D, J) sequences used to make the IgBlast databases for lineage
-        reconstruction""""""
-
-        if self.gapped:
-            ungapped_dir = os.path.join(self.species_dir, 'raw_seqs')
-            gapped_dir = os.path.join(self.species_dir, 'imgt_gapped_resources/raw_seqs')
-            
-            for s in ['V', 'D', 'J']:
-                
-                fn = "BCR_{segment}.fa".format(segment=s)
-                fasta_file = os.path.join(gapped_dir, fn)
-
-                # Create file if it doesn't already exist
-                open(fasta_file, 'a').close()
-
-                if s == 'V' or s in VDJC_files:
-                    if s == 'V':
-                        raw_file = gapped_V_file
-                    else:
-                        raw_file = VDJC_files[s]
-                    with open(fasta_file) as e:
-                        existing_seqs = SeqIO.to_dict(SeqIO.parse(e, "fasta"))
-                    with open(raw_file) as n:
-                        new_seqs = SeqIO.to_dict(SeqIO.parse(n, "fasta"))
-
-                    non_overwritten_seqs = []
-                    for seq_name, seq in six.iteritems(new_seqs):
-                        if seq_name in existing_seqs:
-                            if not self.force_overwrite:
-                                non_overwritten_seqs.append(seq_name)
-                            else:
-                                existing_seqs.update({seq_name: seq})
-                        else:
-                            existing_seqs.update({seq_name: seq})
-
-                    with open(fasta_file, 'w') as f:
-                        SeqIO.write(existing_seqs.values(), f, "fasta")
-    """
 
     def make_igblast_db(self, VDJC_files):
         
