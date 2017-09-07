@@ -15,6 +15,7 @@ BraCeR - reconstruction of B cell receptor sequences from single-cell RNA-seq da
 
 ## Introduction
 This tool reconstructs the sequences of rearranged and expressed B cell receptor genes from single-cell RNA-seq data. It then uses the BCR sequences to identify cells that derive from the same original clonally-expanded cell. 
+For more information on BraCeR, see our [bioRxiv preprint](http://www.biorxiv.org/content/early/2017/09/07/185504).
 
 BraCeR builds on the well-verified tool for reconstruction of T cell receptor sequences from single cell RNA-seq data (TraCeR).
 For more information on TraCeR, its validation and how it can be applied to investigate T cell populations during infection, see our [paper in Nature Methods](http://www.nature.com/nmeth/journal/vaop/ncurrent/full/nmeth.3800.html) or the [bioRxiv preprint](http://biorxiv.org/content/early/2015/08/28/025676) that preceded it.
