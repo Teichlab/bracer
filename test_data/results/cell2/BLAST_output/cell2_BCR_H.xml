@@ -4,7 +4,7 @@
   <BlastOutput_program>blastn</BlastOutput_program>
   <BlastOutput_version>BLASTN 2.2.31+</BlastOutput_version>
   <BlastOutput_reference>Zheng Zhang, Scott Schwartz, Lukas Wagner, and Webb Miller (2000), &quot;A greedy algorithm for aligning DNA sequences&quot;, J Comput Biol 2000; 7(1-2):203-14.</BlastOutput_reference>
-  <BlastOutput_db>/nfs/team205/il5/software/bracer/resources/Hsap/igblast_dbs/BCR_c.fa</BlastOutput_db>
+  <BlastOutput_db>/nfs/team205/il5/bracer/resources/Hsap/igblast_dbs/BCR_C_all.fa</BlastOutput_db>
   <BlastOutput_query-ID>Query_1</BlastOutput_query-ID>
   <BlastOutput_query-def>TRINITY_DN0_c0_g1_i1 len=712 path=[1:0-711] [-1, 1, -2]</BlastOutput_query-def>
   <BlastOutput_query-len>712</BlastOutput_query-len>

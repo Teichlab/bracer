@@ -170,7 +170,6 @@ def parse_alignment_summary(alignment_summary):
 
 
 def get_gapped_db_string(locus, query_name, cell_name, output_dir):
-    #pdb.set_trace()
     gapped_db_file = "{}/IgBLAST_output/{}_{}_db-pass.tab".format(
                         output_dir, cell_name, locus)
     gapped_db_string = ""
@@ -257,7 +256,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
                         best_J = remove_allele_stars(
                                  rearrangement_summary[1].split(",")[0])
 
-                    # Get info from gapped_db_string
+                    # Get junctional string from gapped_db_string
                     gapped_db_string = get_gapped_db_string(locus, query_name, cell_name, output_dir)
                     if "\t" in gapped_db_string:
                         (productive, in_frame, stop, indels, junc_string, cdr3_seq) = \
@@ -334,7 +333,6 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
                     stop_codon = is_productive[1]
                     in_frame = is_productive[2]
 
-                    #pdb.set_trace()
                     # Replace with productivity info from IMGT-gapped sequences
                     # if available
                     if "\t" in gapped_db_string:
@@ -347,11 +345,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
                                 if not l == "-":
                                     new_cdr3_seq += l
                             cdr3_seq = new_cdr3_seq
-                        #if not len(cdr3_seq)%3 == 0:
-                            #pdb.set_trace()
-                        #remainer = len(cdr3_seq)%3
                         
-                        #cdr3 = Seq(str(cdr3_seq[:len(cdr3_seq)-remainer]), generic_dna).translate()
                         cdr3 = Seq(str(cdr3_seq), generic_dna).translate()
 
                     #Identify the most likely V and J genes
@@ -459,8 +453,7 @@ def find_J_genes_based_on_bit_score(seq, hit_table, query_name, threshold_percen
 
 def parse_rearrangement_summary(rearrangement_summary):
     """Returns a tuple of (stop_codon, in_frame, productive) from IgBlast output.
-    NB: In_frame determined by standalone IgBlast is not always correct, so needs
-    to be assessed by BraCeR"""
+    Only used if no info can be parsed from IMGT-gapped IgBlast output by Change-O"""
     i = 1
     chain_type = rearrangement_summary[0][0:4]
     if "IGH" in chain_type:
@@ -1039,7 +1032,6 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato,
                    cells_with_clonal_H, no_multiplets, IGH_networks):
     G = nx.MultiGraph()
 
-    #pdb.set_trace()
 
     # initialise all cells as nodes
 
@@ -1066,7 +1058,7 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato,
                 if cell.bgcolor is not None:
                     G.node[cell]['style'] = 'filled'
                     G.node[cell]['fillcolor'] = cell.bgcolor
-    #pdb.set_trace()
+
     # Create list of cells belonging to a heavy chain clone group
     cell_names = cells_with_clonal_H
    
@@ -1352,7 +1344,7 @@ def detect_read_length(fastq1):
     sum_length = 0
     count = 0
     read_length = 0
-    #pdb.set_trace()
+
     if fastq1 is not None:
         if os.path.exists(fastq1):
             if ".gz" in fastq1:
@@ -1813,14 +1805,19 @@ def run_IgBlast(igblast, loci, output_dir, cell_name, index_location,
     if assembled_file is None:
         print ("Ig_seqtype:", ig_seqtype)
     
-    species_mapper = {
-        'Mmus': 'mouse',
-        'Hsap': 'human',
-        'Rat': 'rat'
-    }
-    igblast_species = species
-    if species in species_mapper.keys():
-        igblast_species = species_mapper[species]
+    if 'Hsap' in species:
+        igblast_species = 'human'
+    elif 'Mmus' in species:
+        igblast_species = 'mouse'
+    else:
+        species_mapper = {
+            'Mmus': 'mouse',
+            'Hsap': 'human',
+            'Rat': 'rat'
+        }
+        igblast_species = species
+        if species in species_mapper.keys():
+            igblast_species = species_mapper[species]
     initial_locus_names = ["_".join([receptor,x]) for x in loci]
     locus_names = copy.copy(initial_locus_names)
 
@@ -1889,27 +1886,27 @@ def run_IgBlast_IMGT_gaps_for_cell(igblast, loci, output_dir, cell_name,
             species, assembled_file):
     """Running IgBlast for reconstructed sequences in a cell using IMGT-gapped
     reference sequences in order to determine CDR3 sequences and productivity"""
-    species_mapper = {
+    receptor = "BCR"
+    if 'Hsap' in species:
+        igblast_species = 'human'
+    elif 'Mmus' in species:
+        igblast_species = 'mouse'
+    else:
+        species_mapper = {
             'Mmus': 'mouse',
             'Hsap': 'human',
             'Rat' : 'rat',
             'rat' : 'rat',
             'Rno' : 'rat'
-    }
-    receptor = "BCR"
-    igblast_species = species
-    if species in species_mapper.keys():
-        igblast_species = species_mapper[species]
+        }
+
+        igblast_species = species
+        if species in species_mapper.keys():
+            igblast_species = species_mapper[species]
 
     initial_locus_names = ["_".join([receptor,x]) for x in loci]
     locus_names = copy.copy(initial_locus_names)
 
-    #databases = {}
-    #databases['V'] = "{}/BCR_V.fa".format(gapped_index_location)
-    
-    #for segment in ['D', 'J']:
-        #databases[segment] = "{}/BCR_{}.fa".format(ungapped_index_location,
-                                                                #segment)
 
     auxiliary_data = "{}/{}_gl.aux".format(gapped_index_location, species)
 
@@ -1918,7 +1915,6 @@ def run_IgBlast_IMGT_gaps_for_cell(igblast, loci, output_dir, cell_name,
         output_file = "{}/IgBLAST_output/{}.fmt7".format(output_dir, cell_name)
 
     for locus in locus_names:
-        #pdb.set_trace()
         databases = {}
         databases['V'] = "{}/{}_V.fa".format(gapped_index_location, locus)
         databases['J'] = "{}/{}_J.fa".format(gapped_index_location, locus)
@@ -1940,79 +1936,36 @@ def run_IgBlast_IMGT_gaps_for_cell(igblast, loci, output_dir, cell_name,
             
             if os.path.isfile(auxiliary_data):
                 command += ['-auxiliary_data', auxiliary_data]
+            else:
+                print("Warning: No auxiliary_data file found")
             with open(output_file, 'w') as out:
                 subprocess.check_call(command, stdout=out)
             if assembled_file is not None:
                 break
 
 
-def run_IgBlast_IMGT_gaps(igblast, output_dir, ungapped_index_location, 
-                            gapped_index_location, ig_seqtype, species):
-    """Runs IgBlast for all reconstructed sequences using databases 
-    constructed from IMGT-gapped sequences. Needed to create tab-delimited 
-    Change-O database file with IMGT gaps"""
-    
-    species_mapper = {
-        'Mmus': 'mouse',
-        'Hsap': 'human',
-        'Rat' : 'rat',
-        'rat' : 'rat',
-        'Rno' : 'rat'
-    }
-
-    igblast_species = species
-    if species in species_mapper.keys():
-        igblast_species = species_mapper[species]
-    
-    databases = {}
-    databases['V'] = "{}/BCR_V.fa".format(gapped_index_location)
-    
-    for segment in ['D', 'J']:
-        databases[segment] = "{}/BCR_{}.fa".format(ungapped_index_location, 
-                                                                segment)
-        
-    auxiliary_data = "{}/{}_gl.aux".format(gapped_index_location, species)
-
-    sequence_file = "{}/BCR_sequences.fa".format(output_dir)
-    output_file = "{}/igblast_BCR_sequences.fmt7".format(output_dir)
-
-    if os.path.isfile(sequence_file) and os.path.isfile(databases['V']):
-        command = [igblast, '-germline_db_V', databases['V'], '-germline_db_J',
-                    databases['J'], '-germline_db_D', databases['D'],
-                    '-domain_system', 'imgt',
-                    '-organism', igblast_species, '-ig_seqtype', ig_seqtype,
-                    '-outfmt', '7 std qseq sseq btop', '-query', sequence_file]
-                    
-        if os.path.isfile(auxiliary_data):
-            command += ['-auxiliary_data', auxiliary_data]
-
-        with open(output_file, 'w') as out:
-            subprocess.check_call(command, stdout=out)
-
-        
-
 def run_IgBlast_for_lineage_reconstruction(igblast, locus, output_dir, 
         ungapped_index_location, gapped_index_location, ig_seqtype, species):
     """Runs IgBlast using databases constructed from IMGT-gapped V sequences. 
     Needed for germline reconstruction and lineage reconstruction from 
     clonal sequences"""
+    
+    if 'Hsap' in species:
+        igblast_species = 'human'
+    elif 'Mmus' in species:
+        igblast_species = 'mouse'
+    else:
+        species_mapper = {
+            'Mmus': 'mouse',
+            'Hsap': 'human',
+            'Rat' : 'rat'
+        }
 
-    species_mapper = {
-        'Mmus': 'mouse',
-        'Hsap': 'human',
-        'Rat' : 'rat'
-    }
-
-    igblast_species = species
-    if species in species_mapper.keys():
-        igblast_species = species_mapper[species]
+        igblast_species = species
+        if species in species_mapper.keys():
+            igblast_species = species_mapper[species]
 
     databases = {}
-    """databases['V'] = "{}/BCR_V.fa".format(gapped_index_location)
-    for segment in ['D', 'J']:
-        databases[segment] = "{}/BCR_{}.fa".format(ungapped_index_location, 8
-                                                                    segment)
-    """
     databases['V'] = "{}/BCR_{}_V.fa".format(gapped_index_location, locus)
     databases['J'] = "{}/BCR_{}_J.fa".format(gapped_index_location, locus)
     databases['D'] = "{}/BCR_H_D.fa".format(gapped_index_location)
@@ -2032,25 +1985,33 @@ def run_IgBlast_for_lineage_reconstruction(igblast, locus, output_dir,
                     '-outfmt', '7 std qseq sseq btop', '-query', sequence_file]
         if os.path.isfile(auxiliary_data):
             command += ['-auxiliary_data', auxiliary_data]
+        else:
+            print("Warning: No auxiliary_data file found")
 
         with open(output_file, 'w') as out:    
             subprocess.check_call(command, stdout=out)
+
 
 def run_Blast(blast, loci, output_dir, cell_name, index_location, species,
                 should_resume, assembled_file):
     receptor = "BCR"
 
     print("##Running BLAST##") 
+    
+    if 'Hsap' in species:
+        igblast_species = 'human'
+    elif 'Mmus' in species:
+        igblast_species = 'mouse'
+    else:
+        species_mapper = {
+            'Mmus': 'mouse',
+            'Hsap': 'human',
+            'Rno' : 'rat'
+        }
 
-    species_mapper = {
-        'Mmus': 'mouse',
-        'Hsap': 'human',
-        'Rat' : 'rat'
-    }
-
-    igblast_species = species
-    if species in species_mapper.keys():
-        blast_species = species_mapper[species]
+        igblast_species = species
+        if species in species_mapper.keys():
+            blast_species = species_mapper[species]
     initial_locus_names = ["_".join([receptor,x]) for x in loci]
     locus_names = copy.copy(initial_locus_names)
 
@@ -2060,10 +2021,14 @@ def run_Blast(blast, loci, output_dir, cell_name, index_location, species,
     
     
     for segment in ['c', 'C']:
-        databases[segment] = "{}/{}_{}.fa".format(index_location, receptor, segment)
+        if segment == 'c':
+            seg = 'C_all'
+        else:
+            seg = segment
+        databases[segment] = "{}/{}_{}.fa".format(index_location, receptor, seg)
     
-    if (os.path.isfile("{}/{}_c.fa".format(index_location, receptor)) and \
-        os.path.getsize("{}/{}_c.fa".format(index_location, receptor)) > 0):
+    if (os.path.isfile("{}/{}_C_all.fa".format(index_location, receptor)) and \
+        os.path.getsize("{}/{}_C_all.fa".format(index_location, receptor)) > 0):
         database = databases['c']
     else:
         database = databases['C']
@@ -2184,10 +2149,10 @@ def run_DefineClones(DefineClones, locus, outdir, species, distance):
     """Runs DefineClones of Change-O"""
 
     # Set model to Hamming distance if species is not Mmus or Hsap 
-    if species == "Mmus": 
+    if ("Mmus" or "mouse") in species: 
         model = "mk_rs5nf" 
         dist = "0.2" 
-    elif species == "Hsap": 
+    elif ("Hsap" or "human") in species: 
         model = "hh_s5f" 
         dist = "0.2" 
     else: 
@@ -2204,20 +2169,19 @@ def run_DefineClones(DefineClones, locus, outdir, species, distance):
  
         subprocess.check_call(command) 
 
-def run_MakeDb_for_cell(MakeDb, locus, outdir, species, gapped_seq_location, cell_name):
-    gapped_seqs = {}
-    #pdb.set_trace()
-    gapped_seqs['V'] = "{}/BCR_V.fa".format(gapped_seq_location)
-    for segment in ['D', 'J']:
-        gapped_seqs[segment] = "{}/BCR_{}.fa".format(gapped_seq_location, segment)
-    if locus == None:
-        makedb_input = "{}/IgBLAST_output/{}.fmt7".format(outdir, cell_name)
-        seq_file = "{}/Trinity_output/{}.fa".format(outdir, cell_name)
 
-    else:
-        makedb_input =  "{}/IgBLAST_output/{}_BCR_{}.fmt7".format(outdir, cell_name, locus)
-        seq_file = "{}/Trinity_output/{}_BCR_{}.Trinity.fasta".format(outdir, cell_name, locus)
-        
+def run_MakeDb_for_cell(MakeDb, locus, outdir, species, gapped_seq_location, 
+                                        ungapped_seq_location, cell_name):
+    """Runs MakeDb of Change-O for each cell to identify CDR3 sequences
+    during the assembly step"""
+
+    gapped_seqs = {}
+    gapped_seqs['V'] = "{}/BCR_{}_V.fa".format(gapped_seq_location, locus)
+    gapped_seqs['D'] = "{}/BCR_H_D.fa".format(ungapped_seq_location)
+    gapped_seqs['J'] = "{}/BCR_{}_J.fa".format(ungapped_seq_location, locus)
+
+    makedb_input =  "{}/IgBLAST_output/{}_BCR_{}.fmt7".format(outdir, cell_name, locus)
+    seq_file = "{}/Trinity_output/{}_BCR_{}.Trinity.fasta".format(outdir, cell_name, locus)    
 
     if os.path.isfile(makedb_input) and os.path.getsize(makedb_input) > 0:
         if os.path.isfile(seq_file) and os.path.getsize(seq_file) > 0:
@@ -2228,19 +2192,17 @@ def run_MakeDb_for_cell(MakeDb, locus, outdir, species, gapped_seq_location, cel
 
 
 
-def run_MakeDb(MakeDb, locus, outdir, species, gapped_seq_location):
-    """Runs MakeDb of Change-O"""
+def run_MakeDb(MakeDb, locus, outdir, species, gapped_seq_location, 
+                                            ungapped_seq_location):
+    """Runs MakeDb of Change-O at Summarise level"""
 
     gapped_seqs = {}
-    gapped_seqs['V'] = "{}/BCR_V.fa".format(gapped_seq_location)
-    for segment in ['D', 'J']:
-        gapped_seqs[segment] = "{}/BCR_{}.fa".format(gapped_seq_location, segment)
-    if locus == None:
-        makedb_input = "{}/igblast_BCR_sequences.fmt7".format(outdir)
-        seq_file = "{}/BCR_sequences.fa".format(outdir)
-    else:
-        makedb_input =  "{}/igblast_{}.fmt7".format(outdir, locus)
-        seq_file = "{}/igblast_input_{}.fa".format(outdir, locus)
+    gapped_seqs['V'] = "{}/BCR_{}_V.fa".format(gapped_seq_location, locus)
+    gapped_seqs['D'] = "{}/BCR_H_D.fa".format(ungapped_seq_location)
+    gapped_seqs['J'] = "{}/BCR_{}_J.fa".format(ungapped_seq_location, locus)
+
+    makedb_input =  "{}/igblast_{}.fmt7".format(outdir, locus)
+    seq_file = "{}/igblast_input_{}.fa".format(outdir, locus)
     
 
     if os.path.isfile(makedb_input) and os.path.getsize(makedb_input) > 0:
@@ -2252,15 +2214,15 @@ def run_MakeDb(MakeDb, locus, outdir, species, gapped_seq_location):
             subprocess.check_call(command)
                 
 
-def run_CreateGermlines(CreateGermlines, locus, outdir, species, gapped_seq_location):
+def run_CreateGermlines(CreateGermlines, locus, outdir, species, 
+                        gapped_seq_location, ungapped_seq_location):
     """Runs CreateGermlines of Change-O"""
 
     gapped_seqs = {}
-
-    gapped_seqs['V'] = "{}/BCR_V.fa".format(gapped_seq_location)
-    for segment in ['D', 'J']:
-        gapped_seqs[segment] = "{}/BCR_{}.fa".format(gapped_seq_location, segment)
-
+    gapped_seqs['V'] = "{}/BCR_{}_V.fa".format(gapped_seq_location, locus)
+    # Provide D-database even for light chains so IgBlast won't complain
+    gapped_seqs['D'] = "{}/BCR_H_D.fa".format(ungapped_seq_location)
+    gapped_seqs['J'] = "{}/BCR_{}_J.fa".format(ungapped_seq_location, locus)
 
     creategermlines_input = "{}/igblast_{}_db-modified.tab".format(outdir, locus)
     if os.path.isfile(creategermlines_input) and os.path.getsize(creategermlines_input) > 0:

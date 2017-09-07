@@ -1,9 +1,9 @@
 {
 	"n_targets": 173261,
 	"n_bootstraps": 0,
-	"n_processed": 67305,
+	"n_processed": 67292,
 	"kallisto_version": "0.43.0",
 	"index_version": 10,
-	"start_time": "Thu Aug 24 20:27:42 2017",
-	"call": "/nfs/users/nfs_i/il5/anaconda3/bin/kallisto quant -i /nfs/team205/il5/software/bracer/test_data/results/cell3/expression_quantification/kallisto_index/cell3_transcriptome.idx -t 1 -o /nfs/team205/il5/software/bracer/test_data/results/cell3/expression_quantification ../cell3_1.fastq ../cell3_2.fastq"
+	"start_time": "Wed Sep  6 22:22:19 2017",
+	"call": "/nfs/users/nfs_i/il5/anaconda3/bin/kallisto quant -i /nfs/team205/il5/bracer/test_data/results/cell3/expression_quantification/kallisto_index/cell3_transcriptome.idx -t 1 -o /nfs/team205/il5/bracer/test_data/results/cell3/expression_quantification /nfs/team205/il5/bracer/test_data/results/cell3/trimmed_reads/cell3_1_val_1.fq /nfs/team205/il5/bracer/test_data/results/cell3/trimmed_reads/cell3_2_val_2.fq"
 }

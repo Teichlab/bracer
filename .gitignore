@@ -64,6 +64,7 @@ carbajo.conf
 cell1/
 filtered_BCR_summary
 unfiltered_BCR_summary
+tests/
 
 # IDE settings
 .idea
@@ -74,3 +75,4 @@ unversioned/
 
 # Various
 mess/
+Rplots.pdf

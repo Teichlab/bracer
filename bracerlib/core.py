@@ -117,12 +117,12 @@ class Cell(object):
     def assign_bgcolor(self, isotype):
         """Assigns bgcolor for cell according to isotype"""
 
-        if self.species == "Mmus":
+        if ("Mmus" or "mouse") in self.species:
             isotype_bgcolors = {"IGHD":'#e6f7ff', "IGHM":'#e5ffcc', 
                 "IGHA":'#ffe6e6', "IGHE":'#ffffcc', "IGHG1":'#f1e6ff', 
                 "IGHG2A":'#e2ccff', "IGHG2B":'#d4b3ff', "IGHG2C":'#c599ff',
                 "IGHG3":'#a866ff', "IGHDM":'#b3ffff'}
-        elif self.species == "Hsap":
+        elif ("Hsap" or "human") in self.species:
             isotype_bgcolors = {"IGHD":'#e6f7ff', "IGHM":'#e5ffcc', 
                 "IGHA1":'#ffe6e6', "IGHA2":'#ffcccc', "IGHE":'#ffffcc', 
                 "IGHG1":'#f1e6ff', "IGHG2":'#e2ccff', "IGHG3":'#d4b3ff', 
