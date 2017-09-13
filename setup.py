@@ -14,7 +14,7 @@ def package_files(directory):
             paths.append(os.path.join('..', path, filename))
     return paths
 
-extra_files = package_files('test_data') + package_files('resources')
+extra_files = package_files('test_data')
 
 
 setup(
@@ -23,10 +23,10 @@ setup(
     author="Mike Stubbington, Ida Lindeman, Guy Emerton",
     entry_points={
         'console_scripts': [
-            'bracer=bracerlib.__main__'
+            'bracer=bracerlib.launcher:launch'
         ]
     },
-    author_email="mike.stubbington@sanger.ac.uk",
+    author_email="ida.lindeman@sanger.ac.uk",
     description="Reconstruction of B-Cell receptor sequences from single-cell RNA-seq data",
     licence="Apache",
     keywords="biopython genetics",
