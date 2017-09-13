@@ -82,7 +82,7 @@ If you plan to run BraCeR with `--infer_lineage` to create lineage trees, please
 
 The bracer module is then installed using:
 
-    python setup.py install
+    pip3 install .
 
 This will add the binary 'bracer' to your local bin folder, which can then be run from anywhere.
 
