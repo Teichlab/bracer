@@ -210,28 +210,31 @@ BraCeR has three modes: *assemble*, *summarise* and *build*.
 
 For each cell, an `/<output_directory>/<cell_name>` directory will be created. This will contain the following subdirectories.
 
-1. `<output_directory>/<cell_name>/aligned_reads`  
+1. `<output_directory>/<cell_name>/trimmed_reads`  
+    Subdirectory containing the output from Trim Galore! if assemble is run with `--keep_trimmed_reads`.
+
+2. `<output_directory>/<cell_name>/aligned_reads`  
     This contains the output from Bowtie2 with the sequences of the reads that aligned to the synthetic genomes.
 
-2. `<output_directory>/<cell_name>/Trinity_output`  
+3. `<output_directory>/<cell_name>/Trinity_output`  
     Contains fasta files for each locus where contigs could be assembled. Also two text files that log successful and unsuccessful assemblies.
 
-3. `<output_directory>/<cell_name>/IgBLAST_output`  
+4. `<output_directory>/<cell_name>/IgBLAST_output`  
     Files with the output from IgBLAST for the contigs from each locus. 
 
-4. `<output_directory>/<cell_name>/BLAST_output`  
+5. `<output_directory>/<cell_name>/BLAST_output`  
     Files with the output from BLAST for the contigs from each locus.
 
-5. `<output_directory>/<cell_name>/unfiltered_BCR_seqs`  
+6. `<output_directory>/<cell_name>/unfiltered_BCR_seqs`  
     Files describing the BCR sequences that were assembled prior to filtering by expression if necessary.
     - `unfiltered_BCRs.txt` : text file containing BCR details. Begins with count of productive/total rearrangements detected for each locus. Then details of each detected recombinant.
     - `<cell_name>_BCRseqs.fa` : FASTA file containing reconstructed BCR sequences.
     - `<cell_name>.pkl` : Python [pickle](https://docs.python.org/2/library/pickle.html) file containing the internal representation of the cell and its recombinants as used by BraCeR. This is used in the summarisation steps.
 
-6. `<output_directory>/<cell_name>/expression_quantification`  
+7. `<output_directory>/<cell_name>/expression_quantification`  
     Contains Kallisto output with expression quantification of the entire transcriptome *including* the reconstructed BCRs.
 
-7. `<output_directory>/<cell_name>/filtered_BCR_seqs`  
+8. `<output_directory>/<cell_name>/filtered_BCR_seqs`  
     Contains the same files as the unfiltered directory above but these recombinants have been filtered so that only the two most highly expressed from each locus are retained. This resolves biologically implausible situtations where more than two recombinants are detected for a locus. **This directory contains the final output with high-confidence BCR assignments**.
 
 
@@ -260,21 +263,36 @@ For each cell, an `/<output_directory>/<cell_name>` directory will be created. T
 #### Output 
 Output is written to `<input_dir>/filtered_BCR_summary` or `<input_dir>/unfiltered_BCR_summary` depending on whether the `--use_unfiltered` option was set.
 
-The following output files are generated:
+The following output files and subdirectories may be generated (depending on which arguments BraCeR is run with):
 
 1. `BCR_summary.txt`
     Summary statistics describing successful BCR reconstruction rates and the numbers of cells with 0, 1, 2 or more recombinants for each locus.
-2. `recombinants.txt`
-    List of BCR identifiers, lengths and productivities for each cell. 
-3. `reconstructed_lengths_BCR[H|K|L].pdf` and  `reconstructed_lengths_BCR[H|K|L].txt`
+2. `changeodb.tab`
+    Tab-delimited database file containing all reconstructed sequences (except suspected multiplets unless run with `--include_multiplets`) 
+3. `filtered_multiplets_changeodb.tab`   
+    Tab-delimited database file containing all reconstructed sequences from suspected multiplets (unless run with `--include_multiplets`)
+4. `IMGT_gapped.tab`    
+    Tab-delimited database file containing information parsed from IgBlast with IMGT-gapped reference sequences for all reconstructed sequences.
+5. `reconstructed_lengths_BCR[H|K|L].pdf` and  `reconstructed_lengths_BCR[H|K|L].txt`
     Distribution plots (and text files with underlying data) showing the lengths of the VDJ regions from assembled BCR contigs. Longer contigs give higher-confidence segment assignments. Text files are only generated if at least one BCR is found for a locus. Plots are only generated if at least two BCRs are found for a locus. 
-4. `clonotype_sizes.pdf` and `clonotype_sizes.txt`
+6. `clonotype_sizes.pdf` and `clonotype_sizes.txt`
     Distribution of clonotype sizes as bar graph and text file.
-5.  `clonotype_network_[with|without]_identifiers.<graph_format>`
+7.  `clonotype_network_[with|without]_identifiers.<graph_format>`
     graphical representation of clonotype networks either with full recombinant identifiers or just lines indicating presence/absence of recombinants.
-6.  `clonotype_network_[with|without]_identifiers.dot`
+8.  `clonotype_network_[with|without]_identifiers.dot`
     files describing the clonotype networks in the [Graphviz DOT language](http://www.graphviz.org/doc/info/lang.html)
- 
+9. `lineage_trees/`
+    Subdirectory containing lineage tree output files if run with `--infer_lineage`
+10. Intermediate files
+    Intermediate output files from the various steps.
+    - `changeo_input_[H|K|L].tab` : Tab-delimited database file used as input for Change-O DefineClones. Contains all productive sequences for the locus.
+    - `changeo_input_[H|K|L]_clone-pass.tab` : Output of Change-O DefineClones bygroup.
+    - `igblast_input_[H|K|L].fa` : FASTA file containing all sequences that are shared within one of the clone groups in the clonal network. 
+    - `igblast_[H|K|L].fmt7` : IgBlast output file for `igblast_input_[H|K|L].fa`, having run IgBlast with IMGT-gapped reference sequences.  
+    - `igblast_[H|K|L]_db-modified.tab` : Tab-delimited database file created from `igblast_[H|K|L].fmt7` through Change-O. Modified to include clone group, isotype and cell name columns.  
+    - `igblast_[H|K|L]_db-modified_germ-pass.tab` : Output file from germline reconstruction step (running Change-O CreateGermlines on `igblast_[H|K|L]_db-modified.tab`).  
+    - `concatenated_lineage_input.tab` : Tab-delimited database file used as input for lineage reconstruction with Alakazam. Contains concatenated heavy and light chain sequences and their inferred germline sequences for each clone group in the clonal networks.
+
 ### *Build*: Build Combinatorial Recombinomes for a Given Species
 
 #### Usage
