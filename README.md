@@ -82,7 +82,7 @@ If you plan to run BraCeR with `--infer_lineage` to create lineage trees, please
 
 The bracer module is then installed using:
 
-    pip3 install .
+    python setup.py install
 
 This will add the binary 'bracer' to your local bin folder, which can then be run from anywhere.
 
@@ -138,6 +138,13 @@ Trinity needs to know the maximum memory available to it for the Jellyfish compo
 
 Location of the transcriptome fasta file to which the specific BCR sequences will be appended from each cell. Can be downloaded from http://bio.math.berkeley.edu/kallisto/transcriptomes/ and many other places. This must be a plain-text fasta file so decompress it if necessary (files from the Kallisto link are gzipped).
 
+### BraCeR installation directory
+
+	[bracer_location]
+	#Path to where BraCeR was originally installed
+	bracer_path = /path/to/bracer
+
+Location of the cloned repository containing bracerlib, test_data, resources etc. Eg. `/user/software/bracer` if you cloned the bracer repository into `/user/software`.
 
 ## Testing BraCeR 
 BraCeR comes with a small dataset in `test_data/` (containing only BCR reads for a single cell) that you can use to test your installation and config file and confirm that all the prerequisites are working. Run it as:
