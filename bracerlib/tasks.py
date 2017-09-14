@@ -88,7 +88,10 @@ class TracerTask(object):
             if not os.path.isfile(config_file):
                 print("Config file not found at ~/.bracerrc."
                     " Using default bracer.conf in repo...")
-                config_file = os.path.join(base_dir, 'bracer.conf')
+                bracer_path = self.get_bracer_path()
+                config_file = os.path.join(bracer_path, 'bracer.conf')
+                if not os.path.isfile(config_file):
+                    config_file = os.path.join(base_dir, 'bracer.conf')
         bracer_func.check_config_file(config_file)
         config = ConfigParser()
         config.read(config_file)

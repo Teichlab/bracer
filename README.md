@@ -35,10 +35,10 @@ Note that BraCeR requires Python (>=3.4.0), as one of the required tools has thi
 1. [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml) - required for alignment of reads to synthetic BCR genomes.
 2. [Trinity](https://github.com/trinityrnaseq/trinityrnaseq/wiki) - required for assembly of reads into BCR contigs. BraCeR requires Trinity v2.4.0.
 3. [IgBLAST](http://www.ncbi.nlm.nih.gov/igblast/faq.html#standalone) - required for analysis of assembled contigs. (ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/).
-4. [BLAST](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/ ) - required for determination of isotype. (ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/).
+4. [BLAST](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download) - required for determination of isotype. (ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/).
 5. [Kallisto](http://pachterlab.github.io/kallisto/) - software for quantification of BCR expression.
 6. [Graphviz](http://www.graphviz.org) - Dot and Neato drawing programs required for visualisation of clonotype graphs. This is optional - see the [`--no_networks` option](#options-1) to [`summarise`](#summarise-summary-and-clonotype-networks).
-7. [PHYLIP] - dnapars program of PHYLIP is required for lineage reconstruction. This is optional - see the [`--infer_lineage` option](#options-1) to [`summarise`](#summarise-summary-and-clonotype-networks).   
+7. [PHYLIP](http://evolution.genetics.washington.edu/phylip.html) - dnapars program of PHYLIP is required for lineage reconstruction. This is optional - see the [`--infer_lineage` option](#options-1) to [`summarise`](#summarise-summary-and-clonotype-networks).   
 8. [Trim Galore!](https://www.bioinformatics.babraham.ac.uk/projects/trim_galore/) - required for adapter and quality trimming (optional).
 	
 ##### Installing IgBlast 
@@ -99,10 +99,10 @@ An example configuration file is included in the repository - `bracer.conf`.
 By default, this is `~/.bracerrc`. If bracer fails to find this file, it will use the `bracer.conf` in the repository.
  The `-c` option to the various bracer modules allows you to specify any other file to act as the configuration file.
 
-**Important:** If you  specify relative paths in the config file these will be used as relative to the main installation directory. For example, `resources/Mmus/igblast_dbs` will resolve to `/<wherever you installed bracer>/bracer/resources/Mmus/igblast_dbs`.
+**Important:** Make sure to edit the configuration file before using BraCeR.
 
 ### External tool locations 
-Tracer will look in your system's `PATH` for external tools. You can override this behaviour by editing your `~/.bracerrc`.
+BraCeR will look in your system's `PATH` for external tools. You can override this behaviour by editing your `~/.bracerrc`.
 Edit `~/.bracerrc` (or a copy) so that the paths within the `[tool_locations]` section point to the executables for all of the required tools.
 
 	[tool_locations]
@@ -120,7 +120,7 @@ Edit `~/.bracerrc` (or a copy) so that the paths within the `[tool_locations]` s
 	trim_galore_path = /path/to/trim_galore
 	cutadapt_path = /path/to/cutadapt
 		
-		
+Make sure that `changeo_path` points to the directory containing the Change-O scripts (`DefineClones.py`, `CreateGermlines.py` and  `MakeDb.py`. 
 
 #### Trinity options 
 ##### Jellyfish memory 
@@ -144,7 +144,8 @@ Location of the transcriptome fasta file to which the specific BCR sequences wil
 	#Path to where BraCeR was originally installed
 	bracer_path = /path/to/bracer
 
-Location of the cloned repository containing bracerlib, test_data, resources etc. Eg. `/user/software/bracer` if you cloned the bracer repository into `/user/software`.
+Location of the cloned BraCeR repository containing bracerlib, test_data, resources etc. Eg. `/user/software/bracer` if you cloned the bracer repository into `/user/software`.
+Needed for localisation of resources and test_data if running BraCeR with the bracer binary.
 
 ## Testing BraCeR 
 BraCeR comes with a small dataset in `test_data/` (containing only BCR reads for a single cell) that you can use to test your installation and config file and confirm that all the prerequisites are working. Run it as:
