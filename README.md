@@ -35,10 +35,10 @@ Note that BraCeR requires Python (>=3.4.0), as one of the required tools has thi
 1. [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml) - required for alignment of reads to synthetic BCR genomes.
 2. [Trinity](https://github.com/trinityrnaseq/trinityrnaseq/wiki) - required for assembly of reads into BCR contigs. BraCeR requires Trinity v2.4.0.
 3. [IgBLAST](http://www.ncbi.nlm.nih.gov/igblast/faq.html#standalone) - required for analysis of assembled contigs. (ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/).
-4. [BLAST](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/ ) - required for determination of isotype. (ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/).
+4. [BLAST](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download) - required for determination of isotype. (ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/).
 5. [Kallisto](http://pachterlab.github.io/kallisto/) - software for quantification of BCR expression.
 6. [Graphviz](http://www.graphviz.org) - Dot and Neato drawing programs required for visualisation of clonotype graphs. This is optional - see the [`--no_networks` option](#options-1) to [`summarise`](#summarise-summary-and-clonotype-networks).
-7. [PHYLIP] - dnapars program of PHYLIP is required for lineage reconstruction. This is optional - see the [`--infer_lineage` option](#options-1) to [`summarise`](#summarise-summary-and-clonotype-networks).   
+7. [PHYLIP](http://evolution.genetics.washington.edu/phylip.html) - dnapars program of PHYLIP is required for lineage reconstruction. This is optional - see the [`--infer_lineage` option](#options-1) to [`summarise`](#summarise-summary-and-clonotype-networks).   
 8. [Trim Galore!](https://www.bioinformatics.babraham.ac.uk/projects/trim_galore/) - required for adapter and quality trimming (optional).
 	
 ##### Installing IgBlast 
@@ -82,7 +82,7 @@ If you plan to run BraCeR with `--infer_lineage` to create lineage trees, please
 
 The bracer module is then installed using:
 
-    pip3 install .
+    python setup.py install
 
 This will add the binary 'bracer' to your local bin folder, which can then be run from anywhere.
 
@@ -99,10 +99,10 @@ An example configuration file is included in the repository - `bracer.conf`.
 By default, this is `~/.bracerrc`. If bracer fails to find this file, it will use the `bracer.conf` in the repository.
  The `-c` option to the various bracer modules allows you to specify any other file to act as the configuration file.
 
-**Important:** If you  specify relative paths in the config file these will be used as relative to the main installation directory. For example, `resources/Mmus/igblast_dbs` will resolve to `/<wherever you installed bracer>/bracer/resources/Mmus/igblast_dbs`.
+**Important:** Make sure to edit the configuration file before using BraCeR.
 
 ### External tool locations 
-Tracer will look in your system's `PATH` for external tools. You can override this behaviour by editing your `~/.bracerrc`.
+BraCeR will look in your system's `PATH` for external tools. You can override this behaviour by editing your `~/.bracerrc`.
 Edit `~/.bracerrc` (or a copy) so that the paths within the `[tool_locations]` section point to the executables for all of the required tools.
 
 	[tool_locations]
@@ -120,7 +120,7 @@ Edit `~/.bracerrc` (or a copy) so that the paths within the `[tool_locations]` s
 	trim_galore_path = /path/to/trim_galore
 	cutadapt_path = /path/to/cutadapt
 		
-		
+Make sure that `changeo_path` points to the directory containing the Change-O scripts (`DefineClones.py`, `CreateGermlines.py` and  `MakeDb.py`). 
 
 #### Trinity options 
 ##### Jellyfish memory 
@@ -138,6 +138,14 @@ Trinity needs to know the maximum memory available to it for the Jellyfish compo
 
 Location of the transcriptome fasta file to which the specific BCR sequences will be appended from each cell. Can be downloaded from http://bio.math.berkeley.edu/kallisto/transcriptomes/ and many other places. This must be a plain-text fasta file so decompress it if necessary (files from the Kallisto link are gzipped).
 
+### BraCeR installation directory
+
+	[bracer_location]
+	#Path to where BraCeR was originally installed
+	bracer_path = /path/to/bracer
+
+Location of the cloned BraCeR repository containing bracerlib, test_data, resources etc. Eg. `/user/software/bracer` if you cloned the bracer repository into `/user/software`.
+Needed for localisation of resources and test_data if running BraCeR with the bracer binary.
 
 ## Testing BraCeR 
 BraCeR comes with a small dataset in `test_data/` (containing only BCR reads for a single cell) that you can use to test your installation and config file and confirm that all the prerequisites are working. Run it as:
@@ -202,28 +210,31 @@ BraCeR has three modes: *assemble*, *summarise* and *build*.
 
 For each cell, an `/<output_directory>/<cell_name>` directory will be created. This will contain the following subdirectories.
 
-1. `<output_directory>/<cell_name>/aligned_reads`  
+1. `<output_directory>/<cell_name>/trimmed_reads`  
+    Subdirectory containing the output from Trim Galore! if assemble is run with `--keep_trimmed_reads`.
+
+2. `<output_directory>/<cell_name>/aligned_reads`  
     This contains the output from Bowtie2 with the sequences of the reads that aligned to the synthetic genomes.
 
-2. `<output_directory>/<cell_name>/Trinity_output`  
+3. `<output_directory>/<cell_name>/Trinity_output`  
     Contains fasta files for each locus where contigs could be assembled. Also two text files that log successful and unsuccessful assemblies.
 
-3. `<output_directory>/<cell_name>/IgBLAST_output`  
+4. `<output_directory>/<cell_name>/IgBLAST_output`  
     Files with the output from IgBLAST for the contigs from each locus. 
 
-4. `<output_directory>/<cell_name>/BLAST_output`  
+5. `<output_directory>/<cell_name>/BLAST_output`  
     Files with the output from BLAST for the contigs from each locus.
 
-5. `<output_directory>/<cell_name>/unfiltered_BCR_seqs`  
+6. `<output_directory>/<cell_name>/unfiltered_BCR_seqs`  
     Files describing the BCR sequences that were assembled prior to filtering by expression if necessary.
     - `unfiltered_BCRs.txt` : text file containing BCR details. Begins with count of productive/total rearrangements detected for each locus. Then details of each detected recombinant.
     - `<cell_name>_BCRseqs.fa` : FASTA file containing reconstructed BCR sequences.
     - `<cell_name>.pkl` : Python [pickle](https://docs.python.org/2/library/pickle.html) file containing the internal representation of the cell and its recombinants as used by BraCeR. This is used in the summarisation steps.
 
-6. `<output_directory>/<cell_name>/expression_quantification`  
+7. `<output_directory>/<cell_name>/expression_quantification`  
     Contains Kallisto output with expression quantification of the entire transcriptome *including* the reconstructed BCRs.
 
-7. `<output_directory>/<cell_name>/filtered_BCR_seqs`  
+8. `<output_directory>/<cell_name>/filtered_BCR_seqs`  
     Contains the same files as the unfiltered directory above but these recombinants have been filtered so that only the two most highly expressed from each locus are retained. This resolves biologically implausible situtations where more than two recombinants are detected for a locus. **This directory contains the final output with high-confidence BCR assignments**.
 
 
@@ -252,21 +263,35 @@ For each cell, an `/<output_directory>/<cell_name>` directory will be created. T
 #### Output 
 Output is written to `<input_dir>/filtered_BCR_summary` or `<input_dir>/unfiltered_BCR_summary` depending on whether the `--use_unfiltered` option was set.
 
-The following output files are generated:
+The following output files and subdirectories may be generated (depending on which arguments BraCeR is run with):
 
-1. `BCR_summary.txt`
+1. `BCR_summary.txt`    
     Summary statistics describing successful BCR reconstruction rates and the numbers of cells with 0, 1, 2 or more recombinants for each locus.
-2. `recombinants.txt`
-    List of BCR identifiers, lengths and productivities for each cell. 
-3. `reconstructed_lengths_BCR[H|K|L].pdf` and  `reconstructed_lengths_BCR[H|K|L].txt`
+2. `changeodb.tab`    
+    Tab-delimited database file containing all reconstructed sequences (except suspected multiplets unless run with `--include_multiplets`) 
+3. `filtered_multiplets_changeodb.tab`   
+    Tab-delimited database file containing all reconstructed sequences from suspected multiplets (unless run with `--include_multiplets`)
+4. `IMGT_gapped.tab`    
+    Tab-delimited database file containing information parsed from IgBlast with IMGT-gapped reference sequences for all reconstructed sequences.
+5. `reconstructed_lengths_BCR[H|K|L].pdf` and  `reconstructed_lengths_BCR[H|K|L].txt`    
     Distribution plots (and text files with underlying data) showing the lengths of the VDJ regions from assembled BCR contigs. Longer contigs give higher-confidence segment assignments. Text files are only generated if at least one BCR is found for a locus. Plots are only generated if at least two BCRs are found for a locus. 
-4. `clonotype_sizes.pdf` and `clonotype_sizes.txt`
+6. `clonotype_sizes.pdf` and `clonotype_sizes.txt`    
     Distribution of clonotype sizes as bar graph and text file.
-5.  `clonotype_network_[with|without]_identifiers.<graph_format>`
+7.  `clonotype_network_[with|without]_identifiers.<graph_format>`    
     graphical representation of clonotype networks either with full recombinant identifiers or just lines indicating presence/absence of recombinants.
-6.  `clonotype_network_[with|without]_identifiers.dot`
+8.  `clonotype_network_[with|without]_identifiers.dot`    
     files describing the clonotype networks in the [Graphviz DOT language](http://www.graphviz.org/doc/info/lang.html)
- 
+9. `lineage_trees/`    
+    Subdirectory containing lineage tree output files if run with `--infer_lineage`
+10. Intermediate output files from the various steps.
+    - `changeo_input_[H|K|L].tab` : Tab-delimited database file used as input for Change-O DefineClones. Contains all productive sequences for the locus.
+    - `changeo_input_[H|K|L]_clone-pass.tab` : Output of Change-O DefineClones bygroup.
+    - `igblast_input_[H|K|L].fa` : FASTA file containing all sequences that are shared within one of the clone groups in the clonal network. 
+    - `igblast_[H|K|L].fmt7` : IgBlast output file for `igblast_input_[H|K|L].fa`, having run IgBlast with IMGT-gapped reference sequences.  
+    - `igblast_[H|K|L]_db-modified.tab` : Tab-delimited database file created from `igblast_[H|K|L].fmt7` through Change-O. Modified to include clone group, isotype and cell name columns.  
+    - `igblast_[H|K|L]_db-modified_germ-pass.tab` : Output file from germline reconstruction step (running Change-O CreateGermlines on `igblast_[H|K|L]_db-modified.tab`).  
+    - `concatenated_lineage_input.tab` : Tab-delimited database file used as input for lineage reconstruction with Alakazam. Contains concatenated heavy and light chain sequences and their inferred germline sequences for each clone group in the clonal networks.
+
 ### *Build*: Build Combinatorial Recombinomes for a Given Species
 
 #### Usage

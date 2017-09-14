@@ -62,6 +62,18 @@ class TracerTask(object):
                 self.config.get('tool_locations', tool_key))
         return check_binary(name, user_path)
 
+    def get_bracer_path(self):
+        bracer_path = None
+        if self.config.has_option('bracer_location', 'bracer_path'):
+            path = self.config.get('bracer_location', 'bracer_path')
+            if os.path.exists(path):
+                bracer_path = path
+            else:
+                print("Please specify the path to where you originally"
+                    " installed BraCeR in the config file.")
+
+        return bracer_path
+
     def read_config(self, config_file):
         # First look for environmental variable
         if not config_file:
@@ -76,7 +88,10 @@ class TracerTask(object):
             if not os.path.isfile(config_file):
                 print("Config file not found at ~/.bracerrc."
                     " Using default bracer.conf in repo...")
-                config_file = os.path.join(base_dir, 'bracer.conf')
+                bracer_path = self.get_bracer_path()
+                config_file = os.path.join(bracer_path, 'bracer.conf')
+                if not os.path.isfile(config_file):
+                    config_file = os.path.join(base_dir, 'bracer.conf')
         bracer_func.check_config_file(config_file)
         config = ConfigParser()
         config.read(config_file)
@@ -149,7 +164,11 @@ class TracerTask(object):
     
     def get_species_root(self, species, root=None):
         if root is None:
-            resources_root = os.path.join(base_dir, 'resources', species)
+            bracer_path = self.get_bracer_path()
+            if bracer_path is not None:
+                resources_root = os.path.join(bracer_path, 'resources', species)
+            else:
+                resources_root = os.path.join(base_dir, 'resources', species)
         else:
             resources_root = os.path.join(root, species)
         assert os.path.isdir(resources_root), "Species not found in resources"
@@ -157,12 +176,21 @@ class TracerTask(object):
 
 
     def get_rscript_path(self):
-        rscript_path = os.path.join(base_dir, 'bracerlib/lineage.R')
+        bracer_path = self.get_bracer_path()
+        rscript_path = os.path.join(bracer_path, 'lineage.R')
+        if not os.path.isfile(rscript_path):
+            rscript_path = os.path.join(base_dir, 'lineage.R')
+        if not os.path.isfile(rscript_path):
+            print("Could not find lineage.R script in bracerlib")
         return(rscript_path)
         
     def get_available_species(self, root=None):
         if root is None:
-            resources_dir = os.path.join(base_dir, 'resources')
+            bracer_path = self.get_bracer_path()
+            if bracer_path is not None:
+                resources_dir = os.path.join(bracer_path, 'resources')
+            else:
+                resources_dir = os.path.join(base_dir, 'resources')
         else:
             resources_dir = root
         species_dirs = next(os.walk(resources_dir))[1]
@@ -525,8 +553,8 @@ class Assembler(TracerTask):
         """Creates Change-O database from IgBlast result files after alignment
         to imgt-gapped sequences for CDR3 detection"""
         try:
-            MakeDb =  self.config.get('tool_locations', 'changeo_path') + "/MakeDb.py"
-            if not os.path.is_file(MakeDb):
+            MakeDb =  os.path.join(self.config.get('tool_locations', 'changeo_path'), "MakeDb.py")
+            if not os.path.exists(MakeDb):
                 MakeDb = "MakeDb.py"
         except:
             MakeDb = "MakeDb.py"
@@ -794,8 +822,8 @@ class Summariser(TracerTask):
         # Make initial clonal assignments for B cells using Change-O 
         # DefineClones bygroup
         try:
-            DefineClones = (self.config.get('tool_locations', 'changeo_path') + 
-                                                            "/DefineClones.py")
+            DefineClones =  os.path.join(self.config.get('tool_locations', 
+                                        'changeo_path'), "DefineClones.py")
             if not os.path.isfile(DefineClones):
                 DefineClones = "DefineClones.py"
         except:
@@ -1453,10 +1481,10 @@ class Summariser(TracerTask):
     def create_changeo_db(self, outdir, locus):
         """Creates Change-O database from IgBlast result files after alignment
         to imgt-gapped sequences for germline reconstruction"""
-
         try:
-            MakeDb =  self.config.get('tool_locations', 'changeo_path') + "/MakeDb.py"
-            if not os.path.is_file(MakeDb):
+            MakeDb =  os.path.join(self.config.get('tool_locations', 
+                                        'changeo_path'), "MakeDb.py")
+            if not os.path.exists(MakeDb):
                 MakeDb = "MakeDb.py"
         except:
             MakeDb = "MakeDb.py"
@@ -1497,7 +1525,7 @@ class Summariser(TracerTask):
                                 if cell.name == cell_name:
                                     recs = cell.recombinants["BCR"][locus]
                                     for rec in recs:
-                                        if contig_name == rec.contig_name:
+                            
                                             C_gene = rec.C_gene
                                             if C_gene == None or C_gene == "None":
                                                 C_gene = "Unknown"
@@ -1521,8 +1549,8 @@ class Summariser(TracerTask):
         sequences from clonal sequences"""
 
         try:
-            CreateGermlines =  (self.config.get('tool_locations', 
-                                    'changeo_path') + "/CreateGermlines.py")
+            CreateGermlines =  os.path.join(self.config.get('tool_locations', 
+                                        'changeo_path'), "CreateGermlines.py")
             if not os.path.isfile(CreateGermlines):
                 CreateGermlines = "CreateGermlines.py"
         except:
@@ -1891,9 +1919,14 @@ class Tester(TracerTask):
         self.trimmed_fastq1 = None
         self.trimmed_fastq2 = None
         self.keep_trimmed_reads = False
+        self.config = self.read_config(self.config_file)
 
     def run(self):
         test_dir = os.path.join(base_dir, 'test_data')
+        if not os.path.exists(test_dir):
+            bracer_dir = self.get_bracer_path()
+            if not bracer_dir is None:
+                test_dir = os.path.join(bracer_dir, 'test_data')
         test_names = ['cell1']
         if self.output_dir:
             out_dir = os.path.join(self.output_dir, 'results')

@@ -339,7 +339,6 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
                         (productive, in_frame, stop_codon, indels, junc_string, cdr3_seq) = \
                             parse_gapped_db_string(gapped_db_string)
                         if "-" in cdr3_seq:
-                            pdb.set_trace()
                             new_cdr3_seq = ""
                             for l in cdr3_seq:
                                 if not l == "-":
@@ -2174,7 +2173,6 @@ def run_MakeDb_for_cell(MakeDb, locus, outdir, species, gapped_seq_location,
                                         ungapped_seq_location, cell_name):
     """Runs MakeDb of Change-O for each cell to identify CDR3 sequences
     during the assembly step"""
-
     gapped_seqs = {}
     gapped_seqs['V'] = "{}/BCR_{}_V.fa".format(gapped_seq_location, locus)
     gapped_seqs['D'] = "{}/BCR_H_D.fa".format(ungapped_seq_location)

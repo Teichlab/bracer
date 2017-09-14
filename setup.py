@@ -14,7 +14,7 @@ def package_files(directory):
             paths.append(os.path.join('..', path, filename))
     return paths
 
-extra_files = package_files('test_data')
+#extra_files = package_files('test_data')
 
 
 setup(
@@ -32,7 +32,7 @@ setup(
     keywords="biopython genetics",
     url="https://github.com/teichlab/bracer",
     packages=find_packages(),
-    package_data={'bracer': extra_files},
+    #package_data={'bracer': extra_files},
     install_requires=[
         "biopython>=1.66",
         "cycler>=0.10.0",
