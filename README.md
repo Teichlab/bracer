@@ -120,7 +120,7 @@ Edit `~/.bracerrc` (or a copy) so that the paths within the `[tool_locations]` s
 	trim_galore_path = /path/to/trim_galore
 	cutadapt_path = /path/to/cutadapt
 		
-Make sure that `changeo_path` points to the directory containing the Change-O scripts (`DefineClones.py`, `CreateGermlines.py` and  `MakeDb.py`. 
+Make sure that `changeo_path` points to the directory containing the Change-O scripts (`DefineClones.py`, `CreateGermlines.py` and  `MakeDb.py`). 
 
 #### Trinity options 
 ##### Jellyfish memory 
@@ -265,26 +265,25 @@ Output is written to `<input_dir>/filtered_BCR_summary` or `<input_dir>/unfilter
 
 The following output files and subdirectories may be generated (depending on which arguments BraCeR is run with):
 
-1. `BCR_summary.txt`
+1. `BCR_summary.txt`    
     Summary statistics describing successful BCR reconstruction rates and the numbers of cells with 0, 1, 2 or more recombinants for each locus.
-2. `changeodb.tab`
+2. `changeodb.tab`    
     Tab-delimited database file containing all reconstructed sequences (except suspected multiplets unless run with `--include_multiplets`) 
 3. `filtered_multiplets_changeodb.tab`   
     Tab-delimited database file containing all reconstructed sequences from suspected multiplets (unless run with `--include_multiplets`)
 4. `IMGT_gapped.tab`    
     Tab-delimited database file containing information parsed from IgBlast with IMGT-gapped reference sequences for all reconstructed sequences.
-5. `reconstructed_lengths_BCR[H|K|L].pdf` and  `reconstructed_lengths_BCR[H|K|L].txt`
+5. `reconstructed_lengths_BCR[H|K|L].pdf` and  `reconstructed_lengths_BCR[H|K|L].txt`    
     Distribution plots (and text files with underlying data) showing the lengths of the VDJ regions from assembled BCR contigs. Longer contigs give higher-confidence segment assignments. Text files are only generated if at least one BCR is found for a locus. Plots are only generated if at least two BCRs are found for a locus. 
-6. `clonotype_sizes.pdf` and `clonotype_sizes.txt`
+6. `clonotype_sizes.pdf` and `clonotype_sizes.txt`    
     Distribution of clonotype sizes as bar graph and text file.
-7.  `clonotype_network_[with|without]_identifiers.<graph_format>`
+7.  `clonotype_network_[with|without]_identifiers.<graph_format>`    
     graphical representation of clonotype networks either with full recombinant identifiers or just lines indicating presence/absence of recombinants.
-8.  `clonotype_network_[with|without]_identifiers.dot`
+8.  `clonotype_network_[with|without]_identifiers.dot`    
     files describing the clonotype networks in the [Graphviz DOT language](http://www.graphviz.org/doc/info/lang.html)
-9. `lineage_trees/`
+9. `lineage_trees/`    
     Subdirectory containing lineage tree output files if run with `--infer_lineage`
-10. Intermediate files
-    Intermediate output files from the various steps.
+10. Intermediate output files from the various steps.
     - `changeo_input_[H|K|L].tab` : Tab-delimited database file used as input for Change-O DefineClones. Contains all productive sequences for the locus.
     - `changeo_input_[H|K|L]_clone-pass.tab` : Output of Change-O DefineClones bygroup.
     - `igblast_input_[H|K|L].fa` : FASTA file containing all sequences that are shared within one of the clone groups in the clonal network. 
