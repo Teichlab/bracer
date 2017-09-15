@@ -218,7 +218,7 @@ class Assembler(TracerTask):
                                 'assembly steps', default=False)
             parser.add_argument('--species', '-s', 
                                 help='Species to use for reconstruction', 
-                                choices=self.get_available_species(), 
+                                #choices=self.get_available_species(), 
                                 default='Hsap')
             parser.add_argument('--loci',
                                 help='Space-separated list of loci to reconstruct '
@@ -636,7 +636,7 @@ class Summariser(TracerTask):
                                              parents=[self.base_parser])
             parser.add_argument('--species', '-s',
                                 help='Species to use for reconstruction',
-                                choices=self.get_available_species(), 
+                                #choices=self.get_available_species(), 
                                 default='Hsap')
             parser.add_argument('--loci', help="Space-separated list of loci to \
                                 summarise for receptor", default=['H','K', 'L'], 
