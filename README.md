@@ -11,6 +11,7 @@ BraCeR - reconstruction of B cell receptor sequences from single-cell RNA-seq da
 5. [Usage](#using-bracer)
 	- [*Assemble*](#assemble-bcr-reconstruction)
     - [*Summarise*](#summarise-summary-and-clonotype-networks)
+6. [Docker image](#docker)
 
 
 ## Introduction
@@ -46,24 +47,6 @@ Downloading the executable files from `ftp://ftp.ncbi.nih.gov/blast/executables/
 
 You should also ensure to set the `$IGDATA` environment variable to point to the location of the IgBlast executable. For example run `export IGDATA=/<path_to_igblast>/igblast/1.4.0/bin`.
 
-#### Python modules 
-1. [Matplotlib](http://matplotlib.org)
-2. [Seaborn](http://stanford.edu/~mwaskom/software/seaborn/)
-3. [Biopython](http://biopython.org/)
-4. [Prettytable](https://code.google.com/p/prettytable/)
-5. [Levenshtein](https://pypi.python.org/pypi/python-Levenshtein/)
-6. [Networkx](https://networkx.github.io)
-7. It seems that v1.11 of Networkx behaves differently when writing dot files for use with Graphviz. If you have this (or later versions) you also need to install [PyDotPlus](http://pydotplus.readthedocs.org).
-8. [Future](http://python-future.org/index.html) for compatibility with Python 2.
-9. [Change-O](http://changeo.readthedocs.io/)
-10. [Cutadapt](https://github.com/marcelm/cutadapt/)
-
-
-Note: Seaborn depends on the module statsmodels, which if updated through other packages may cause problems in Seaborn. If such issues arise, try to uninstall statsmodels and install again:
-  
-    conda uninstall statsmodels --yes
-    conda install -c taugspurger statsmodels=0.8.0     
-
 #### R packages
 The following R packages are required if BraCeR is run with `--infer_lineage`.
 
@@ -77,6 +60,11 @@ To set up the python dependencies, use the requirements file:
     pip3 install -r requirements.txt
 
 It is **highly** recommended that numpy and biopython are first installed through your system's package manager or conda.
+
+Note: Seaborn depends on the module statsmodels, which if updated through other packages may cause problems in Seaborn. If such issues arise, try to uninstall statsmodels and install again:
+  
+    conda uninstall statsmodels --yes
+    conda install -c taugspurger statsmodels=0.8.0     
 
 If you plan to run BraCeR with `--infer_lineage` to create lineage trees, please make sure that you have installed R (>= 3.1.2), ggplot2 (>= 2.0.0), Rscript (>=3.3.2) and Alakazam (>= 0.2.7). 
 
@@ -315,3 +303,11 @@ The following output files and subdirectories may be generated (depending on whi
 * `--V_gapped <gapped_V_seqs>` :  FASTA file containing IMGT-gapped V reference  sequences (optional). Required for lineage reconstruction and creation of IMGT-gapped tab-delimited databases
 * `--igblast_aux <igblast_auxiliary_file>` : IgBlast auxiliary file for species
 * `--resource_dir <resource_dir>` : Root directory for resources
+
+## Docker image
+
+BraCeR is also available as a standalone Docker image on [DockerHub](https://hub.docker.com/r/teichlab/bracer/), with all of its dependencies installed and configured appropriately. Running BraCeR from the image is very similar to running it from a normal installation, as you still need to pass it all the arguments, including run mode, and the syntax is identical.
+
+To run the BraCeR Docker image, create a directory, ensure that all of your input data is within said directory, navigate to that directory and then call the Docker image with `docker run -it --rm -v $PWD:/scratch -w /scratch teichlab/bracer`, followed by any syntax you would have used to call BraCeR normally but without worrying about the configuration aspect. The `-it` flag ensures that you see all the information BraCeR prints to the screen during its run, while `--rm` deletes the individual container created based on the image for the purpose of the run once the analysis is complete, not littering your computer's drive. `-v` creates a volume, allowing the created container to see the contents of your current working directory, and the `-w` flag sets the container's working directory to the newly created volume. For example, if you wanted to run the test analysis, you should clone this GitHub repository, navigate to its main directory so you can see the `test_data` folder, and call the following (you need to specify the `-o test_data` so that the results get written to the volume you created, ensuring you can see them after the analysis is finished):
+
+	docker run -it --rm -v $PWD:/scratch -w /scratch teichlab/bracer test -o test_data
