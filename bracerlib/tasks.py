@@ -484,15 +484,18 @@ class Assembler(TracerTask):
         # Is Trinity version compatible with --no_normalize_reads argument
         no_normalise = False
         trinity_version = self.config.get('trinity_options', 'trinity_version')
-        
-        try:
-            subprocess.check_output([trinity, '--version'])
-        except subprocess.CalledProcessError as err:
-            first_line = err.output.decode('utf-8').split("\n")[0]
-            if re.search('v2.3', first_line) or re.search('v2.4', first_line):
-                no_normalise = True
-            else:
-                no_normalise = False
+        if trinity_version == '2':
+            try:
+                subprocess.check_output([trinity, '--version'])
+            except subprocess.CalledProcessError as err:
+                first_line = err.output.decode('utf-8').split("\n")[0]
+                m = re.search(r'v(\d+\.\d+\.?\d*)', first_line)
+                if m is not None:
+                    minor_version = int(m.group()[1:].split(".")[1])
+                    if minor_version >= 3:
+                        no_normalise = True
+                    else:
+                        no_normalise = False
 
         # De novo assembly with Trinity
         trinity_JM = self.config.get('trinity_options', 'max_jellyfish_memory')
