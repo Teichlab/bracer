@@ -410,6 +410,8 @@ def find_V_genes_based_on_bit_score(seq, hit_table, query_name, threshold_percen
     V_genes = []
     threshold = None
     for hit in hit_table:
+        if hit == "":
+            continue
         info = hit.split()
         segment = info[0]
         allele = info[2]
@@ -433,6 +435,8 @@ def find_J_genes_based_on_bit_score(seq, hit_table, query_name, threshold_percen
     J_genes = []
     threshold = None
     for hit in hit_table:
+        if hit == "":
+            continue
         info = hit.split()
         segment = info[0]
         allele = info[2]
@@ -488,6 +492,8 @@ def get_coords(hit_table):
     found_V = False
     found_J = False
     for entry in hit_table:
+        if entry == "":
+            continue
         if entry[0] == 'V':
             if not found_V:
                 start = int(entry[8]) - 1
@@ -589,6 +595,8 @@ def is_rearrangement_full_length(seq, hit_table, query_name, query_length,
     full_length = False
 
     for hit in hit_table:
+        if hit == "":
+            continue
         info = hit.split()
         segment = info[0]
         if segment == "V" and found_V == False:
