@@ -184,25 +184,11 @@ class TracerTask(object):
             print("Could not find lineage.R script in bracerlib")
         return(rscript_path)
         
-    def get_available_species(self, root=None):
-        if root is None:
-            bracer_path = self.get_bracer_path()
-            if bracer_path is not None:
-                resources_dir = os.path.join(bracer_path, 'resources')
-            else:
-                resources_dir = os.path.join(base_dir, 'resources')
-        else:
-            resources_dir = root
-        species_dirs = next(os.walk(resources_dir))[1]
-        return(species_dirs)
-
 
 class Assembler(TracerTask):
 
     def __init__(self, **kwargs):
         if not kwargs:
-            
-            # get list of all available species in resources
             
             parser = argparse.ArgumentParser(
                 description='Reconstruct BCR sequences from RNAseq reads for a '
@@ -218,7 +204,6 @@ class Assembler(TracerTask):
                                 'assembly steps', default=False)
             parser.add_argument('--species', '-s', 
                                 help='Species to use for reconstruction', 
-                                #choices=self.get_available_species(), 
                                 default='Hsap')
             parser.add_argument('--loci',
                                 help='Space-separated list of loci to reconstruct '
@@ -639,7 +624,6 @@ class Summariser(TracerTask):
                                              parents=[self.base_parser])
             parser.add_argument('--species', '-s',
                                 help='Species to use for reconstruction',
-                                #choices=self.get_available_species(), 
                                 default='Hsap')
             parser.add_argument('--loci', help="Space-separated list of loci to \
                                 summarise for receptor", default=['H','K', 'L'], 
