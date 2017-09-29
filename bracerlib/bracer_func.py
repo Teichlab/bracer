@@ -1809,9 +1809,11 @@ def run_IgBlast(igblast, loci, output_dir, cell_name, index_location,
     elif 'Mmus' in species:
         igblast_species = 'mouse'
     else:
+        # Run Drer (Zebrafish) as mouse, since IgBlast does not support zebrafish
         species_mapper = {
             'Mmus': 'mouse',
             'Hsap': 'human',
+            'Drer': 'mouse',
             'Rat': 'rat'
         }
         igblast_species = species
@@ -1896,7 +1898,8 @@ def run_IgBlast_IMGT_gaps_for_cell(igblast, loci, output_dir, cell_name,
             'Hsap': 'human',
             'Rat' : 'rat',
             'rat' : 'rat',
-            'Rno' : 'rat'
+            'Rnor' : 'rat',
+            'Drer': 'mouse'
         }
 
         igblast_species = species
@@ -1957,7 +1960,8 @@ def run_IgBlast_for_lineage_reconstruction(igblast, locus, output_dir,
         species_mapper = {
             'Mmus': 'mouse',
             'Hsap': 'human',
-            'Rat' : 'rat'
+            'Rat' : 'rat',
+            'Drer': 'mouse'
         }
 
         igblast_species = species
@@ -1997,20 +2001,6 @@ def run_Blast(blast, loci, output_dir, cell_name, index_location, species,
 
     print("##Running BLAST##") 
     
-    if 'Hsap' in species:
-        igblast_species = 'human'
-    elif 'Mmus' in species:
-        igblast_species = 'mouse'
-    else:
-        species_mapper = {
-            'Mmus': 'mouse',
-            'Hsap': 'human',
-            'Rno' : 'rat'
-        }
-
-        igblast_species = species
-        if species in species_mapper.keys():
-            blast_species = species_mapper[species]
     initial_locus_names = ["_".join([receptor,x]) for x in loci]
     locus_names = copy.copy(initial_locus_names)
 
