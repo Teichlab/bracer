@@ -96,8 +96,8 @@ Edit `~/.bracerrc` (or a copy) so that the paths within the `[tool_locations]` s
 	[tool_locations]
 	#paths to tools used by BraCeR for alignment, quantitation, etc
 	bowtie2_path = /path/to/bowtie2
-	igblast_path = /path/to/igblastn
-	blast_path = /path/to/blastn
+	igblastn_path = /path/to/igblastn
+	blastn_path = /path/to/blastn
 	kallisto_path = /path/to/kallisto
 	trinity_path = /path/to/trinity
 	dot_path = /path/to/dot
@@ -126,10 +126,10 @@ Trinity needs to know the maximum memory available to it for the Jellyfish compo
 
 Location of the transcriptome fasta file to which the specific BCR sequences will be appended from each cell. Can be downloaded from http://bio.math.berkeley.edu/kallisto/transcriptomes/ and many other places. This must be a plain-text fasta file so decompress it if necessary (files from the Kallisto link are gzipped).
 
-### BraCeR installation directory
+### BraCeR directory
 
 	[bracer_location]
-	#Path to where BraCeR was originally installed
+	#Path to where BraCeR was originally downloaded
 	bracer_path = /path/to/bracer
 
 Location of the cloned BraCeR repository containing bracerlib, test_data, resources etc. Eg. `/user/software/bracer` if you cloned the bracer repository into `/user/software`.
