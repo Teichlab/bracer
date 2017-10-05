@@ -64,14 +64,14 @@ class TracerTask(object):
 
     def get_bracer_path(self):
         bracer_path = None
-        if self.config.has_option('bracer_location', 'bracer_path'):
-            path = self.config.get('bracer_location', 'bracer_path')
-            if os.path.exists(path):
-                bracer_path = path
-            else:
-                print("Please specify the path to where you originally"
-                    " installed BraCeR in the config file.")
-
+        if self.config:
+            if self.config.has_option('bracer_location', 'bracer_path'):
+                path = self.config.get('bracer_location', 'bracer_path')
+                if os.path.exists(path):
+                    bracer_path = path
+                else:
+                    print("Please specify the path to where you originally"
+                        " installed BraCeR in the config file.")
         return bracer_path
 
     def read_config(self, config_file):
@@ -89,7 +89,10 @@ class TracerTask(object):
                 print("Config file not found at ~/.bracerrc."
                     " Using default bracer.conf in repo...")
                 bracer_path = self.get_bracer_path()
-                config_file = os.path.join(bracer_path, 'bracer.conf')
+                if bracer_path is not None:
+                    config_file = os.path.join(bracer_path, 'bracer.conf')
+                else:
+                    config_file = ""
                 if not os.path.isfile(config_file):
                     config_file = os.path.join(base_dir, 'bracer.conf')
         bracer_func.check_config_file(config_file)
