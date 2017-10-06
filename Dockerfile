@@ -57,7 +57,7 @@ RUN R -e "install.packages(c('alakazam', 'ggplot2'), repos='http://cran.us.r-pro
 
 #bracer proper, no need to reposition resources as config will now know where this lives
 COPY . /bracer
-RUN cd /bracer && pip3 install -r requirements.txt && python3 setup.py install
+RUN cd /bracer && pip3 install -r docker_helper_files/requirements_stable.txt && python3 setup.py install
 
 #obtaining the transcript sequences, no need for kallisto/salmon indices
 RUN mkdir GRCh38 && cd GRCh38 && wget ftp://ftp.sanger.ac.uk/pub/gencode/Gencode_human/release_27/gencode.v27.transcripts.fa.gz && \
