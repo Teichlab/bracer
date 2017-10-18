@@ -1395,11 +1395,12 @@ def run_trim_galore(trim_galore, cutadapt, output_dir, cell_name, fastq1,
     print("##Trimming raw reads##")
     # Look for existing trimmed reads
     fastq1_base = fastq1.split(".f")[0]
-    fastq2_base = fastq2.split(".f")[0]
+    if not single_end:
+        fastq2_base = fastq2.split(".f")[0]
+        if "/" in fastq2_base:
+            fastq2_base = fastq2_base.split("/")[-1]
     if "/" in fastq1_base:
         fastq1_base = fastq1_base.split("/")[-1]
-    if "/" in fastq2_base:
-        fastq2_base = fastq2_base.split("/")[-1]
     
     trimmed_read_path = "{}/trimmed_reads".format(output_dir)
     if ".gz" in (fastq1 or fastq2):
