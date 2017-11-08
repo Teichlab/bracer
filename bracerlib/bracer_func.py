@@ -1826,6 +1826,9 @@ def run_IgBlast(igblast, loci, output_dir, cell_name, index_location,
         igblast_species = species
         if species in species_mapper.keys():
             igblast_species = species_mapper[species]
+        else:
+            # Set species to a species recognised by IgBlast
+            igblast_species = 'mouse'
     initial_locus_names = ["_".join([receptor,x]) for x in loci]
     locus_names = copy.copy(initial_locus_names)
 
@@ -1911,6 +1914,8 @@ def run_IgBlast_IMGT_gaps_for_cell(igblast, loci, output_dir, cell_name,
         igblast_species = species
         if species in species_mapper.keys():
             igblast_species = species_mapper[species]
+        else:
+            igblast_species = 'mouse'
 
     initial_locus_names = ["_".join([receptor,x]) for x in loci]
     locus_names = copy.copy(initial_locus_names)
@@ -1972,6 +1977,8 @@ def run_IgBlast_for_lineage_reconstruction(igblast, locus, output_dir,
         igblast_species = species
         if species in species_mapper.keys():
             igblast_species = species_mapper[species]
+        else:
+            igblast_species = 'mouse'
 
     databases = {}
     databases['V'] = "{}/BCR_{}_V.fa".format(gapped_index_location, locus)
@@ -2006,20 +2013,6 @@ def run_Blast(blast, loci, output_dir, cell_name, index_location, species,
 
     print("##Running BLAST##") 
     
-    if 'Hsap' in species:
-        igblast_species = 'human'
-    elif 'Mmus' in species:
-        igblast_species = 'mouse'
-    else:
-        species_mapper = {
-            'Mmus': 'mouse',
-            'Hsap': 'human',
-            'Rno' : 'rat'
-        }
-
-        igblast_species = species
-        if species in species_mapper.keys():
-            blast_species = species_mapper[species]
     initial_locus_names = ["_".join([receptor,x]) for x in loci]
     locus_names = copy.copy(initial_locus_names)
 
@@ -2041,9 +2034,6 @@ def run_Blast(blast, loci, output_dir, cell_name, index_location, species,
     else:
         database = databases['C']
 
-    # Lines below suppress Igblast warning about not having an auxliary file.
-    # Taken from http://stackoverflow.com/questions/11269575/how-to-hide-output-of-subprocess-in-python-2-7
-    DEVNULL = open(os.devnull, 'wb')
   
     if assembled_file is not None:
         bracerlib.io.parse_assembled_file(output_dir, cell_name, assembled_file)
@@ -2065,9 +2055,7 @@ def run_Blast(blast, loci, output_dir, cell_name, index_location, species,
                                                     cell_name, locus)
 
             with open(blast_out, 'w') as out:
-                subprocess.check_call(command, stdout=out, stderr=DEVNULL)
-
-    DEVNULL.close()
+                subprocess.check_call(command, stdout=out)
 
 
 
