@@ -35,7 +35,7 @@ RUN dpkg -i graphviz_2.38.0-1~saucy_amd64.deb && apt-get -y -f install
 RUN rm libgraphviz4_2.38.0-1~saucy_amd64.deb && rm graphviz_2.38.0-1~saucy_amd64.deb
 
 #regular BLAST
-RUN wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/ncbi-blast-2.6.0+-x64-linux.tar.gz
+RUN wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.6.0/ncbi-blast-2.6.0+-x64-linux.tar.gz
 RUN tar -xzvf ncbi-blast-2.6.0+-x64-linux.tar.gz && rm ncbi-blast-2.6.0+-x64-linux.tar.gz
 
 #phylip
