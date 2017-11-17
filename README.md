@@ -11,7 +11,7 @@ BraCeR - reconstruction of B cell receptor sequences from single-cell RNA-seq da
 5. [Usage](#using-bracer)
 	- [*Assemble*](#assemble-bcr-reconstruction)
     - [*Summarise*](#summarise-summary-and-clonotype-networks)
-6. [Docker image](#docker)
+6. [Docker image](#docker-image)
 
 
 ## Introduction
@@ -306,9 +306,7 @@ The following output files and subdirectories may be generated (depending on whi
 
 ## Docker image
 
-## Docker image
-
-BraCeR is also available as a standalone Docker image on [DockerHub](https://hub.docker.com/r/teichlab/bracer/), with all of its dependencies installed and configured appropriately. Running BraCeR from the image is very similar to running it from a normal installation. You can pass all the appropriate arguments to the Docker command with the usual syntax as described above. One differece is that you don't need to worry about specifying a configuration file. This is included in the container.
+BraCeR is also available as a standalone Docker image on [DockerHub](https://hub.docker.com/r/teichlab/bracer/), with all of its dependencies installed and configured appropriately. Running BraCeR from the image is very similar to running it from a normal installation. You can pass all the appropriate arguments to the Docker command with the usual syntax as described above. One difference is that you don't need to worry about specifying a configuration file. This is included in the container.
 
 To run the BraCeR Docker image, run the following command from within a directory that contains your input data:
 
@@ -323,3 +321,5 @@ For example, if you wanted to run the test analysis, you should clone this GitHu
 	docker run -it --rm -v $PWD:/scratch -w /scratch teichlab/bracer test -o test_data
 
 If you wish to use `bracer build`, you will need to specify `--resource_dir /scratch`, as otherwise the resulting resources will be saved in the default location of the container and subsequently get forgotten about when the build analysis completes, making them unuseable for any actual analyses you may want to perform. This will make the Docker container save the resulting resources in the volume you created, and you can use them for assemble/summarise by running the Dockerised BraCeR from the same directory as the one you used for the build and specifying `--resource_dir /scratch`.
+
+You may need to explicitly tell Docker to provide sufficient memory that's available to Docker. Instructions for [Windows](https://docs.docker.com/docker-for-windows/#advanced) and [Mac](https://docs.docker.com/docker-for-mac/#advanced). Something like 6 or 8 GB is likely to be ok.
