@@ -975,13 +975,17 @@ class Summariser(TracerTask):
                     cell = cells[cell_name]
                     for rec in cell.recombinants["BCR"][l]:
                         contig_name = rec.contig_name + "_" + rec.identifier
-                        if contig_name in cell_contig_clones[l][cell_name].keys():
-                            clone = cell_contig_clones[l][cell_name][contig_name]
-                            clone = clone + "_" + l
-                            if not clone in counter[i][l].keys():
-                                counter[i][l][clone] = 1
-                            else:
-                                counter[i][l][clone] += 1
+                        if cell_name in cell_contig_clones[l].keys():
+                            if contig_name in cell_contig_clones[l][cell_name].keys():
+                             
+                                clone = cell_contig_clones[l][cell_name][contig_name]
+                        
+                                clone = clone + "_" + l
+                                if not clone in counter[i][l].keys():
+                                    counter[i][l][clone] = 1
+                                else:
+                                    counter[i][l][clone] += 1
+                    
                             
         # Find most highly shared heavy and light chain
         top_chain = dict()
