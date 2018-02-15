@@ -484,6 +484,8 @@ class Assembler(TracerTask):
                         no_normalise = True
                     else:
                         no_normalise = False
+        if trinity_version == "BLEEDING_EDGE":
+            no_normalise = True
 
         # De novo assembly with Trinity
         trinity_JM = self.config.get('trinity_options', 'max_jellyfish_memory')
