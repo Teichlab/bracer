@@ -460,6 +460,8 @@ class Assembler(TracerTask):
             except subprocess.CalledProcessError as err:
                 if re.search('v2', err.output.decode('utf-8')):
                     self.config.set('trinity_options', 'trinity_version', '2')
+                elif re.search('BLEEDING_EDGE', err.output.decode('utf-8')):
+                    self.config.set('trinity_options', 'trinity_version', '2')
                 else:
                     self.config.set('trinity_options', 'trinity_version', '1')
 
