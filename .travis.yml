@@ -1,0 +1,11 @@
+sudo: required
+
+services:
+  - docker
+
+before_install:
+  - docker pull teichlab/bracer
+
+script:
+  - travis_wait 20 sleep 1200 & docker run -it --rm -v $PWD:/scratch -w /scratch teichlab/bracer test -o test_data
+  - diff ./test_data/expected_summary/BCR_summary.txt ./test_data/results/filtered_BCR_summary/BCR_summary.txt

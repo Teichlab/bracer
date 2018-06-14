@@ -888,7 +888,7 @@ class Summariser(TracerTask):
             "It does not exclude cells that only share heavy chain and not "
             "light chain if Summarise is run with --IGH_networks.\n\n")
 
-        for g in component_groups:
+        for g in sorted(component_groups):
             outfile.write(", ".join(g))
             outfile.write("\n")
             
@@ -1823,7 +1823,7 @@ class Summariser(TracerTask):
         header = ("##Isotype of cells with productive heavy chain##\n\n"
                  + "Isotype\tcells\t% of cells\n")
         outstring = ""
-        for isotype, number in six.iteritems(isotype_counter):
+        for isotype, number in sorted(six.iteritems(isotype_counter)):
             number = str(number)
             percent = float(number)/int(prod_H)*100
             percent = format(percent, '.2f')
