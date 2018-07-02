@@ -33,7 +33,7 @@ Note that BraCeR requires Python (>=3.4.0), as one of the required tools has thi
 ### Pre-requisites
 
 #### Software 
-1. [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml) - required for alignment of reads to synthetic BCR genomes.
+1. [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml) - required for alignment of reads to synthetic BCR genomes. Bowtie1 is also required.
 2. [Trinity](https://github.com/trinityrnaseq/trinityrnaseq/wiki) - required for assembly of reads into BCR contigs. BraCeR requires Trinity v2.4.0.
 3. [IgBLAST](http://www.ncbi.nlm.nih.gov/igblast/faq.html#standalone) - required for analysis of assembled contigs. (ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/).
 4. [BLAST](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download) - required for determination of isotype. (ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/).
@@ -41,10 +41,12 @@ Note that BraCeR requires Python (>=3.4.0), as one of the required tools has thi
 6. [Graphviz](http://www.graphviz.org) - Dot and Neato drawing programs required for visualisation of clonotype graphs. This is optional - see the [`--no_networks` option](#options-1) to [`summarise`](#summarise-summary-and-clonotype-networks).
 7. [PHYLIP](http://evolution.genetics.washington.edu/phylip.html) - dnapars program of PHYLIP is required for lineage reconstruction. This is optional - see the [`--infer_lineage` option](#options-1) to [`summarise`](#summarise-summary-and-clonotype-networks).   
 8. [Trim Galore!](https://www.bioinformatics.babraham.ac.uk/projects/trim_galore/) - required for adapter and quality trimming (optional).
-	
-##### Installing IgBlast 
-Downloading the executable files from `ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/<version_number>` is not sufficient for a working IgBlast installation. You must also download the `internal_data` directory (ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/internal_data) and put it into the same directory as the igblast executable. This is also described in the igblast README file.
 
+##### Software versions
+BraCeR has been tested on the following versions of software dependencies: bowtie2 v2.2.8, bowtie v.1.1.2, IgBlast v.1.4.0 - v.1.7.0, BLAST v.2.2.31+, Kallisto v.0.43.0, Trinity v.2.4.0, graphwiz v.2.26.3, changeo v.0.3.7, RScript v.3.3.2, phylip (dnapars) v.3.696, Trim Galore v.0.4.4, cutadapt v.1.14, ggplot2 v.2.2.1, alakazam v.0.2.6
+	
+
+##### Installing IgBlast 
 You should also ensure to set the `$IGDATA` environment variable to point to the location of the IgBlast executable. For example run `export IGDATA=/<path_to_igblast>/igblast/1.4.0/bin`.
 
 #### R packages
@@ -59,7 +61,7 @@ To set up the python dependencies, use the requirements file:
 
     pip3 install -r requirements.txt
 
-It is **highly** recommended that numpy and biopython are first installed through your system's package manager or conda.
+It is **highly** recommended that numpy and biopython are first installed through your system's package manager or conda. Setting up the python requirements takes approximately 90 s on a "normal" desktop computer with a "normal" internet connection. 
 
 Note: Seaborn depends on the module statsmodels, which if updated through other packages may cause problems in Seaborn. If such issues arise, try to uninstall statsmodels and install again:
   
@@ -72,7 +74,7 @@ The bracer module is then installed using:
 
     python setup.py install
 
-This will add the binary 'bracer' to your local bin folder, which can then be run from anywhere.
+This will add the binary 'bracer' to your local bin folder, which can then be run from anywhere. Installing the bracer module takes about a second.
 
 If you would like to contribute to BraCeR, you can set up a development version with
 
@@ -149,7 +151,7 @@ You can also pass the following options to change the Graphviz output format, to
 * `--infer_lineage` : Run BraCeR with lineage reconstruction.
 
     
-Running `test` will peform the [`assemble`](#assemble-bcr-reconstruction) step using the small test dataset. It will then perform [`summarise`](#summarise-summary-and-clonotype-networks) using the assemblies that are generated along with pre-calculated output for two other cells (in `test_data/results`).
+Running `test` will peform the [`assemble`](#assemble-bcr-reconstruction) step using the small test dataset. It will then perform [`summarise`](#summarise-summary-and-clonotype-networks) using the assemblies that are generated along with pre-calculated output for two other cells (in `test_data/results`). Running the test should take approximately 34 minutes on a "normal" desktop computer.
 
 Compare the output in `test_data/results/filtered_BCR_summary` with the expected results in `test_data/expected_summary`. There should be three cells, two with one productive heavy and one productive lambda, and one cell with one productive heavy, one productive lambda and one non-productive kappa. Cells 2 and 3 should be in a clonotype.
 
@@ -323,3 +325,5 @@ For example, if you wanted to run the test analysis, you should clone this GitHu
 If you wish to use `bracer build`, you will need to specify `--resource_dir /scratch`, as otherwise the resulting resources will be saved in the default location of the container and subsequently get forgotten about when the build analysis completes, making them unuseable for any actual analyses you may want to perform. This will make the Docker container save the resulting resources in the volume you created, and you can use them for assemble/summarise by running the Dockerised BraCeR from the same directory as the one you used for the build and specifying `--resource_dir /scratch`.
 
 You may need to explicitly tell Docker to increase the memory that it can use. Instructions for [Windows](https://docs.docker.com/docker-for-windows/#advanced) and [Mac](https://docs.docker.com/docker-for-mac/#advanced). Something like 6 or 8 GB is likely to be ok.
+# BraCeR
+BraCeR - reconstruction of B cell receptor sequences from single-cell RNA-seq data.
