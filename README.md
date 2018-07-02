@@ -28,19 +28,23 @@ BraCeR is written in Python and so can just be downloaded, made executable (with
 
 BraCeR relies on several additional tools and Python modules that you should install. BraCeR also requires R (>= 3.1.2) and some R packages for lineage reconstruction (optional).
 
-Note that BraCeR requires Python (>=3.4.0), as one of the required tools has this as a requirement.
-
 ### Pre-requisites
 
-#### Software 
-1. [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml) - required for alignment of reads to synthetic BCR genomes. Bowtie1 is also required.
-2. [Trinity](https://github.com/trinityrnaseq/trinityrnaseq/wiki) - required for assembly of reads into BCR contigs. BraCeR requires Trinity v2.4.0.
-3. [IgBLAST](http://www.ncbi.nlm.nih.gov/igblast/faq.html#standalone) - required for analysis of assembled contigs. (ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/).
-4. [BLAST](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download) - required for determination of isotype. (ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/).
-5. [Kallisto](http://pachterlab.github.io/kallisto/) - software for quantification of BCR expression.
-6. [Graphviz](http://www.graphviz.org) - Dot and Neato drawing programs required for visualisation of clonotype graphs. This is optional - see the [`--no_networks` option](#options-1) to [`summarise`](#summarise-summary-and-clonotype-networks).
-7. [PHYLIP](http://evolution.genetics.washington.edu/phylip.html) - dnapars program of PHYLIP is required for lineage reconstruction. This is optional - see the [`--infer_lineage` option](#options-1) to [`summarise`](#summarise-summary-and-clonotype-networks).   
-8. [Trim Galore!](https://www.bioinformatics.babraham.ac.uk/projects/trim_galore/) - required for adapter and quality trimming (optional).
+#### OS and hardware requirements
+For optimal performance, run BraCeR `assemble` for multiple cells in parallel on a High Performance Computing Cluster with 6+ GB of RAM and 4+ cores. 
+
+The developmental version of BraCeR is tested on Ubuntu 14.04. The Docker version of BraCeR has been tested on Mac OSX, Windows and Linux operating systems.
+
+#### Software requirements
+1. [Python3](https://www.python.org) - BraCeR requires Python (>=3.4.0), as one of the required tools has this as a requirement.
+2. [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml) - required for alignment of reads to synthetic BCR genomes. Bowtie1 is also required.
+3. [Trinity](https://github.com/trinityrnaseq/trinityrnaseq/wiki) - required for assembly of reads into BCR contigs. BraCeR requires Trinity v2.4.0.
+4. [IgBLAST](http://www.ncbi.nlm.nih.gov/igblast/faq.html#standalone) - required for analysis of assembled contigs. (ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/).
+5. [BLAST](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download) - required for determination of isotype. (ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/).
+6. [Kallisto](http://pachterlab.github.io/kallisto/) - software for quantification of BCR expression.
+7. [Graphviz](http://www.graphviz.org) - Dot and Neato drawing programs required for visualisation of clonotype graphs. This is optional - see the [`--no_networks` option](#options-1) to [`summarise`](#summarise-summary-and-clonotype-networks).
+8. [PHYLIP](http://evolution.genetics.washington.edu/phylip.html) - dnapars program of PHYLIP is required for lineage reconstruction. This is optional - see the [`--infer_lineage` option](#options-1) to [`summarise`](#summarise-summary-and-clonotype-networks).   
+9. [Trim Galore!](https://www.bioinformatics.babraham.ac.uk/projects/trim_galore/) - required for adapter and quality trimming (optional).
 
 ##### Software versions
 BraCeR has been tested on the following versions of software dependencies: bowtie2 v2.2.8, bowtie v.1.1.2, IgBlast v.1.4.0 - v.1.7.0, BLAST v.2.2.31+, Kallisto v.0.43.0, Trinity v.2.4.0, graphwiz v.2.26.3, changeo v.0.3.7, RScript v.3.3.2, phylip (dnapars) v.3.696, Trim Galore v.0.4.4, cutadapt v.1.14, ggplot2 v.2.2.1, alakazam v.0.2.6
