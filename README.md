@@ -33,7 +33,7 @@ BraCeR relies on several additional tools and Python modules that you should ins
 #### OS and hardware requirements
 For optimal performance, run BraCeR `assemble` for multiple cells in parallel on a High Performance Computing Cluster with 6+ GB of RAM and 4+ cores. 
 
-The developmental version of BraCeR is tested on Ubuntu 14.04. The Docker version of BraCeR has been tested on Mac OSX, Windows and Linux operating systems.
+The developmental version of BraCeR is tested on Ubuntu 12.04.5 LTS. The Docker version of BraCeR has been tested on Mac OSX, Windows and Linux operating systems.
 
 #### Software requirements
 1. [Python3](https://www.python.org) - BraCeR requires Python (>=3.4.0), as one of the required tools has this as a requirement.
