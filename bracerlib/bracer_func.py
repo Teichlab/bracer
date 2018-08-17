@@ -2159,9 +2159,27 @@ def run_DefineClones(DefineClones, locus, outdir, species, distance):
         dist = distance
       
     changeo_input = "{}/changeo_input_{}.tab".format(outdir, locus) 
-    if os.path.isfile(changeo_input) and os.path.getsize(changeo_input) > 0: 
-        command = [DefineClones, "bygroup", '-d', changeo_input, '--mode', 'gene', '--act', 'set',  
-                        '--model', model, '--dist', dist, '--sf', "JUNCTION", '--norm', 'len'] 
+    if os.path.isfile(changeo_input) and os.path.getsize(changeo_input) > 0:
+        # Check changeo version
+        command = [DefineClones, "--version"]
+        try:
+            changeo_version = subprocess.check_output(command)
+        except subprocess.CalledProcessError as err:
+            changeo_version = err.output.decode('utf-8')
+        print(changeo_version)
+        try:
+            changeo_version = changeo_version.decode('utf-8')
+            changeo_version = changeo_version.split(".py: ")[1]
+            changeo_version = changeo_version.split("-")[0]
+            changeo_versions = changeo_version.split(".")
+            # Check if changeo-version >= 0.4
+            if int(changeo_versions[0])>0 or int(changeo_versions[1]) >= 4:
+                command = [DefineClones, '-d', changeo_input, '--mode', 'gene', '--act', 'set',
+                '--model', model, '--dist', dist, '--sf', "JUNCTION", '--norm', 'len']
+        
+        except:
+            command = [DefineClones, "bygroup", '-d', changeo_input, '--mode', 'gene', '--act', 'set',  
+                    '--model', model, '--dist', dist, '--sf', "JUNCTION", '--norm', 'len'] 
  
         subprocess.check_call(command) 
 
