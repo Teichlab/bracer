@@ -1676,7 +1676,7 @@ def split_sam_file_paired(sam_file, fasta=False):
                         name_ending = "/2"
                         if fasta==False:
                             fastq_lines_2.append(
-                                "@{name}{name_ending}\n{seq}\n+\en{qual}\n".format(
+                                "@{name}{name_ending}\n{seq}\n+\n{qual}\n".format(
                                 name=name, seq=seq, name_ending=name_ending, 
                                 qual=qual))
                         else:
