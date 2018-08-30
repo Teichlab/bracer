@@ -130,7 +130,13 @@ Trinity needs to know the maximum memory available to it for the Jellyfish compo
 	Mmus = /path/to/kallisto/transcriptome_for_Mmus
 	Hsap = /path/to/kallisto/transcriptome_for_Hsap
 
-Location of the transcriptome fasta file to which the specific BCR sequences will be appended from each cell. Can be downloaded from http://bio.math.berkeley.edu/kallisto/transcriptomes/ and many other places. This must be a plain-text fasta file so decompress it if necessary (files from the Kallisto link are gzipped).
+Location of the transcriptome fasta file to which the specific BCR sequences will be appended from each cell. This must be a plain-text fasta file so decompress it if necessary. Transcriptome files for human or mice may be downloaded with the following code:
+
+    mkdir GRCh38 && cd GRCh38 && wget ftp://ftp.sanger.ac.uk/pub/gencode/Gencode_human/release_27/gencode.v27.transcripts.fa.gz && \
+    gunzip gencode.v27.transcripts.fa.gz && python3 /path/to/bracer/docker_helper_files/gencode_parse.py gencode.v27.transcripts.fa && rm gencode.v27.transcripts.fa
+
+    mkdir GRCm38 && cd GRCm38 && wget ftp://ftp.sanger.ac.uk/pub/gencode/Gencode_mouse/release_M15/gencode.vM15.transcripts.fa.gz && \
+    gunzip gencode.vM15.transcripts.fa.gz && python3 /bracer/docker_helper_files/gencode_parse.py gencode.vM15.transcripts.fa && rm gencode.vM15.transcripts.fa
 
 ### BraCeR directory
 
