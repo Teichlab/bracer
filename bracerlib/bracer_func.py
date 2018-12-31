@@ -170,6 +170,7 @@ def parse_alignment_summary(alignment_summary):
 
 
 def get_gapped_db_string(locus, query_name, cell_name, output_dir):
+    """Get entry from IgBlast gapped output file"""
     gapped_db_file = "{}/IgBLAST_output/{}_{}_db-pass.tab".format(
                         output_dir, cell_name, locus)
     gapped_db_string = ""
@@ -183,15 +184,39 @@ def get_gapped_db_string(locus, query_name, cell_name, output_dir):
                         break
     return (gapped_db_string)
 
+def get_gapped_db_header(locus, cell_name, output_dir):
+    """Get header from IgBlast gapped output file to get order of information
+    which may vary between IgBlast versions"""
+    gapped_db_file = "{}/IgBLAST_output/{}_{}_db-pass.tab".format(
+                            output_dir, cell_name, locus)
+    if os.path.isfile(gapped_db_file):
+        with open(gapped_db_file, "r") as input:
+            for line in input:
+                gapped_db_header = line.split("\t")
+                break
+    return (gapped_db_header)
 
-def parse_gapped_db_string(gapped_db_string):
+def parse_gapped_db_string(gapped_db_string, gapped_db_header):
+    """Extracts information from IgBlast gapped output using the headers"""
+    n = 0
     info = gapped_db_string.split("\t")
-    productive = info[2]
-    in_frame = info[3]
-    stop = info[4]
-    indels = info[6]
-    junction = info[29]
-    cdr3_seq = info[36]
+    for header in gapped_db_header:
+        header = header.strip()
+        if header == "FUNCTIONAL":
+            productive = info[n].strip()
+        elif header == "IN_FRAME":
+            in_frame = info[n].strip()
+        elif header == "STOP":
+            stop = info[n].strip()
+        elif header == "INDELS":
+            indels = info[n].strip()
+        elif header == "JUNCTION":
+            junction = info[n].strip()
+        elif header == "CDR3_IMGT":
+            cdr3_seq = info[n].strip()
+        n +=1
+
+    # Translate "F/T" to True/False
     if productive == "T":
         productive = True
     else:
@@ -210,7 +235,6 @@ def parse_gapped_db_string(gapped_db_string):
         indels = False
 
     return (productive, in_frame, stop, indels, junction, cdr3_seq)
-
 
 
 
@@ -258,9 +282,10 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
 
                     # Get junctional string from gapped_db_string
                     gapped_db_string = get_gapped_db_string(locus, query_name, cell_name, output_dir)
+                    gapped_db_header = get_gapped_db_header(locus, cell_name, output_dir)
                     if "\t" in gapped_db_string:
                         (productive, in_frame, stop, indels, junc_string, cdr3_seq) = \
-                                parse_gapped_db_string(gapped_db_string)
+                                parse_gapped_db_string(gapped_db_string, gapped_db_header)
                     
 
                     identifier = best_V + "_" + junc_string + "_" + best_J
@@ -337,14 +362,13 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
                     # if available
                     if "\t" in gapped_db_string:
                         (productive, in_frame, stop_codon, indels, junc_string, cdr3_seq) = \
-                            parse_gapped_db_string(gapped_db_string)
+                            parse_gapped_db_string(gapped_db_string, gapped_db_header)
                         if "-" in cdr3_seq:
                             new_cdr3_seq = ""
                             for l in cdr3_seq:
                                 if not l == "-":
                                     new_cdr3_seq += l
                             cdr3_seq = new_cdr3_seq
-                        
                         cdr3 = Seq(str(cdr3_seq), generic_dna).translate()
 
                     #Identify the most likely V and J genes
@@ -1467,7 +1491,6 @@ def bowtie2_alignment(bowtie2, ncores, loci, output_dir, cell_name,
         return
     
     print("Attempting new assembly for {}\n".format(locus_names))
-    #pdb.set_trace()   
     short_reads, read_length = detect_read_length(fastq1)
 
     print("Detected average R1 read length: ")
