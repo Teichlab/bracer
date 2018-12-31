@@ -2129,7 +2129,7 @@ def quantify_with_kallisto(kallisto, cell, output_dir, cell_name,
     idx_file = "{}/expression_quantification/kallisto_index/{}_transcriptome.idx".format(
                                                                 output_dir, cell_name)
 
-    index_command = [kallisto, 'index', '-i', idx_file, output_transcriptome]
+    index_command = [kallisto, 'index', '--make-unique', '-i', idx_file, output_transcriptome]
     subprocess.check_call(index_command)
     print("##Quantifying with Kallisto##")
 
