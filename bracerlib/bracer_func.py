@@ -10,7 +10,7 @@
 #                                                                            #
 #      Copyright (c) 2015, 2016 EMBL - European Bioinformatics Institute     #
 #      Copyright (c) 2016 Genome Research Ltd.                               #
-#      Author: M.J.T. Stubbington ms31@sanger.ac.uk                          #
+#      Author: M.J.T. Stubbington, I. Lindeman ida.lindeman@medisin.uio.no   #
 ##############################################################################
 
 from __future__ import print_function
@@ -282,7 +282,10 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
 
                     # Get junctional string from gapped_db_string
                     gapped_db_string = get_gapped_db_string(locus, query_name, cell_name, output_dir)
-                    gapped_db_header = get_gapped_db_header(locus, cell_name, output_dir)
+                    try:
+                        gapped_db_header = get_gapped_db_header(locus, cell_name, output_dir)
+                    except:
+                        gapped_db_header = None
                     if "\t" in gapped_db_string:
                         (productive, in_frame, stop, indels, junc_string, cdr3_seq) = \
                                 parse_gapped_db_string(gapped_db_string, gapped_db_header)
@@ -409,7 +412,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
                                 C_gene=C_gene, C_info_line=C_info_line, 
                                 cdr3_seq=cdr3_seq, junc_string=junc_string,
                                 untrimmed_seq=untrimmed_seq, 
-                                gapped_db_string=gapped_db_string)
+                                gapped_db_string=gapped_db_string, gapped_db_header=gapped_db_header)
                         recombinants[locus].append(rec)
 
     if recombinants:

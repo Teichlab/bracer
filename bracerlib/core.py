@@ -387,7 +387,7 @@ class Recombinant(object):
                  summary, junction_details, best_VJ_names, alignment_summary, 
                  trinity_seq, has_D, output_dir, full_length, query_length, 
                  V_genes, J_genes, cdr3, C_gene, C_info_line, cdr3_seq, 
-                 junc_string, untrimmed_seq, gapped_db_string):
+                 junc_string, untrimmed_seq, gapped_db_string, gapped_db_header):
 
         self.contig_name = contig_name
         self.locus = locus
@@ -420,6 +420,7 @@ class Recombinant(object):
         self.query_length = query_length
         self.junc_string = junc_string
         self.gapped_db_string = gapped_db_string
+        self.gapped_db_header = gapped_db_header
         
 
     def __str__(self):
