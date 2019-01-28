@@ -1544,7 +1544,7 @@ class Summariser(TracerTask):
                                 if cell.name == cell_name:
                                     recs = cell.recombinants["BCR"][locus]
                                     for rec in recs:
-                            
+                                        if rec.contig_name == contig_name:
                                             C_gene = rec.C_gene
                                             if C_gene == None or C_gene == "None":
                                                 C_gene = "Unknown"
