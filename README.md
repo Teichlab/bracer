@@ -305,15 +305,15 @@ The following output files and subdirectories may be generated (depending on whi
 * `<V_seqs>` : Fasta file containing V gene sequences
 * `<J_seqs>` : Fasta file containing J gene sequences
 * `<C_seqs>` : Fasta file containing single constant region sequence
-* `<D_seqs>` : Fasta file containing D gene sequences (optional)
+* `<D_seqs>` : Fasta file containing D gene sequences (required for heavy chain)
 
 #### Options
 
 * `-f/--force_overwrite` : Force overwrite of existing resources
 * `-c/--config_file <conf_file>` : config file to use. Default = `~/.bracerrc`
 * `--C_db <alt_C_seqs>` : Specify alternative FASTA file (if other than the one used to make recombinomes) containing all C gene sequences for creation of BLAST database to correctly identify isotype (optional)
-* `--V_gapped <gapped_V_seqs>` :  FASTA file containing IMGT-gapped V reference  sequences (optional). Required for lineage reconstruction and creation of IMGT-gapped tab-delimited databases
-* `--igblast_aux <igblast_auxiliary_file>` : IgBlast auxiliary file for species
+* `--V_gapped <gapped_V_seqs>` :  FASTA file containing IMGT-gapped V reference  sequences (optional, but HIGHLY recommended). Required for reliable detection of CDR3, lineage reconstruction and creation of IMGT-gapped tab-delimited databases
+* `--igblast_aux <igblast_auxiliary_file>` : IgBlast auxiliary file for species. HIGHLY recommended, required for reliable detection of CDR3, lineage reconstruction and creation of IMGT-gapped tab-delimited databases.
 * `--resource_dir <resource_dir>` : Root directory for resources
 
 ## Docker image
@@ -335,5 +335,3 @@ For example, if you wanted to run the test analysis, you should clone this GitHu
 If you wish to use `bracer build`, you will need to specify `--resource_dir /scratch`, as otherwise the resulting resources will be saved in the default location of the container and subsequently get forgotten about when the build analysis completes, making them unuseable for any actual analyses you may want to perform. This will make the Docker container save the resulting resources in the volume you created, and you can use them for assemble/summarise by running the Dockerised BraCeR from the same directory as the one you used for the build and specifying `--resource_dir /scratch`.
 
 You may need to explicitly tell Docker to increase the memory that it can use. Instructions for [Windows](https://docs.docker.com/docker-for-windows/#advanced) and [Mac](https://docs.docker.com/docker-for-mac/#advanced). Something like 6 or 8 GB is likely to be ok.
-# BraCeR
-BraCeR - reconstruction of B cell receptor sequences from single-cell RNA-seq data.

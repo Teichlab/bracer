@@ -1544,7 +1544,7 @@ class Summariser(TracerTask):
                                 if cell.name == cell_name:
                                     recs = cell.recombinants["BCR"][locus]
                                     for rec in recs:
-                            
+                                        if rec.contig_name == contig_name:
                                             C_gene = rec.C_gene
                                             if C_gene == None or C_gene == "None":
                                                 C_gene = "Unknown"
@@ -2042,7 +2042,7 @@ class Builder(TracerTask):
                                 help='FASTA file containing C gene sequence(s) '
                                 'for creation of recombinomes')
             parser.add_argument('D_seqs', metavar="<D_SEQS>", nargs='?', default=False,
-                                help='FASTA file containing D gene sequences (optional)')
+                                help='FASTA file containing D gene sequences (required for heavy chain)')
             parser.add_argument('--C_db', metavar="<ALT_C_SEQS>", nargs='?',
                                 help='Specify alternative FASTA file (if other '
                                 'than the one used to make recombinomes) '
@@ -2051,12 +2051,15 @@ class Builder(TracerTask):
                                 default=False)
             parser.add_argument('--V_gapped', metavar="<GAPPED_V_SEQS>", nargs='?',
                                 help='FASTA file containing IMGT-gapped V '
-                                'reference sequences (optional, but highly recommended). '
+                                'reference sequences (optional, but HIGHLY recommended). '
                                 'Required for accurate CDR3 detection, lineage '
                                 'reconstruction and creation of IMGT-gapped '
                                 'tab-delimited databases', default=False)
             parser.add_argument('--igblast_aux', metavar="<IGBLAST_AUXILARY_FILE>",
                                 nargs='?', help='IgBlast auxiliary file for species. '
+                                'Required for accurate CDR3 detection, lineage '
+                                'reconstruction and creation of IMGT-gapped '
+                                'tab-delimited databases .'
                                 'See IgBLAST documentation for details.',
                                 default=False)
             
@@ -2403,7 +2406,6 @@ class Builder(TracerTask):
             # Create file if it doesn't already exist
             open(fasta_file, 'a').close()
 
-            #pdb.set_trace()
             if s in VDJC_files:
                 with open(fasta_file) as e:
                     existing_seqs = SeqIO.to_dict(SeqIO.parse(e, "fasta"))
