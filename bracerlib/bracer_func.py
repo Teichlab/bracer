@@ -2192,7 +2192,7 @@ def run_DefineClones(DefineClones, locus, outdir, species, distance):
             changeo_version = subprocess.check_output(command)
         except subprocess.CalledProcessError as err:
             changeo_version = err.output.decode('utf-8')
-        print(changeo_version)
+        print("Running Change-O DefineClones for locus {}".format(locus))
         try:
             changeo_version = changeo_version.decode('utf-8')
             changeo_version = changeo_version.split(".py: ")[1]
@@ -2201,6 +2201,9 @@ def run_DefineClones(DefineClones, locus, outdir, species, distance):
             # Check if changeo-version >= 0.4
             if int(changeo_versions[0])>0 or int(changeo_versions[1]) >= 4:
                 command = [DefineClones, '-d', changeo_input, '--mode', 'gene', '--act', 'set',
+                '--model', model, '--dist', dist, '--sf', "JUNCTION", '--norm', 'len']
+            else:
+                command = [DefineClones, "bygroup", '-d', changeo_input, '--mode', 'gene', '--act', 'set',
                 '--model', model, '--dist', dist, '--sf', "JUNCTION", '--norm', 'len']
         
         except:
