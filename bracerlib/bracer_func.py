@@ -988,11 +988,12 @@ def collapse_close_sequences(recombinants, locus):
                             attempt_collapse = True
                         
                 elif base_cdr3 is None or comp_cdr3 is None:
-                    if (hamming_dist(base_junc, comp_junc)/len(base_junc) <= 0.07 and base_name in filtered_contig_names 
+                    if len(base_junc) > 0:
+                        if (hamming_dist(base_junc, comp_junc)/len(base_junc) <= 0.07 and base_name in filtered_contig_names 
                             and comp_name in filtered_contig_names):
-                        if (len(base_V_segment.intersection(comp_V_segment)) > 0 
+                            if (len(base_V_segment.intersection(comp_V_segment)) > 0 
                                 and len(base_J_segment.intersection(comp_J_segment)) > 0):
-                            attempt_collapse = True
+                                attempt_collapse = True
 
                 if attempt_collapse is False:
                     uncollapsible_contigs.append("{}_vs_{}".format(base_name, comp_name))
