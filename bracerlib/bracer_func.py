@@ -984,11 +984,11 @@ def collapse_close_sequences(recombinants, locus):
                         if len(base_V_segment.intersection(comp_V_segment)) > 0 \
                                 and len(base_J_segment.intersection(comp_J_segment)) > 0:
                             attempt_collapse = True
-                    elif (hamming_dist(base_cdr3, comp_cdr3)/len(base_cdr3) <= 0.07 and base_name 
-                        in filtered_contig_names and comp_name in filtered_contig_names):
-                        if (len(base_V_segment.intersection(comp_V_segment)) > 0 
+                    elif (base_name in filtered_contig_names and comp_name in filtered_contig_names) and len(base_cdr3)>0:
+                        if (hamming_dist(base_cdr3, comp_cdr3)/len(base_cdr3) <= 0.07 and 
+                            (len(base_V_segment.intersection(comp_V_segment)) > 0 
                             and len(base_J_segment.intersection(comp_J_segment)) > 0):
-                            attempt_collapse = True
+                                attempt_collapse = True
                         
                 elif base_cdr3 is None or comp_cdr3 is None:
                     if len(base_junc) > 0:
