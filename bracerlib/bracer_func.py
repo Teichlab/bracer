@@ -374,6 +374,8 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
                             cdr3_seq = new_cdr3_seq
                         try:
                             cdr3 = Seq(str(cdr3_seq), generic_dna).translate()
+                        except:
+                            pass
 
                     #Identify the most likely V and J genes
                     if locus in ["H", "BCR_H"]:
