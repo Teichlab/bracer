@@ -307,11 +307,12 @@ class Cell(object):
 
 
 
-    def filter_recombinants(self):
-
+    def filter_recombinants(self, tpm_threshold):
+        """Filter recombinants based on TPM values"""
         for receptor, locus_dict in six.iteritems(self.recombinants):
             for locus, recombinants in six.iteritems(locus_dict):
                 if recombinants is not None:
+                    to_remove = []
                     if len(recombinants) > 2:
                         TPM_ranks = Counter()
                         for rec in recombinants:
@@ -321,6 +322,12 @@ class Cell(object):
                         for rec in recombinants:
                              if rec.contig_name not in two_most_common:
                                  to_remove.append(rec)
+                    #Filter out recs with TPM lower than set threshold (default 1)
+                    for rec in recombinants:
+                        if rec.TPM <= int(tpm_threshold):
+                            if rec not in to_remove:
+                                to_remove.append(rec)
+                    if len(to_remove) > 0:
                         for rec in to_remove:
                              self.recombinants[receptor][locus].remove(rec)
 

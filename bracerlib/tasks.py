@@ -163,7 +163,7 @@ class TracerTask(object):
         with open(pickle_file, 'wb') as pf:
             pickle.dump(cell, pf, protocol=0)
 
-        cell.filter_recombinants()
+        cell.filter_recombinants(self.tpm_threshold)
         self.print_cell_summary(cell, filtered_summary, self.loci)
                                                                             
         with open(filtered_pickle, 'wb') as pf:
@@ -241,6 +241,9 @@ class Assembler(TracerTask):
             parser.add_argument('--keep_trimmed_reads',
                                 help='Do not delete the output files from the trimming step.',
                                 action = "store_true")
+            parser.add_argument('--tpm_threshold',
+                                help='Minimum TPM value for BCR sequences to keep (default 1). '
+                                'Used to filter out artefacts.', default=1)
             parser.add_argument('cell_name', metavar="<CELL_NAME>", 
                                 help='name of cell for file labels')
             parser.add_argument('output_dir', metavar="<OUTPUT_DIR>",
@@ -268,6 +271,7 @@ class Assembler(TracerTask):
             self.max_junc_len = args.max_junc_len
             self.no_trimming = args.no_trimming
             self.keep_trimmed_reads = args.keep_trimmed_reads
+            self.tpm_threshold = args.tpm_threshold
             config_file = args.config_file
             
 
@@ -289,6 +293,7 @@ class Assembler(TracerTask):
             self.max_junc_len = kwargs.get('max_junc_len')
             self.no_trimming = kwargs.get('no_trimming')
             self.keep_trimmed_reads = kwargs.get('keep_trimmed_reads')
+            self.tpm_threshold = kwargs.get('tpm_threshold')
             config_file = kwargs.get('config_file')
 
         self.trimmed_fastq1 = None
@@ -419,7 +424,7 @@ class Assembler(TracerTask):
 
         # Filter recombinants
         print("##Filtering by read count##")
-        cell.filter_recombinants()
+        cell.filter_recombinants(self.tpm_threshold)
         filtered_fasta_file = open(filtered_fasta_filename, 'w')
         filtered_fasta_file.write(cell.get_fasta_string())
         filtered_fasta_file.close()
