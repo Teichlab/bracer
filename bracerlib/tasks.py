@@ -425,10 +425,12 @@ class Assembler(TracerTask):
         # Filter recombinants
         print("##Filtering by read count##")
         cell.filter_recombinants(self.tpm_threshold)
+        cell.changeodict = cell.get_changeo_db_for_locus(self.loci)
         filtered_fasta_file = open(filtered_fasta_filename, 'w')
         filtered_fasta_file.write(cell.get_fasta_string())
         filtered_fasta_file.close()
         self.print_cell_summary(cell, filtered_cell_summary_file, self.loci)
+        cell.databasedict = cell.get_database_for_locus(self.loci)
 
         # Save cell in a pickle
         with open(filtered_pickle, 'wb') as pf:

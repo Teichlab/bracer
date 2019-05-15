@@ -318,7 +318,6 @@ class Cell(object):
                         for rec in recombinants:
                             TPM_ranks.update({rec.contig_name: rec.TPM})
                         two_most_common = [x[0] for x in TPM_ranks.most_common(2)]
-                        to_remove = []
                         for rec in recombinants:
                              if rec.contig_name not in two_most_common:
                                  to_remove.append(rec)
