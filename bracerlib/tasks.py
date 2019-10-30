@@ -889,7 +889,8 @@ class Summariser(TracerTask):
 
         # Delete cells with no reconstructed sequences                
         for cell_name in empty_cells:
-            del cells[cell_name]
+            if cell_name in cells.keys():
+                del cells[cell_name]
                 
         # Make clonotype networks
         network_colours = io.read_colour_file(os.path.join(
