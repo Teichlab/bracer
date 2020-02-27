@@ -21,7 +21,7 @@ For more information on BraCeR, see our [paper in Nature Methods](https://www.na
 BraCeR builds on the well-verified tool for reconstruction of T cell receptor sequences from single cell RNA-seq data (TraCeR).
 For more information on TraCeR, its validation and how it can be applied to investigate T cell populations during infection, see our [paper in Nature Methods](http://www.nature.com/nmeth/journal/vaop/ncurrent/full/nmeth.3800.html) or the [bioRxiv preprint](http://biorxiv.org/content/early/2015/08/28/025676) that preceded it.
 
-Please email questions / problems to il5@sanger.ac.uk
+Please email questions / problems to ida.lindeman@medisin.uio.no
 
 ## Installation
 BraCeR is written in Python and so can just be downloaded, made executable (with `chmod u+x bracer`) and run or run with `python bracer`. Download the latest version and accompanying files from www.github.com/teichlab/bracer. 
