@@ -235,7 +235,7 @@ For each cell, an `/<output_directory>/<cell_name>` directory will be created. T
     Contains Kallisto output with expression quantification of the entire transcriptome *including* the reconstructed BCRs.
 
 8. `<output_directory>/<cell_name>/filtered_BCR_seqs`  
-    Contains the same files as the unfiltered directory above but these recombinants have been filtered so that only the two most highly expressed from each locus are retained. This resolves biologically implausible situtations where more than two recombinants are detected for a locus. **This directory contains the final output with high-confidence BCR assignments**.
+    Contains the same files as the unfiltered directory above but these recombinants have been filtered so that only the two most highly expressed from each locus are retained. This resolves biologically implausible situations where more than two recombinants are detected for a locus. **This directory contains the final output with high-confidence BCR assignments**.
 
 
 ### *Summarise*: Summary and clonotype networks 
@@ -248,7 +248,7 @@ For each cell, an `/<output_directory>/<cell_name>` directory will be created. T
 
 ##### Options 
 * `-c/--config_file <conf_file>` : config file to use. Default = `~/.bracerrc`
-* `--resource_dir <resource_dir>` : The directory containing the resources required for alignment. By default this is the  resources  directory in this repository, but can be pointed to a user-built set of resources.
+* `--resource_dir <resource_dir>` : The directory containing the resources required for alignment. By default this is the resources directory in this repository, but can be pointed to a user-built set of resources.
 * `-u/--use_unfiltered` : Set this flag to use unfiltered recombinants for summary and networks rather than the recombinants filtered by expression level.   
 * `-s/--species` <species> : Species from which the B cells were derived. Options are `Mmus` or `Hsap` for mouse or human data. Default = `Hsap`.
 * `--loci`: Space-separated list of loci to summarise (default: ['H', 'K', 'L'])
