@@ -469,8 +469,15 @@ class Assembler(TracerTask):
 
         # Trinity version
         if not self.config.has_option('trinity_options', 'trinity_version'):
+            text = None
             try:
-                subprocess.check_output([trinity, '--version'])
+                text = subprocess.check_output([trinity, '--version'])
+                if re.search('v2', text.decode('utf-8')):
+                    self.config.set('trinity_options', 'trinity_version', '2')
+                elif re.search('BLEEDING_EDGE', text.decode('utf-8')):
+                    self.config.set('trinity_options', 'trinity_version', '2')
+                else:
+                    self.config.set('trinity_options', 'trinity_version', '1')
             except subprocess.CalledProcessError as err:
                 if re.search('v2', err.output.decode('utf-8')):
                     self.config.set('trinity_options', 'trinity_version', '2')
