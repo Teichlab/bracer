@@ -28,8 +28,6 @@ import Levenshtein
 import networkx as nx
 import six
 from Bio import SeqIO
-from Bio.Alphabet import IUPAC
-from Bio.Alphabet import generic_dna
 from Bio.Seq import Seq
 
 from bracerlib.core import Cell, Recombinant
@@ -372,7 +370,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
                                 if not l == "-":
                                     new_cdr3_seq += l
                             cdr3_seq = new_cdr3_seq
-                        cdr3 = Seq(str(cdr3_seq), generic_dna).translate()
+                        cdr3 = Seq(str(cdr3_seq)).translate()
 
                     #Identify the most likely V and J genes
                     if locus in ["H", "BCR_H"]:
@@ -797,7 +795,7 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus,
 
 def get_out_of_frame_cdr3(dna_seq, locus, frame):
     dna_seq = dna_seq[frame-1:]
-    aaseq = Seq(str(dna_seq), generic_dna).translate()
+    aaseq = Seq(str(dna_seq)).translate()
     if locus in ["BCR_H", "H"]:
         motif_start = "W"
     else:
@@ -840,7 +838,7 @@ def get_out_of_frame_cdr3(dna_seq, locus, frame):
     return (cdr3, motif)
 
 def get_cdr3(dna_seq, locus):
-    aaseq = Seq(str(dna_seq), generic_dna).translate()
+    aaseq = Seq(str(dna_seq)).translate()
     # Specify first amino acid in conserved motif according to receptor and locus
     if locus in ["BCR_H", "H"]:
         motif_start = "W"
@@ -1204,7 +1202,7 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato,
                 if G.number_of_edges(current_cell, comparison_cell) > threshold:
 
                     for locus in loci:
-                        if locus is not "H":
+                        if locus != "H":
                             shared_identifiers = 0
                             col = network_colours["BCR"][locus][0]
 
