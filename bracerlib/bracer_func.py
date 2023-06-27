@@ -1712,12 +1712,12 @@ def split_sam_file_paired(sam_file, fasta=False):
                     name_ending = "/1"
                     if fasta==False:
                         fastq_lines_1_unpaired.append(
-                            ">{name}{name_ending}\n{seq}\n+\n{qual}\n".format(
+                            "@{name}{name_ending}\n{seq}\n+\n{qual}\n".format(
                             name=name, seq=seq, name_ending=name_ending, 
                             qual=qual))
                     else:
                         fastq_lines_1_unpaired.append(
-                            "@{name}{name_ending}\n{seq}\n".format(name=name,
+                            ">{name}{name_ending}\n{seq}\n".format(name=name,
                                         seq=seq, name_ending=name_ending))
 
     return(fastq_lines_1, fastq_lines_2, fastq_lines_1_unpaired)
