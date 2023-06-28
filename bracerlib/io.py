@@ -57,7 +57,7 @@ def sort_locus_names(dictionary_to_sort):
 
 def load_IMGT_seqs(file):
     seqs = {}
-    with open(file, 'rU') as fh:
+    with open(file, 'rt') as fh:
         for record in SeqIO.parse(fh, 'fasta'):
             seqs[record.id] = str(record.seq)
     return (seqs)
