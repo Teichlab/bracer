@@ -75,7 +75,7 @@ RUN wget https://downloads.sourceforge.net/project/bowtie-bio/bowtie2/2.5.1/bowt
 
 #bracer proper, no need to reposition resources as config will now know where this lives
 RUN apt-get -y install libfreetype6-dev libcairo2-dev libgirepository1.0-dev pkg-config python3-dev python3-venv
-COPY . /bracer
+COPY ./docker_helper_files/requirements_stable.txt ./bracer/docker_helper_files/
 WORKDIR /bracer
 RUN python3 -m venv venv
 ENV VIRTUAL_ENV=/bracer/venv
@@ -83,6 +83,7 @@ ENV PATH=$VIRTUAL_ENV/bin:$PATH
 RUN pip install --upgrade pip --break-system-packages
 #RUN pip install ez_setup setuptools wheel --break-system-packages
 RUN pip3 install -r docker_helper_files/requirements_stable.txt --break-system-packages
+COPY . /bracer
 RUN python3 setup.py install
 WORKDIR /
 
