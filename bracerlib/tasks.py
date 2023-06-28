@@ -161,13 +161,13 @@ class TracerTask(object):
             
 
         with open(pickle_file, 'wb') as pf:
-            pickle.dump(cell, pf, protocol=0)
+            pickle.dump(cell, pf, protocol=5)
 
         cell.filter_recombinants()
         self.print_cell_summary(cell, filtered_summary, self.loci)
                                                                             
         with open(filtered_pickle, 'wb') as pf:
-            pickle.dump(cell, pf, protocol=0)
+            pickle.dump(cell, pf, protocol=5)
         
         exit(0)
     
@@ -414,7 +414,7 @@ class Assembler(TracerTask):
 
         # Save cell in a pickle
         with open(unfiltered_pickle, 'wb') as pf:
-            pickle.dump(cell, pf, protocol=0)
+            pickle.dump(cell, pf, protocol=5)
 
 
         # Filter recombinants
@@ -427,7 +427,7 @@ class Assembler(TracerTask):
 
         # Save cell in a pickle
         with open(filtered_pickle, 'wb') as pf:
-            pickle.dump(cell, pf, protocol=0)
+            pickle.dump(cell, pf, protocol=5)
 
 
     def trim_reads(self):
