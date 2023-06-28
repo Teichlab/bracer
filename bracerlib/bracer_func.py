@@ -319,7 +319,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
                         trinity_file = "{output_dir}/Trinity_output/{cell_name}_{locus}.Trinity.fasta".format(
                                 locus=locus, output_dir=output_dir, cell_name=cell_name)
 
-                    with open(trinity_file, 'rU') as tf:
+                    with open(trinity_file, 'rt') as tf:
                         for record in SeqIO.parse(tf, 'fasta'):
                             if query_name in record.id:
                                 trinity_seq = record
