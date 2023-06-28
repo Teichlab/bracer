@@ -71,7 +71,7 @@ RUN apt-get -y install r-base libxml2-dev
 RUN R -e "install.packages(c('alakazam', 'ggplot2'), repos='http://cran.us.r-project.org')"
 
 #Bowtie 2 as needs version 2.5.1 due to a bug in 2.5.0
-RUN wget https://downloads.sourceforge.net/project/bowtie-bio/bowtie2/2.5.1/bowtie2-2.5.1-linux-x86_64.zip
+RUN wget https://downloads.sourceforge.net/project/bowtie-bio/bowtie2/2.5.1/bowtie2-2.5.1-linux-x86_64.zip && unzip bowtie2-2.5.1-linux-x86_64.zip && rm bowtie2-2.5.1-linux-x86_64.zip
 
 #bracer proper, no need to reposition resources as config will now know where this lives
 RUN apt-get -y install libfreetype6-dev libcairo2-dev libgirepository1.0-dev pkg-config python3-dev python3-venv
