@@ -2197,8 +2197,12 @@ def run_DefineClones(DefineClones, locus, outdir, species, distance):
             changeo_version = changeo_version.split(".py: ")[1]
             changeo_version = changeo_version.split("-")[0]
             changeo_versions = changeo_version.split(".")
+            # If changeo-version >= 1.0 then --format changeo
+            if int(changeo_versions[0]) >= 1:
+                command = [DefineClones, '-d', changeo_input, '--mode', 'gene', '--act', 'set',
+                           '--model', model, '--dist', dist, '--sf', "JUNCTION", '--norm', 'len', '--format', 'changeo']
             # Check if changeo-version >= 0.4
-            if int(changeo_versions[0])>0 or int(changeo_versions[1]) >= 4:
+            elif int(changeo_versions[0]) == 0 and int(changeo_versions[1]) >= 4:
                 command = [DefineClones, '-d', changeo_input, '--mode', 'gene', '--act', 'set',
                 '--model', model, '--dist', dist, '--sf', "JUNCTION", '--norm', 'len']
             else:
