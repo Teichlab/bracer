@@ -18,10 +18,14 @@ RUN cd /trinityrnaseq-v2.15.1 && make
 
 #IgBLAST, plus the setup of its super weird internal_data thing. don't ask. just needs to happen
 #and then on top of that, the environmental variable thing facilitates the creation of a shell wrapper. fun
-RUN wget ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/1.4.0/ncbi-igblast-1.4.0-x64-linux.tar.gz
-RUN tar -xzvf ncbi-igblast-1.4.0-x64-linux.tar.gz && rm ncbi-igblast-1.4.0-x64-linux.tar.gz
-RUN cd /ncbi-igblast-1.4.0/bin/ && wget -r ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/old_internal_data && \
-	mv ftp.ncbi.nih.gov/blast/executables/igblast/release/old_internal_data ./internal_data && rm -r ftp.ncbi.nih.gov
+#RUN wget ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/1.4.0/ncbi-igblast-1.4.0-x64-linux.tar.gz
+#RUN tar -xzvf ncbi-igblast-1.4.0-x64-linux.tar.gz && rm ncbi-igblast-1.4.0-x64-linux.tar.gz
+#RUN cd /ncbi-igblast-1.4.0/bin/ && wget -r ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/old_internal_data && \
+#	mv ftp.ncbi.nih.gov/blast/executables/igblast/release/old_internal_data ./internal_data && rm -r ftp.ncbi.nih.gov
+RUN wget https://ftp.ncbi.nih.gov/blast/executables/igblast/release/1.21.0/ncbi-igblast-1.21.0-x64-linux.tar.gz && \
+tar -xf ncbi-igblast-1.21.0-x64-linux.tar.gz && \
+rm ncbi-igblast-1.21.0-x64-linux.tar.gz
+
 
 COPY docker_helper_files/gencode_parse.py /bracer/docker_helper_files/gencode_parse.py
 
@@ -92,7 +96,7 @@ WORKDIR /
 RUN cp /bracer/docker_helper_files/docker_bracer.conf /bracer/venv/lib/python3.11/site-packages/bracer-0.1-py3.11.egg/bracer.conf
 
 ENV BRACER_CONF=/bracer/docker_helper_files/docker_bracer.conf
-ENV IGDATA=/ncbi-igblast-1.4.0/bin
+ENV IGDATA=/ncbi-igblast-1.21.0/
 
-#this is a bracer container, so let's point it at a bracer wrapper that sets the silly IgBLAST environment variable thing
+#this is a bracer container, so let's point it at bracer and set -e
 ENTRYPOINT ["bash", "/bracer/docker_helper_files/docker_wrapper.sh"]
