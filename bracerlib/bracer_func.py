@@ -1077,8 +1077,8 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato,
                         network_colours), sep=0.4, fontname="helvetica neue")
 
                 if cell.bgcolor is not None:
-                    G.node[cell]['style'] = 'filled'
-                    G.node[cell]['fillcolor'] = cell.bgcolor
+                    G._node[cell]['style'] = 'filled'
+                    G._node[cell]['fillcolor'] = cell.bgcolor
 
     else:
         for cell in cells:
@@ -1089,8 +1089,8 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato,
                            label=cell.html_style_label_dna(loci, 
                            network_colours),fontname="helvetica neue")
                 if cell.bgcolor is not None:
-                    G.node[cell]['style'] = 'filled'
-                    G.node[cell]['fillcolor'] = cell.bgcolor
+                    G._node[cell]['style'] = 'filled'
+                    G._node[cell]['fillcolor'] = cell.bgcolor
 
     # Create list of cells belonging to a heavy chain clone group
     cell_names = cells_with_clonal_H
