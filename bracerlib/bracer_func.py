@@ -1247,9 +1247,9 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato,
                         G.remove_edge(current_cell, comparison_cell)
 
 
-    deg = G.degree()
+    deg_graph = G.degree()
 
-    to_remove = [n for n in deg if deg[n] == 0]
+    to_remove = [n for n, degree in deg_graph if degree == 0]
 
     if len(to_remove) < len(G.nodes()):
         if not shape == 'circle':
