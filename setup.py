@@ -19,8 +19,8 @@ def package_files(directory):
 
 setup(
     name='bracer',
-    version=0.1,
-    author="Mike Stubbington, Ida Lindeman, Guy Emerton",
+    version=0.2,
+    author="Mike Stubbington, Ida Lindeman, Guy Emerton, Nick England",
     entry_points={
         'console_scripts': [
             'bracer=bracerlib.launcher:launch'
@@ -34,7 +34,7 @@ setup(
     packages=find_packages(),
     #package_data={'bracer': extra_files},
     install_requires=[
-        "biopython>=1.66",
+        "biopython>=1.80",
         "cycler>=0.10.0",
         "decorator>=4.0.9",
         "matplotlib>=1.5.1",
@@ -48,7 +48,7 @@ setup(
         "python-Levenshtein>=0.12.0",
         "pytz>=2016.3",
         "scipy>=0.17.0",
-        "seaborn>=0.7.0",
+        "seaborn>=0.11.0",
         "six>=1.10.0",
         "mock>=2.0.0",
         "future>=0.15.2",
