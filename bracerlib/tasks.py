@@ -1220,7 +1220,7 @@ class Summariser(TracerTask):
                 plt.figure()
                 plt.axvline(q[0], linestyle="--", color='k')
                 plt.axvline(q[1], linestyle="--", color='k')
-                sns.distplot(lns)
+                sns.histplot(lns, kde=True, stat="density", kde_kws=dict(cut=3))
                 sns.despine()
                 plt.xlabel("BCR_{} reconstructed length (bp)".format(l))
                 plt.ylabel("Density")
