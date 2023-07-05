@@ -42,6 +42,15 @@ class CreateCell(TracerTask):
         if cell.is_empty:
             self.die_with_empty_cell(self.cell_name, self.output_dir,
                                      self.species)
+
+        ranked_recs = cell.rank_recombinants()
+        isotype = cell.determine_isotype(ranked_recs)
+        bgcolor = cell.assign_bgcolor(isotype)
+        cell.bgcolor = bgcolor
+        cell.isotype = isotype
+
+        # Create database dictionary
+        cell.databasedict = cell.get_database_for_locus(self.loci)
         return cell
 
 
@@ -56,6 +65,7 @@ def run():
     cell3_pickle = "cell3.pkl"
     cell_creator = CreateCell(output_dir='test_data/results/cell2', cell_name='cell2')
     cell2 = cell_creator.create_cell()
+    print(cell2.__dict__["recombinants"]["BCR"]["H"][0].__dict__)
     with open(cell2_pickle, 'wb') as pf:
         pickle.dump(cell2, pf, protocol=5)
     cell_creator = CreateCell(output_dir='test_data/results/cell3', cell_name='cell3')
