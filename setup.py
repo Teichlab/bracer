@@ -42,7 +42,7 @@ setup(
         "numpy>=1.11.0",
         "pandas>=0.18.0",
         "prettytable>=0.7.2",
-        "pydotplus>=2.0.2",
+        "pydot>=1.4.2",
         "pyparsing>=2.0.3",
         "python-dateutil>=2.5.2",
         "python-Levenshtein>=0.12.0",

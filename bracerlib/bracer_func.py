@@ -1298,7 +1298,6 @@ def draw_network_from_cells(cells, output_dir, output_format, dot, neato,
     try:
         nx.write_dot(network, network_file)
     except AttributeError:
-        import pydotplus
         nx.drawing.nx_pydot.write_dot(network, network_file)
     if draw_graphs:
         command = draw_tool + ['-o', 
@@ -1317,7 +1316,6 @@ def draw_network_from_cells(cells, output_dir, output_format, dot, neato,
 
         nx.write_dot(network, network_file)
     except AttributeError:
-        import pydotplus
         nx.drawing.nx_pydot.write_dot(network, network_file)
     if draw_graphs:
         command = draw_tool + ['-o', 
