@@ -2246,13 +2246,12 @@ def run_MakeDb(MakeDb, locus, outdir, species, gapped_seq_location,
 
     makedb_input =  "{}/igblast_{}.fmt7".format(outdir, locus)
     seq_file = "{}/igblast_input_{}.fa".format(outdir, locus)
-    
 
     if os.path.isfile(makedb_input) and os.path.getsize(makedb_input) > 0:
         if os.path.isfile(seq_file) and os.path.getsize(seq_file) > 0:
             command = [MakeDb, 'igblast', '-i', makedb_input, '-s', seq_file, 
                             '-r', gapped_seqs["V"], gapped_seqs["D"],
-                            gapped_seqs["J"], '--regions', '--scores']
+                            gapped_seqs["J"], '--regions', '--extended', '--format', 'changeo']
 
             subprocess.check_call(command)
                 
