@@ -2,7 +2,7 @@
 #   docker build -t bracer .
 
 #start off with a plain Debian
-FROM debian:latest
+FROM debian:trixie-20230703-slim
 
 #basic setup stuff, including bowtie2
 RUN apt-get update && apt-get -y upgrade
@@ -91,8 +91,7 @@ RUN python3 setup.py install
 WORKDIR /
 
 #placing a preconfigured bracer.conf in ~/.bracerrc
-#RUN cp /bracer/docker_helper_files/docker_bracer.conf /home/.bracerrc
-RUN cp /bracer/docker_helper_files/docker_bracer.conf /bracer/venv/lib/python3.11/site-packages/bracer-0.1-py3.11.egg/bracer.conf
+RUN cp /bracer/docker_helper_files/docker_bracer.conf /home/.bracerrc
 
 ENV BRACER_CONF=/bracer/docker_helper_files/docker_bracer.conf
 ENV IGDATA=/ncbi-igblast-1.21.0/
