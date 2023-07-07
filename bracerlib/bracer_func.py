@@ -2251,7 +2251,7 @@ def run_MakeDb(MakeDb, locus, outdir, species, gapped_seq_location,
         if os.path.isfile(seq_file) and os.path.getsize(seq_file) > 0:
             command = [MakeDb, 'igblast', '-i', makedb_input, '-s', seq_file, 
                             '-r', gapped_seqs["V"], gapped_seqs["D"],
-                            gapped_seqs["J"], '--regions', '--extended', '--format', 'changeo']
+                            gapped_seqs["J"], '--regions', 'default', '--extended', '--format', 'changeo']
 
             subprocess.check_call(command)
                 
@@ -2270,6 +2270,6 @@ def run_CreateGermlines(CreateGermlines, locus, outdir, species,
     if os.path.isfile(creategermlines_input) and os.path.getsize(creategermlines_input) > 0:
         
         command = [CreateGermlines, '-d', creategermlines_input, '-r', gapped_seqs["V"], 
-                    gapped_seqs["D"], gapped_seqs["J"], '-g', 'dmask', '--cloned']
+                    gapped_seqs["D"], gapped_seqs["J"], '-g', 'dmask', '--cloned', '--format', 'changeo']
 
         subprocess.check_call(command)
