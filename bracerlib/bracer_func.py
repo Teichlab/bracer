@@ -2270,6 +2270,6 @@ def run_CreateGermlines(CreateGermlines, locus, outdir, species,
     if os.path.isfile(creategermlines_input) and os.path.getsize(creategermlines_input) > 0:
         
         command = [CreateGermlines, '-d', creategermlines_input, '-r', gapped_seqs["V"], 
-                    gapped_seqs["D"], gapped_seqs["J"], '-g', 'dmask', '--cloned']
+                    gapped_seqs["D"], gapped_seqs["J"], '-g', 'dmask', '--cloned', '--format', 'changeo']
 
         subprocess.check_call(command)
