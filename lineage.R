@@ -155,7 +155,7 @@ if (H==TRUE | cat==TRUE){
 
         # Set node sizes
         V(graph)$size <- 60
-        V(graph)$size <- 30 + (V(graph)$COLLAPSE_COUNT) + (V(graph)$COLLAPSE_COUNT-1)*5
+        V(graph)$size <- 30 + (V(graph)$collapse_count) + (V(graph)$collapse_count-1)*5
         V(graph)$size[V(graph)$name == "Germline"] <- 20
         V(graph)$size[grepl("Inferred", V(graph)$name)] <- 15 
 
