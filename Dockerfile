@@ -70,8 +70,11 @@ RUN curl -fsSL https://github.com/FelixKrueger/TrimGalore/archive/0.4.3.tar.gz -
 RUN tar xvzf trim_galore.tar.gz && mv TrimGalore-0.4.3/trim_galore /usr/bin
 
 #R dependencies. libxml2-dev is a ghost dependency of an alakazam dependency not mentioned by the install crash
-RUN apt-get -y install r-base libxml2-dev
+RUN apt-get -y install libcurl4-openssl-dev r-base libxml2-dev
+RUN R -e "install.packages('BiocManager')"
+RUN R -e "BiocManager::install(c('GenomicAlignments', 'Biostrings', 'IRanges'))"
 RUN R -e "install.packages(c('alakazam', 'ggplot2'), repos='http://cran.us.r-project.org')"
+
 
 #Bowtie 2 as needs version 2.5.1 due to a bug in 2.5.0
 RUN wget https://downloads.sourceforge.net/project/bowtie-bio/bowtie2/2.5.1/bowtie2-2.5.1-linux-x86_64.zip && unzip bowtie2-2.5.1-linux-x86_64.zip && rm bowtie2-2.5.1-linux-x86_64.zip
