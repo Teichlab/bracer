@@ -79,8 +79,15 @@ if (cat==TRUE){
 if (H==TRUE | cat==TRUE){
     clones <- db %>%
         group_by(CLONE) %>%
-        do(CHANGEO=makeChangeoClone(., text_fields=c("CELL", "ISOTYPE"), 
-                                add_count=TRUE))
+        do(CHANGEO=makeChangeoClone(., id = "SEQUENCE_ID",
+        seq = "SEQUENCE_IMGT",
+        germ = "GERMLINE_IMGT_D_MASK",
+        v_call = "V_CALL",
+        j_call = "J_CALL",
+        junc_len = "JUNCTION_LENGTH",
+        clone = "CLONE",
+        text_fields=c("CELL", "ISOTYPE"),
+        add_count=TRUE))
 
 
     graphs <- lapply(clones$CHANGEO, buildPhylipLineage, 
