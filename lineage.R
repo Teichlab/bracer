@@ -91,7 +91,7 @@ if (H==TRUE | cat==TRUE){
 
 
     graphs <- lapply(clones$CHANGEO, buildPhylipLineage, 
-                 dnapars_exec=dnapars_exec, rm_temp=TRUE)
+                 phylip_exec=dnapars_exec, rm_temp=TRUE)
 
 
     # Note, clones with only a single sequence will not be processed.
