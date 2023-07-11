@@ -1621,7 +1621,7 @@ def bowtie2_alignment(bowtie2, ncores, loci, output_dir, cell_name,
                         command = [bowtie2, '--no-unal', '-p', ncores, '-k',
                                   '1', '--np', '0', '--rdg', '7,7', '--rfg',
                                   '7,7', '-x', index_base, '-U', fastq1, '-S', 
-                                  sam_file_2, '--local', '--ma', '1', '--mp', '20']
+                                  sam_file_2, '--local', '--ma', '2', '--mp', '20']
                         subprocess.check_call(command)
                         sam_file = sam_file_2
                     except:
