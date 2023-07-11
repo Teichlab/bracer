@@ -66,8 +66,8 @@ RUN wget http://www.bioinformatics.babraham.ac.uk/projects/fastqc/fastqc_v0.11.5
 RUN unzip fastqc_v0.11.5.zip && rm fastqc_v0.11.5.zip
 RUN chmod 755 /FastQC/fastqc
 RUN ln -s /FastQC/fastqc /usr/local/bin/fastqc
-RUN curl -fsSL https://github.com/FelixKrueger/TrimGalore/archive/0.4.3.tar.gz -o trim_galore.tar.gz
-RUN tar xvzf trim_galore.tar.gz && mv TrimGalore-0.4.3/trim_galore /usr/bin
+RUN curl -fsSL  https://github.com/FelixKrueger/TrimGalore/archive/refs/tags/0.6.10.tar.gz -o trim_galore.tar.gz
+RUN tar xvzf trim_galore.tar.gz && mv TrimGalore-0.6.10/trim_galore /usr/bin
 
 #R dependencies. libxml2-dev is a ghost dependency of an alakazam dependency not mentioned by the install crash
 RUN apt-get -y install libcurl4-openssl-dev r-base libxml2-dev
