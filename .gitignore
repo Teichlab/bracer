@@ -76,3 +76,5 @@ unversioned/
 # Various
 mess/
 Rplots.pdf
+venv/
+.DS_Store

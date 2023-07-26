@@ -161,13 +161,13 @@ class TracerTask(object):
             
 
         with open(pickle_file, 'wb') as pf:
-            pickle.dump(cell, pf, protocol=0)
+            pickle.dump(cell, pf, protocol=5)
 
         cell.filter_recombinants()
         self.print_cell_summary(cell, filtered_summary, self.loci)
                                                                             
         with open(filtered_pickle, 'wb') as pf:
-            pickle.dump(cell, pf, protocol=0)
+            pickle.dump(cell, pf, protocol=5)
         
         exit(0)
     
@@ -414,7 +414,7 @@ class Assembler(TracerTask):
 
         # Save cell in a pickle
         with open(unfiltered_pickle, 'wb') as pf:
-            pickle.dump(cell, pf, protocol=0)
+            pickle.dump(cell, pf, protocol=5)
 
 
         # Filter recombinants
@@ -427,7 +427,7 @@ class Assembler(TracerTask):
 
         # Save cell in a pickle
         with open(filtered_pickle, 'wb') as pf:
-            pickle.dump(cell, pf, protocol=0)
+            pickle.dump(cell, pf, protocol=5)
 
 
     def trim_reads(self):
@@ -469,8 +469,15 @@ class Assembler(TracerTask):
 
         # Trinity version
         if not self.config.has_option('trinity_options', 'trinity_version'):
+            text = None
             try:
-                subprocess.check_output([trinity, '--version'])
+                text = subprocess.check_output([trinity, '--version'])
+                if re.search('v2', text.decode('utf-8')):
+                    self.config.set('trinity_options', 'trinity_version', '2')
+                elif re.search('BLEEDING_EDGE', text.decode('utf-8')):
+                    self.config.set('trinity_options', 'trinity_version', '2')
+                else:
+                    self.config.set('trinity_options', 'trinity_version', '1')
             except subprocess.CalledProcessError as err:
                 if re.search('v2', err.output.decode('utf-8')):
                     self.config.set('trinity_options', 'trinity_version', '2')
@@ -1213,7 +1220,7 @@ class Summariser(TracerTask):
                 plt.figure()
                 plt.axvline(q[0], linestyle="--", color='k')
                 plt.axvline(q[1], linestyle="--", color='k')
-                sns.distplot(lns)
+                sns.histplot(lns, kde=True, stat="density", kde_kws=dict(cut=3))
                 sns.despine()
                 plt.xlabel("BCR_{} reconstructed length (bp)".format(l))
                 plt.ylabel("Density")

@@ -79,12 +79,19 @@ if (cat==TRUE){
 if (H==TRUE | cat==TRUE){
     clones <- db %>%
         group_by(CLONE) %>%
-        do(CHANGEO=makeChangeoClone(., text_fields=c("CELL", "ISOTYPE"), 
-                                add_count=TRUE))
+        do(CHANGEO=makeChangeoClone(., id = "SEQUENCE_ID",
+        seq = "SEQUENCE_IMGT",
+        germ = "GERMLINE_IMGT_D_MASK",
+        v_call = "V_CALL",
+        j_call = "J_CALL",
+        junc_len = "JUNCTION_LENGTH",
+        clone = "CLONE",
+        text_fields=c("CELL", "ISOTYPE"),
+        add_count=TRUE))
 
 
     graphs <- lapply(clones$CHANGEO, buildPhylipLineage, 
-                 dnapars_exec=dnapars_exec, rm_temp=TRUE)
+                 phylip_exec=dnapars_exec, rm_temp=TRUE)
 
 
     # Note, clones with only a single sequence will not be processed.
@@ -148,7 +155,7 @@ if (H==TRUE | cat==TRUE){
 
         # Set node sizes
         V(graph)$size <- 60
-        V(graph)$size <- 30 + (V(graph)$COLLAPSE_COUNT) + (V(graph)$COLLAPSE_COUNT-1)*5
+        V(graph)$size <- 30 + (V(graph)$collapse_count) + (V(graph)$collapse_count-1)*5
         V(graph)$size[V(graph)$name == "Germline"] <- 20
         V(graph)$size[grepl("Inferred", V(graph)$name)] <- 15 
 

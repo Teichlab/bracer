@@ -28,8 +28,6 @@ import Levenshtein
 import networkx as nx
 import six
 from Bio import SeqIO
-from Bio.Alphabet import IUPAC
-from Bio.Alphabet import generic_dna
 from Bio.Seq import Seq
 
 from bracerlib.core import Cell, Recombinant
@@ -321,7 +319,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
                         trinity_file = "{output_dir}/Trinity_output/{cell_name}_{locus}.Trinity.fasta".format(
                                 locus=locus, output_dir=output_dir, cell_name=cell_name)
 
-                    with open(trinity_file, 'rU') as tf:
+                    with open(trinity_file, 'rt') as tf:
                         for record in SeqIO.parse(tf, 'fasta'):
                             if query_name in record.id:
                                 trinity_seq = record
@@ -372,7 +370,7 @@ def find_possible_alignments(sample_dict, locus_names, cell_name, IMGT_seqs,
                                 if not l == "-":
                                     new_cdr3_seq += l
                             cdr3_seq = new_cdr3_seq
-                        cdr3 = Seq(str(cdr3_seq), generic_dna).translate()
+                        cdr3 = Seq(str(cdr3_seq)).translate()
 
                     #Identify the most likely V and J genes
                     if locus in ["H", "BCR_H"]:
@@ -797,7 +795,7 @@ def get_fasta_line_for_contig_assembly(trinity_seq, hit_table, locus,
 
 def get_out_of_frame_cdr3(dna_seq, locus, frame):
     dna_seq = dna_seq[frame-1:]
-    aaseq = Seq(str(dna_seq), generic_dna).translate()
+    aaseq = Seq(str(dna_seq)).translate()
     if locus in ["BCR_H", "H"]:
         motif_start = "W"
     else:
@@ -840,7 +838,7 @@ def get_out_of_frame_cdr3(dna_seq, locus, frame):
     return (cdr3, motif)
 
 def get_cdr3(dna_seq, locus):
-    aaseq = Seq(str(dna_seq), generic_dna).translate()
+    aaseq = Seq(str(dna_seq)).translate()
     # Specify first amino acid in conserved motif according to receptor and locus
     if locus in ["BCR_H", "H"]:
         motif_start = "W"
@@ -1079,8 +1077,8 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato,
                         network_colours), sep=0.4, fontname="helvetica neue")
 
                 if cell.bgcolor is not None:
-                    G.node[cell]['style'] = 'filled'
-                    G.node[cell]['fillcolor'] = cell.bgcolor
+                    G._node[cell]['style'] = 'filled'
+                    G._node[cell]['fillcolor'] = cell.bgcolor
 
     else:
         for cell in cells:
@@ -1091,8 +1089,8 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato,
                            label=cell.html_style_label_dna(loci, 
                            network_colours),fontname="helvetica neue")
                 if cell.bgcolor is not None:
-                    G.node[cell]['style'] = 'filled'
-                    G.node[cell]['fillcolor'] = cell.bgcolor
+                    G._node[cell]['style'] = 'filled'
+                    G._node[cell]['fillcolor'] = cell.bgcolor
 
     # Create list of cells belonging to a heavy chain clone group
     cell_names = cells_with_clonal_H
@@ -1204,7 +1202,7 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato,
                 if G.number_of_edges(current_cell, comparison_cell) > threshold:
 
                     for locus in loci:
-                        if locus is not "H":
+                        if locus != "H":
                             shared_identifiers = 0
                             col = network_colours["BCR"][locus][0]
 
@@ -1249,9 +1247,9 @@ def make_cell_network_from_dna(cells, keep_unlinked, shape, dot, neato,
                         G.remove_edge(current_cell, comparison_cell)
 
 
-    deg = G.degree()
+    deg_graph = G.degree()
 
-    to_remove = [n for n in deg if deg[n] == 0]
+    to_remove = [n for n, degree in deg_graph if degree == 0]
 
     if len(to_remove) < len(G.nodes()):
         if not shape == 'circle':
@@ -1300,7 +1298,6 @@ def draw_network_from_cells(cells, output_dir, output_format, dot, neato,
     try:
         nx.write_dot(network, network_file)
     except AttributeError:
-        import pydotplus
         nx.drawing.nx_pydot.write_dot(network, network_file)
     if draw_graphs:
         command = draw_tool + ['-o', 
@@ -1319,7 +1316,6 @@ def draw_network_from_cells(cells, output_dir, output_format, dot, neato,
 
         nx.write_dot(network, network_file)
     except AttributeError:
-        import pydotplus
         nx.drawing.nx_pydot.write_dot(network, network_file)
     if draw_graphs:
         command = draw_tool + ['-o', 
@@ -1562,7 +1558,7 @@ def bowtie2_alignment(bowtie2, ncores, loci, output_dir, cell_name,
                                   '1', '--np', '0', '--rdg', '7,7', '--rfg', 
                                   '7,7', '-x', index_base, '-1', fastq1, '-2', 
                                   fastq2, '-S', sam_file_2, '--local', '--ma', 
-                                  '1', '--mp', '20']
+                                  '2', '--mp', '20']
                         subprocess.check_call(command)
                         sam_file = sam_file_2
                     except:
@@ -1625,7 +1621,7 @@ def bowtie2_alignment(bowtie2, ncores, loci, output_dir, cell_name,
                         command = [bowtie2, '--no-unal', '-p', ncores, '-k',
                                   '1', '--np', '0', '--rdg', '7,7', '--rfg',
                                   '7,7', '-x', index_base, '-U', fastq1, '-S', 
-                                  sam_file_2, '--local', '--ma', '1', '--mp', '20']
+                                  sam_file_2, '--local', '--ma', '2', '--mp', '20']
                         subprocess.check_call(command)
                         sam_file = sam_file_2
                     except:
@@ -1714,12 +1710,12 @@ def split_sam_file_paired(sam_file, fasta=False):
                     name_ending = "/1"
                     if fasta==False:
                         fastq_lines_1_unpaired.append(
-                            ">{name}{name_ending}\n{seq}\n+\n{qual}\n".format(
+                            "@{name}{name_ending}\n{seq}\n+\n{qual}\n".format(
                             name=name, seq=seq, name_ending=name_ending, 
                             qual=qual))
                     else:
                         fastq_lines_1_unpaired.append(
-                            "@{name}{name_ending}\n{seq}\n".format(name=name,
+                            ">{name}{name_ending}\n{seq}\n".format(name=name,
                                         seq=seq, name_ending=name_ending))
 
     return(fastq_lines_1, fastq_lines_2, fastq_lines_1_unpaired)
@@ -2199,8 +2195,12 @@ def run_DefineClones(DefineClones, locus, outdir, species, distance):
             changeo_version = changeo_version.split(".py: ")[1]
             changeo_version = changeo_version.split("-")[0]
             changeo_versions = changeo_version.split(".")
+            # If changeo-version >= 1.0 then --format changeo
+            if int(changeo_versions[0]) >= 1:
+                command = [DefineClones, '-d', changeo_input, '--mode', 'gene', '--act', 'set',
+                           '--model', model, '--dist', dist, '--sf', "JUNCTION", '--norm', 'len', '--format', 'changeo']
             # Check if changeo-version >= 0.4
-            if int(changeo_versions[0])>0 or int(changeo_versions[1]) >= 4:
+            elif int(changeo_versions[0]) == 0 and int(changeo_versions[1]) >= 4:
                 command = [DefineClones, '-d', changeo_input, '--mode', 'gene', '--act', 'set',
                 '--model', model, '--dist', dist, '--sf', "JUNCTION", '--norm', 'len']
             else:
@@ -2230,7 +2230,7 @@ def run_MakeDb_for_cell(MakeDb, locus, outdir, species, gapped_seq_location,
         if os.path.isfile(seq_file) and os.path.getsize(seq_file) > 0:
             command = [MakeDb, 'igblast', '-i', makedb_input, '-s', seq_file,
                         '-r', gapped_seqs["V"], gapped_seqs["D"],
-                        gapped_seqs["J"], '--regions', '--scores']
+                        gapped_seqs["J"], '--regions', 'default', '--extended', '--format', 'changeo']
             subprocess.check_call(command)
 
 
@@ -2246,13 +2246,12 @@ def run_MakeDb(MakeDb, locus, outdir, species, gapped_seq_location,
 
     makedb_input =  "{}/igblast_{}.fmt7".format(outdir, locus)
     seq_file = "{}/igblast_input_{}.fa".format(outdir, locus)
-    
 
     if os.path.isfile(makedb_input) and os.path.getsize(makedb_input) > 0:
         if os.path.isfile(seq_file) and os.path.getsize(seq_file) > 0:
             command = [MakeDb, 'igblast', '-i', makedb_input, '-s', seq_file, 
                             '-r', gapped_seqs["V"], gapped_seqs["D"],
-                            gapped_seqs["J"], '--regions', '--scores']
+                            gapped_seqs["J"], '--regions', 'default', '--extended', '--format', 'changeo']
 
             subprocess.check_call(command)
                 
@@ -2271,6 +2270,6 @@ def run_CreateGermlines(CreateGermlines, locus, outdir, species,
     if os.path.isfile(creategermlines_input) and os.path.getsize(creategermlines_input) > 0:
         
         command = [CreateGermlines, '-d', creategermlines_input, '-r', gapped_seqs["V"], 
-                    gapped_seqs["D"], gapped_seqs["J"], '-g', 'dmask', '--cloned']
+                    gapped_seqs["D"], gapped_seqs["J"], '-g', 'dmask', '--cloned', '--format', 'changeo']
 
         subprocess.check_call(command)

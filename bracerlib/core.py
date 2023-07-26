@@ -2,7 +2,6 @@ import re
 from collections import Counter, defaultdict
 
 import six
-from Bio.Alphabet import generic_dna
 from Bio.Seq import Seq
 
 
@@ -98,7 +97,7 @@ class Cell(object):
         elif len(isotype_list) == 2:
             iso_1 = isotype_list[0]
             iso_2 = isotype_list[1]
-            if iso_1 is "IGHDM" or iso_2 is "IGHDM":
+            if iso_1 == "IGHDM" or iso_2 == "IGHDM":
                 isotype = "IGHDM"
             elif iso_1 == iso_2:
                 isotype = iso_1

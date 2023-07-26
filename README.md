@@ -38,7 +38,7 @@ The developmental version of BraCeR is tested on Ubuntu 12.04.5 LTS. The Docker 
 #### Software requirements
 1. [Python3](https://www.python.org) - BraCeR requires Python (>=3.4.0), as one of the required tools has this as a requirement.
 2. [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml) - required for alignment of reads to synthetic BCR genomes. Bowtie1 is also required.
-3. [Trinity](https://github.com/trinityrnaseq/trinityrnaseq/wiki) - required for assembly of reads into BCR contigs. BraCeR requires Trinity v2.4.0.
+3. [Trinity](https://github.com/trinityrnaseq/trinityrnaseq/wiki) - required for assembly of reads into BCR contigs. BraCeR requires Trinity >v2.4.0.
 4. [IgBLAST](http://www.ncbi.nlm.nih.gov/igblast/faq.html#standalone) - required for analysis of assembled contigs. (ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/).
 5. [BLAST](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download) - required for determination of isotype. (ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/).
 6. [Kallisto](http://pachterlab.github.io/kallisto/) - software for quantification of BCR expression.
@@ -47,11 +47,13 @@ The developmental version of BraCeR is tested on Ubuntu 12.04.5 LTS. The Docker 
 9. [Trim Galore!](https://www.bioinformatics.babraham.ac.uk/projects/trim_galore/) - required for adapter and quality trimming (optional).
 
 ##### Software versions
-BraCeR has been tested on the following versions of software dependencies: bowtie2 v2.2.8, bowtie v.1.1.2, IgBlast v.1.4.0 - v.1.7.0, BLAST v.2.2.31+, Kallisto v.0.43.0, Trinity v.2.4.0, graphwiz v.2.26.3, changeo v.0.3.7, RScript v.3.3.2, phylip (dnapars) v.3.696, Trim Galore v.0.4.4, cutadapt v.1.14, ggplot2 v.2.2.1, alakazam v.0.2.6
+BraCeR 0.1 has been tested on the following versions of software dependencies: bowtie2 v2.2.8, bowtie v.1.1.2, IgBlast v.1.4.0 - v.1.7.0, BLAST v.2.2.31+, Kallisto v.0.43.0, Trinity v.2.4.0, graphwiz v.2.26.3, changeo v.0.3.7, RScript v.3.3.2, phylip (dnapars) v.3.696, Trim Galore v.0.4.4, cutadapt v.1.14, ggplot2 v.2.2.1, alakazam v.0.2.6
+
+Bracer 0.2 has been tested on the following versions of software dependencies: bowtie2 v2.5.1, IgBlast v1.21.0, BLAST v2.14.0, Kallisto v0.48.0, Trinity v2.15.1, graphviz v2.42.2, changeo v1.3.0, RScript v4.3.1, phylip v3.697, Trim Galore v0.6.10, cutadapt v4.4, ggplot2 v3.4.2, alakazam v1.2.1
 	
 
 ##### Installing IgBlast 
-You should also ensure to set the `$IGDATA` environment variable to point to the location of the IgBlast executable. For example run `export IGDATA=/<path_to_igblast>/igblast/1.4.0/bin`.
+You should also ensure to set the `$IGDATA` environment variable to point to the location of the IgBlast `internal_data` parent folder. For example run `export IGDATA=/<path_to_igblast>/igblast/1.4.0/bin` or with the latest version of IgBlast `export IGDATA=/<path_to_igblast>/ncbi-igblast-1.21.0/`
 
 #### R packages
 The following R packages are required if BraCeR is run with `--infer_lineage`.
@@ -132,11 +134,11 @@ Trinity needs to know the maximum memory available to it for the Jellyfish compo
 
 Location of the transcriptome fasta file to which the specific BCR sequences will be appended from each cell. This must be a plain-text fasta file so decompress it if necessary. Transcriptome files for human or mice may be downloaded with the following code:
 
-    mkdir GRCh38 && cd GRCh38 && wget ftp://ftp.sanger.ac.uk/pub/gencode/Gencode_human/release_27/gencode.v27.transcripts.fa.gz && \
-    gunzip gencode.v27.transcripts.fa.gz && python3 /path/to/bracer/docker_helper_files/gencode_parse.py gencode.v27.transcripts.fa && rm gencode.v27.transcripts.fa
+    mkdir GRCh38 && cd GRCh38 && wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_43/gencode.v43.transcripts.fa.gz && \
+    gunzip gencode.v43.transcripts.fa.gz && python3 /bracer/docker_helper_files/gencode_parse.py gencode.v43.transcripts.fa && rm gencode.v43.transcripts.fa
 
-    mkdir GRCm38 && cd GRCm38 && wget ftp://ftp.sanger.ac.uk/pub/gencode/Gencode_mouse/release_M15/gencode.vM15.transcripts.fa.gz && \
-    gunzip gencode.vM15.transcripts.fa.gz && python3 /bracer/docker_helper_files/gencode_parse.py gencode.vM15.transcripts.fa && rm gencode.vM15.transcripts.fa
+    mkdir GRCm38 && cd GRCm38 && wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M32/gencode.vM32.transcripts.fa.gz && \
+    gunzip gencode.vM32.transcripts.fa.gz && python3 /bracer/docker_helper_files/gencode_parse.py gencode.vM32.transcripts.fa && rm gencode.vM32.transcripts.fa
 
 ### BraCeR directory
 
@@ -318,7 +320,7 @@ The following output files and subdirectories may be generated (depending on whi
 
 ## Docker image
 
-BraCeR is also available as a standalone Docker image on [DockerHub](https://hub.docker.com/r/teichlab/bracer/), with all of its dependencies installed and configured appropriately. Running BraCeR from the image is very similar to running it from a normal installation. You can pass all the appropriate arguments to the Docker command with the usual syntax as described above. One difference is that you don't need to worry about specifying a configuration file. This is included in the container.
+BraCeR 0.1 is also available as a standalone Docker image on [DockerHub](https://hub.docker.com/r/teichlab/bracer/), with all of its dependencies installed and configured appropriately. Running BraCeR from the image is very similar to running it from a normal installation. You can pass all the appropriate arguments to the Docker command with the usual syntax as described above. One difference is that you don't need to worry about specifying a configuration file. This is included in the container.
 
 To run the BraCeR Docker image, run the following command from within a directory that contains your input data:
 
@@ -335,3 +337,44 @@ For example, if you wanted to run the test analysis, you should clone this GitHu
 If you wish to use `bracer build`, you will need to specify `--resource_dir /scratch`, as otherwise the resulting resources will be saved in the default location of the container and subsequently get forgotten about when the build analysis completes, making them unuseable for any actual analyses you may want to perform. This will make the Docker container save the resulting resources in the volume you created, and you can use them for assemble/summarise by running the Dockerised BraCeR from the same directory as the one you used for the build and specifying `--resource_dir /scratch`.
 
 You may need to explicitly tell Docker to increase the memory that it can use. Instructions for [Windows](https://docs.docker.com/docker-for-windows/#advanced) and [Mac](https://docs.docker.com/docker-for-mac/#advanced). Something like 6 or 8 GB is likely to be ok.
+
+To build the BraCeR 0.2 docker image, run the following command:
+
+    docker build . -t bracer
+
+## Singularity
+
+If you want to convert the Docker image to a singularity image and run it, you can do so as follows. You need to specify the location of the config file within the singularity container for Bracer 0.1 due to the differences in how Docker and Singularity handle users and $HOME expansion:
+
+    singularity pull bracer.sif docker://teichlab/bracer
+    singularity run \
+       --bind $PWD \
+       --pwd $PWD \
+       --containall \
+       --cleanenv \
+       ./bracer.sif test -c /bracer/docker_helper_files/docker_bracer.conf -o test_data
+
+For BraCeR 0.2, you will need to first build the image yourself.
+
+    docker build . -t bracer
+    singularity build bracer_0.2.sif docker-daemon://bracer:latest
+    singularity run \
+       --bind $PWD \
+       --pwd $PWD \
+       --containall \
+       --cleanenv \
+       ./bracer_0.2.sif
+
+If you want to run the test data all the way through to the lineage pdf, then you'll first need to copy the cell2 and cell3 test data out of the image as follows.
+
+    mkdir test_data
+    singularity build --sandbox bracer_singularity bracer_0.2.sif
+    cp -r bracer_singularity/bracer/test_data/results/ test_data/
+    singularity run \
+       --bind $PWD \
+       --pwd $PWD \
+       --containall \
+       --cleanenv \
+       ./bracer_0.2.sif test -o test_data --infer_lineage
+
+
