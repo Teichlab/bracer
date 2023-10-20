@@ -241,6 +241,11 @@ class Assembler(TracerTask):
             parser.add_argument('--keep_trimmed_reads',
                                 help='Do not delete the output files from the trimming step.',
                                 action = "store_true")
+            parser.add_argument('--no_transcriptome_quant',
+                                help='Kallisto quantification is performed only '
+                                'on the assembled sequences and not the entire '
+                                'transcriptome.',
+                                action = "store_true")
             parser.add_argument('cell_name', metavar="<CELL_NAME>", 
                                 help='name of cell for file labels')
             parser.add_argument('output_dir', metavar="<OUTPUT_DIR>",
@@ -268,6 +273,7 @@ class Assembler(TracerTask):
             self.max_junc_len = args.max_junc_len
             self.no_trimming = args.no_trimming
             self.keep_trimmed_reads = args.keep_trimmed_reads
+            self.no_transcriptome_quant = args.no_transcriptome_quant
             config_file = args.config_file
             
 
@@ -289,6 +295,7 @@ class Assembler(TracerTask):
             self.max_junc_len = kwargs.get('max_junc_len')
             self.no_trimming = kwargs.get('no_trimming')
             self.keep_trimmed_reads = kwargs.get('keep_trimmed_reads')
+            self.no_transcriptome_quant = kwargs.get('no_transcriptome_quant')
             config_file = kwargs.get('config_file')
 
         self.trimmed_fastq1 = None
@@ -635,7 +642,8 @@ class Assembler(TracerTask):
                 kallisto_base_transcriptome, self.fastq1, self.fastq2, 
                 self.ncores, self.resume_with_existing_files, self.single_end, 
                 self.fragment_length, self.fragment_sd, self.trimmed_fastq1,
-                self.trimmed_fastq2, self.keep_trimmed_reads)
+                self.trimmed_fastq2, self.keep_trimmed_reads,
+                self.no_transcriptome_quant)
         print()
 
         counts = bracer_func.load_kallisto_counts(
@@ -1957,6 +1965,11 @@ class Tester(TracerTask):
             parser.add_argument('--infer_lineage', help='Construct lineage trees '
                                 'for clone groups shown in clonal network', 
                                 action ="store_true")
+            parser.add_argument('--no_transcriptome_quant',
+                                help='Kallisto quantification is performed only '
+                                'on the assembled sequences and not the entire '
+                                'transcriptome.',
+                                action = "store_true")
             parser.add_argument('--output', '-o', 
                                 help='Directory for output data of test')
             #parser.add_argument('--no_trimming', help='Do not trim reads',
@@ -1972,6 +1985,7 @@ class Tester(TracerTask):
             self.no_networks = args.no_networks
             self.resume = args.resume_with_existing_files
             self.infer_lineage = args.infer_lineage
+            self.no_transcriptome_quant = args.no_transcriptome_quant
             #self.no_trimming = args.no_trimming
         else:
             self.resource_dir = kwargs.get('resource_dir')
@@ -1982,6 +1996,7 @@ class Tester(TracerTask):
             self.no_networks = kwargs.get('no_networks')
             self.resume = kwargs.get('resume_with_existing_files')
             self.infer_lineage = kwargs.get('infer_lineage')
+            self.no_transcriptome_quant = kwargs.get('no_transcriptome_quant')
             #self.no_trimming = kwargs.get('no_trimming')
 
         self.trimmed_fastq1 = None
@@ -2012,7 +2027,8 @@ class Tester(TracerTask):
                       single_end=False, fragment_length=False, fragment_sd=False, 
                       loci=['H', 'K', 'L'], max_junc_len=100, 
                       no_trimming=True, trimmed_fastq1=self.trimmed_fastq1,
-                      trimmed_fastq2=self.trimmed_fastq2).run()
+                      trimmed_fastq2=self.trimmed_fastq2,
+                      no_transcriptome_quant=self.no_transcriptome_quant).run()
 
         Summariser(resource_dir=self.resource_dir, config_file=self.config_file, 
                    use_unfiltered=False, graph_format=self.graph_format, 
