@@ -27,7 +27,7 @@ numpy==1.25.0
 packaging==23.1
 pandas==2.0.3
 pbr==5.11.1
-Pillow==10.0.1
+Pillow==10.3.0
 presto==0.7.1
 prettytable==3.8.0
 pyasn1==0.5.0
