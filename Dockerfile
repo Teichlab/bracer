@@ -64,7 +64,7 @@ RUN wget https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.14.0/ncbi-blast
 &&  tar -xzvf ncbi-blast-2.14.0+-x64-linux.tar.gz && rm ncbi-blast-2.14.0+-x64-linux.tar.gz
 
 #phylip
-RUN wget http://evolution.gs.washington.edu/phylip/download/phylip-3.697.tar.gz && tar -xzvf phylip-3.697.tar.gz && rm phylip-3.697.tar.gz
+RUN wget https://phylipweb.github.io/phylip/download/phylip-3.697.tar.gz && tar -xzvf phylip-3.697.tar.gz && rm phylip-3.697.tar.gz
 RUN cd phylip-3.697/src && sed -i 's/^CFLAGS =/CFLAGS = -fcommon/g' Makefile.unx && make -f Makefile.unx install
 
 #Trim Galore! plus its dependency FastqC
