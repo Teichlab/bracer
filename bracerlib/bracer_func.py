@@ -2086,7 +2086,7 @@ def quantify_with_kallisto(kallisto, cell, output_dir, cell_name,
                            kallisto_base_transcriptome, fastq1, fastq2, ncores, 
                            should_resume, single_end, fragment_length, 
                            fragment_sd, trimmed_fastq1, trimmed_fastq2,
-                           keep_trimmed_reads):
+                           keep_trimmed_reads, no_transcriptome_quant):
 
     print("##Running Kallisto##")
     if should_resume:
@@ -2120,8 +2120,13 @@ def quantify_with_kallisto(kallisto, cell, output_dir, cell_name,
     output_transcriptome = "{}/expression_quantification/kallisto_index/{}_transcriptome.fa".format(
                                                             output_dir, cell_name)
 
+    if no_transcriptome_quant:
+        idx_filenames = [fasta_filename]
+    else:
+        idx_filenames = [kallisto_base_transcriptome, fasta_filename]
+
     with open(output_transcriptome, 'w') as outfile:
-        for fname in [kallisto_base_transcriptome, fasta_filename]:
+        for fname in idx_filenames:
             with open(fname) as infile:
                 for line in infile:
                     outfile.write(line)
