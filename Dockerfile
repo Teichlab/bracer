@@ -77,7 +77,8 @@ RUN tar xvzf trim_galore.tar.gz && mv TrimGalore-0.6.10/trim_galore /usr/bin
 #R dependencies
 RUN R -e "install.packages('BiocManager')"
 RUN R -e "BiocManager::install(c('GenomicAlignments', 'Biostrings', 'IRanges'))"
-RUN R -e "install.packages(c('alakazam', 'ggplot2'), repos='http://cran.us.r-project.org')"
+RUN R -e "install.packages(c('remotes', 'ggplot2'), repos='http://cran.us.r-project.org')"
+RUN R -e "require(remotes);install_version('alakazam', version = '1.2.0', repos='http://cran.us.r-project.org')"
 
 
 #Bowtie 2 as needs version 2.5.1 due to a bug in 2.5.0
