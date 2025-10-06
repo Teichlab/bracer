@@ -19,6 +19,7 @@ libcairo2-dev \
 libcurl4-openssl-dev \
 libfreetype6-dev \
 libgirepository1.0-dev \
+libopenblas-dev \
 libxml2-dev \
 pkg-config \
 python3-dev \
@@ -65,7 +66,7 @@ RUN wget https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.14.0/ncbi-blast
 
 #phylip
 RUN wget https://phylipweb.github.io/phylip/download/phylip-3.697.tar.gz && tar -xzvf phylip-3.697.tar.gz && rm phylip-3.697.tar.gz
-RUN cd phylip-3.697/src && sed -i 's/^CFLAGS =/CFLAGS = -fcommon/g' Makefile.unx && make -f Makefile.unx install
+RUN cd phylip-3.697/src && sed -i 's/^CFLAGS =/CFLAGS = -fcommon -Wno-error=implicit-function-declaration/g' Makefile.unx && make -f Makefile.unx install
 
 #Trim Galore! plus its dependency FastqC
 RUN wget https://www.bioinformatics.babraham.ac.uk/projects/fastqc/fastqc_v0.12.1.zip && unzip fastqc_v0.12.1.zip && rm fastqc_v0.12.1.zip
