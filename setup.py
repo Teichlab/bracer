@@ -19,7 +19,7 @@ def package_files(directory):
 
 setup(
     name='bracer',
-    version=0.2,
+    version=0.3,
     author="Mike Stubbington, Ida Lindeman, Guy Emerton, Nick England",
     entry_points={
         'console_scripts': [
